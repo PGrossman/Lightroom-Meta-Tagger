@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+
+# Temporary files
+temp/
+*.log
+
+# Environment files
+.env
+.env.local
+
+# API credentials
+*service-account*.json
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# DO NOT IGNORE - Keep these folders
+!z_Logs and traces/
+!z_VERSIONS/
+!zz_Lightroom Meta Data Docs - DO NOT TOUCH/
+!zzz_CLAUDE/
+

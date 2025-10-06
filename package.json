@@ -1,0 +1,37 @@
+{
+  "name": "lightroom-xmp-generator",
+  "version": "1.0.0",
+  "description": "Local Electron app for AI-powered XMP metadata generation",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "NODE_OPTIONS='--max-old-space-size=8192' electron .",
+    "dev": "NODE_ENV=development electron .",
+    "test": "node --test tests/**/*.test.js",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "postinstall": "electron-rebuild"
+  },
+  "keywords": [
+    "lightroom",
+    "xmp",
+    "metadata",
+    "ai",
+    "photography"
+  ],
+  "author": "Local Development",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "@google-cloud/vision": "^4.0.0",
+    "axios": "^1.6.0",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^16.3.0",
+    "hamming-distance": "^1.0.0",
+    "imghash": "^0.0.3",
+    "sharp": "^0.33.0",
+    "winston": "^3.11.0"
+  }
+}

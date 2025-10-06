@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';">
+  <title>XMP File Generator for Lightroom</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <h1>XMP File Generator for Lightroom</h1>
+    
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+      <button class="tab-button active" data-tab="ingest">Ingest / Process Images</button>
+      <button class="tab-button" data-tab="results">Results</button>
+      <button class="tab-button" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      
+      <!-- Ingest Tab -->
+      <div id="ingest-tab" class="tab-panel active">
+        <div class="ingest-layout">
+          <!-- Left Panel: Status -->
+          <div class="status-panel">
+            <h2>Status</h2>
+            <div class="status-grid">
+              <div class="status-item">
+                <span class="status-label">Total Files:</span>
+                <span class="status-value" id="totalFiles">0</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Files to Process:</span>
+                <span class="status-value" id="filesToProcess">0</span>
+              </div>
+            </div>
+            
+            <div class="progress-section">
+              <label>Progress:</label>
+              <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+              </div>
+              <span id="progressText" class="progress-text">0%</span>
+            </div>
+          </div>
+
+          <!-- Right Panel: Drag & Drop -->
+          <div class="dropzone" id="dropzone">
+            <div class="dropzone-content">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                <path d="M12 11v6m-3-3h6"/>
+              </svg>
+              <p class="dropzone-text">Drag & drop files here</p>
+              <p class="dropzone-subtext">or</p>
+              <button id="selectDirBtn" class="select-btn">Select Directory</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Table with Pagination -->
+        <div class="table-container" id="resultsTable" style="display: none;">
+          <!-- Top pagination -->
+          <div class="pagination-controls top" id="paginationTop" style="display: none;">
+            <div class="pagination-info">
+              <span id="pageInfoTop">Showing 1-10 of 0</span>
+            </div>
+            <div class="pagination-buttons">
+              <button id="firstPageTop">First</button>
+              <button id="prevPageTop">Previous</button>
+              <button id="nextPageTop">Next</button>
+              <button id="lastPageTop">Last</button>
+            </div>
+          </div>
+
+          <!-- Scrollable table with fixed header -->
+          <div class="table-wrapper" id="tableWrapper" style="display: none;">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>Parent Image</th>
+                  <th>Child Images</th>
+                  <th>GPS Data</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="resultsTableBody">
+                <!-- Rows will be inserted here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom pagination -->
+          <div class="pagination-controls bottom" id="paginationBottom" style="display: none;">
+            <div class="pagination-info">
+              <span id="pageInfoBottom">Showing 1-10 of 0</span>
+            </div>
+            <div class="pagination-buttons">
+              <button id="firstPageBottom">First</button>
+              <button id="prevPageBottom">Previous</button>
+              <button id="nextPageBottom">Next</button>
+              <button id="lastPageBottom">Last</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Tab -->
+      <div id="results-tab" class="tab-panel">
+        <h2>Processing Results</h2>
+        <div id="resultsContent">
+          <p>No results yet. Process some images first.</p>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-panel">
+        <h2>Settings</h2>
+        
+        <div class="settings-content">
+          
+          <!-- Database Settings Section -->
+          <div class="settings-section">
+            <h3>Database Settings</h3>
+            
+            <div class="setting-item">
+              <label for="dbPath">Database Location:</label>
+              <div class="setting-input-group">
+                <input 
+                  type="text" 
+                  id="dbPath" 
+                  class="setting-input" 
+                  readonly 
+                  placeholder="No database configured"
+                >
+                <button id="selectDbBtn" class="setting-btn">Select</button>
+              </div>
+              <p class="setting-hint">Choose where to store the application database</p>
+            </div>
+            
+            <div class="setting-item">
+              <label>Database Statistics:</label>
+              <div id="dbStats" class="db-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Images:</span>
+                  <span class="stat-value" id="statImages">—</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Derivatives:</span>
+                  <span class="stat-value" id="statDerivatives">—</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Clusters:</span>
+                  <span class="stat-value" id="statClusters">—</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Analyzed:</span>
+                  <span class="stat-value" id="statAnalyzed">—</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Database Size:</span>
+                  <span class="stat-value" id="statFileSize">—</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <button id="clearDbBtn" class="danger-btn">
+                ⚠️ Clear Database (Testing Only)
+              </button>
+              <p class="setting-hint warning-text">
+                This will delete all records from the database. This cannot be undone!
+              </p>
+            </div>
+          </div>
+          
+          <!-- Processing Settings Section -->
+          <div class="settings-section">
+            <h3>Processing Settings</h3>
+            
+            <div class="setting-item">
+              <label for="timestampThreshold">Bracketing Time Threshold (seconds):</label>
+              <div class="setting-input-group">
+                <input 
+                  type="number" 
+                  id="timestampThreshold" 
+                  class="setting-input-small" 
+                  min="1" 
+                  max="30" 
+                  value="5"
+                >
+                <span class="setting-unit">seconds</span>
+              </div>
+              <p class="setting-hint">
+                Photos taken within this time window will be grouped as bracketed shots
+              </p>
+            </div>
+          </div>
+          
+          <!-- Ollama Settings Section -->
+          <div class="settings-section">
+            <h3>AI Analysis Settings</h3>
+            
+            <div class="setting-item">
+              <label for="ollamaEndpoint">Ollama Endpoint:</label>
+              <input 
+                type="text" 
+                id="ollamaEndpoint" 
+                class="setting-input" 
+                value="http://localhost:11434"
+              >
+            </div>
+            
+            <div class="setting-item">
+              <label for="ollamaModel">Ollama Model:</label>
+              <input 
+                type="text" 
+                id="ollamaModel" 
+                class="setting-input" 
+                value="qwen2.5vl:latest"
+              >
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

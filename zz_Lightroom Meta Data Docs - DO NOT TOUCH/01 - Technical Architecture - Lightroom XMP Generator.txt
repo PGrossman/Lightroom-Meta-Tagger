@@ -1,0 +1,396 @@
+# Technical Architecture - Lightroom XMP Generator
+
+## System Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Electron Main Process                     │
+├─────────────────────────────────────────────────────────────┤
+│  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
+│  │ File Manager   │  │ Job Queue    │  │ Config Manager │  │
+│  │ - Scan dirs    │  │ - Batch ctrl │  │ - Settings     │  │
+│  │ - Detect base  │  │ - Prioritize │  │ - API keys     │  │
+│  │ - Find derivs  │  │ - Progress   │  │ - Thresholds   │  │
+│  └────────────────┘  └──────────────┘  └────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Processing Pipeline                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  Step 1: Image Preprocessing                                 │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • Load CR2/CR3 file                                  │   │
+│  │ • Extract embedded preview OR                        │   │
+│  │ • Full RAW decode if no preview                      │   │
+│  │ • Resize to reasonable size (e.g., 2048px longest)   │   │
+│  │ • Convert to JPG format                              │   │
+│  │ • Generate perceptual hash (pHash)                   │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 2: Similarity Clustering                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • Compare pHash with other images in batch           │   │
+│  │ • Calculate Hamming distances                        │   │
+│  │ • Group images with distance < threshold             │   │
+│  │ • Select representative (best quality/exposure)      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 3: AI Vision Analysis                                  │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Ollama Service (Primary)                             │   │
+│  │ ┌──────────────────────────────────────────────────┐ │   │
+│  │ │ • Send JPG to local Ollama                       │ │   │
+│  │ │ • Request: objects, scene, keywords, confidence  │ │   │
+│  │ │ • Parse structured response                      │ │   │
+│  │ │ • Evaluate confidence score                      │ │   │
+│  │ └──────────────────────────────────────────────────┘ │   │
+│  │                                                       │   │
+│  │ If confidence < 95% → Google Vision (Fallback)       │   │
+│  │ ┌──────────────────────────────────────────────────┐ │   │
+│  │ │ • Encode JPG to base64                           │ │   │
+│  │ │ • Send to Google Vision API                      │ │   │
+│  │ │ • Receive labels, descriptions, entities         │ │   │
+│  │ │ • Merge with Ollama results if needed            │ │   │
+│  │ └──────────────────────────────────────────────────┘ │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 4: XMP Generation                                      │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • Build XMP structure from metadata                  │   │
+│  │ • Apply to representative and all similar images     │   │
+│  │ • Write .xmp sidecar files                           │   │
+│  │ • Validate XMP format                                │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Electron Renderer Process                   │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ UI Dashboard │  │ Progress View│  │ Settings Panel   │  │
+│  │ - Start/Stop │  │ - Current job│  │ - Ollama config  │  │
+│  │ - Dir select │  │ - Success/err│  │ - Google API key │  │
+│  │ - Statistics │  │ - ETA        │  │ - Thresholds     │  │
+│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Component Specifications
+
+### 1. File Manager Service
+
+**Responsibilities**
+- Recursively scan directories for image files
+- Identify base images (.CR2, .CR3)
+- Match derivatives to base images
+- Maintain file database/cache
+
+**Key Methods**
+```javascript
+async scanDirectory(path, options)
+async findBaseImages(directory)
+async findDerivatives(baseImage)
+async buildFileTree(directory)
+```
+
+**Algorithm: Derivative Detection**
+```
+For each file in directory:
+  1. Extract base name (before first hyphen or dot)
+  2. Check if base exists as .CR2 or .CR3
+  3. If yes, mark as derivative and link to base
+  4. If no, check if current file IS base
+```
+
+### 2. Image Processor Service
+
+**Responsibilities**
+- RAW to JPG conversion
+- Image resizing and optimization
+- Perceptual hash generation
+- Image quality assessment
+
+**Key Methods**
+```javascript
+async rawToJpg(rawPath, options)
+async generatePHash(imagePath)
+async assessQuality(imagePath) // For representative selection
+async extractPreview(rawPath)  // Faster than full decode
+```
+
+**Performance Optimizations**
+- Use embedded preview from RAW when available (much faster)
+- Cache converted JPGs temporarily
+- Parallel processing with worker threads
+- Batch operations to utilize 64GB RAM
+
+### 3. Similarity Detector Service
+
+**Responsibilities**
+- Compare images using perceptual hashing
+- Cluster similar/bracketed images
+- Select representative from each cluster
+
+**Key Methods**
+```javascript
+async compareImages(image1, image2)
+async clusterSimilarImages(images, threshold)
+async selectRepresentative(cluster)
+```
+
+**Algorithm: pHash Clustering**
+```
+1. Generate pHash for all base images
+2. Create similarity matrix:
+   - Compare each pair using Hamming distance
+   - Distance threshold: 5-10 bits (configurable)
+3. Use connected components or DBSCAN for clustering
+4. For each cluster:
+   - Calculate quality score (sharpness, exposure)
+   - Select image with highest score
+```
+
+**Recommended Library**: `imghash` npm package or `sharp` with custom hashing
+
+### 4. Ollama Service
+
+**Responsibilities**
+- Communicate with local Ollama instance
+- Format prompts for vision analysis
+- Parse and structure responses
+- Assess confidence/quality of results
+
+**Key Methods**
+```javascript
+async analyzeImage(imagePath)
+async checkAvailability()
+async getConfidenceScore(response)
+```
+
+**Prompt Template**
+```
+Analyze this photograph in detail. Provide:
+1. Main subjects (people, animals, objects)
+2. Scene type (landscape, portrait, macro, etc.)
+3. Setting/location characteristics
+4. Colors and lighting
+5. Mood/atmosphere
+6. Suggested keywords (at least 10)
+
+Format as JSON:
+{
+  "subjects": [...],
+  "scene_type": "...",
+  "setting": "...",
+  "keywords": [...],
+  "description": "...",
+  "confidence": 0.0-1.0
+}
+```
+
+**Recommended Model**: LLaVA 1.6 or BakLLaVA (best vision performance in Ollama)
+
+### 5. Google Vision Service
+
+**Responsibilities**
+- Fallback analysis when Ollama insufficient
+- Handle API authentication
+- Rate limiting and error handling
+- Cost tracking
+
+**Key Methods**
+```javascript
+async analyzeImage(imageBuffer)
+async checkQuota()
+async estimateCost(imageCount)
+```
+
+**API Features to Use**
+- Label Detection (primary)
+- Object Localization
+- Image Properties (colors)
+- Web Detection (similar images, context)
+- Safe Search (optional, filter inappropriate)
+
+### 6. XMP Generator Service
+
+**Responsibilities**
+- Create valid Adobe XMP sidecar files
+- Map AI metadata to XMP fields
+- Handle hierarchical keywords
+- Validate output
+
+**Key Methods**
+```javascript
+async generateXMP(metadata, imagePath)
+async validateXMP(xmpContent)
+async writeXMPFile(xmpPath, content)
+```
+
+**XMP Structure Template**
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+      xmlns:dc="http://purl.org/dc/elements/1.1/"
+      xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+      xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/">
+      
+      <dc:title>
+        <rdf:Alt>
+          <rdf:li xml:lang="x-default">{TITLE}</rdf:li>
+        </rdf:Alt>
+      </dc:title>
+      
+      <dc:description>
+        <rdf:Alt>
+          <rdf:li xml:lang="x-default">{DESCRIPTION}</rdf:li>
+        </rdf:Alt>
+      </dc:description>
+      
+      <dc:subject>
+        <rdf:Bag>
+          {KEYWORDS_AS_RDF_LI}
+        </rdf:Bag>
+      </dc:subject>
+      
+      <xmp:Rating>{RATING}</xmp:Rating>
+      <photoshop:Category>{CATEGORY}</photoshop:Category>
+      
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+```
+
+## Data Flow
+
+### Processing a Single Image
+
+```
+1. User selects directory
+   ↓
+2. File Manager scans and identifies bases + derivatives
+   ↓
+3. For each base image:
+   a. Image Processor converts RAW → JPG
+   b. Generate pHash
+   ↓
+4. Similarity Detector clusters similar images
+   ↓
+5. For each cluster representative:
+   a. Ollama Service analyzes
+   b. If confidence < 95%:
+      → Google Vision Service analyzes
+   c. Merge/combine results
+   ↓
+6. XMP Generator creates sidecars for:
+   - Representative image
+   - All similar images in cluster
+   - All derivatives of those images
+   ↓
+7. Write XMP files to disk
+   ↓
+8. Update UI with progress
+```
+
+## Configuration Management
+
+**Config File Structure** (`config.json`)
+```json
+{
+  "ollama": {
+    "endpoint": "http://localhost:11434",
+    "model": "llava:latest",
+    "temperature": 0.1,
+    "confidenceThreshold": 0.95
+  },
+  "googleVision": {
+    "apiKey": "encrypted_or_keychain",
+    "enabled": true,
+    "features": ["LABEL_DETECTION", "OBJECT_LOCALIZATION"]
+  },
+  "processing": {
+    "batchSize": 10,
+    "parallelWorkers": 4,
+    "jpgQuality": 90,
+    "maxImageSize": 2048,
+    "useEmbeddedPreview": true
+  },
+  "similarity": {
+    "hammingThreshold": 8,
+    "algorithm": "phash",
+    "clusterMethod": "dbscan"
+  },
+  "xmp": {
+    "applyToDerivatives": true,
+    "includeAnalysisDate": true,
+    "includeConfidence": false
+  }
+}
+```
+
+## Error Handling Strategy
+
+### Critical Errors (Stop Processing)
+- Ollama not available AND Google API not configured
+- Write permission denied for output directory
+- Corrupted configuration file
+
+### Recoverable Errors (Skip & Log)
+- Individual RAW file cannot be decoded
+- Network timeout on Google API (retry 3x)
+- XMP write failed for specific file
+
+### Warnings (Continue with Degradation)
+- Embedded preview not found (fallback to full decode)
+- Ollama low confidence (escalate to Google)
+- Similarity detection fails (process individually)
+
+## Performance Targets
+
+- **RAW Conversion**: < 2s per image (using embedded preview)
+- **Ollama Analysis**: 5-15s per image (depends on model)
+- **Google Vision**: 1-3s per image (network dependent)
+- **XMP Generation**: < 100ms per file
+- **Batch Processing**: 100-200 images per hour (conservative)
+
+## Security Considerations
+
+1. **API Key Storage**
+   - Use macOS Keychain via `keytar` npm package
+   - Never commit keys to git
+   - Encrypt in config if keychain unavailable
+
+2. **Input Validation**
+   - Validate file paths to prevent directory traversal
+   - Check file types before processing
+   - Limit file sizes to prevent DoS
+
+3. **Network Security**
+   - Use HTTPS for Google API
+   - Validate Ollama endpoint
+   - Timeout all network requests
+
+## Testing Strategy
+
+### Unit Tests
+- File pattern matching (base vs derivative)
+- pHash generation and comparison
+- XMP template rendering
+- Config loading and validation
+
+### Integration Tests
+- RAW to JPG conversion pipeline
+- Ollama API communication
+- Google Vision API communication
+- XMP file writing and Lightroom import
+
+### End-to-End Tests
+- Process sample directory of 10 images
+- Verify XMP files created correctly
+- Import XMP into Lightroom Classic
+- Verify metadata appears correctly

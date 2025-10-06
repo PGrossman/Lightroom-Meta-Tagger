@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "ollama": {
+    "endpoint": "http://localhost:11434",
+    "model": "qwen2.5vl:latest",
+    "temperature": 0.1,
+    "confidenceThreshold": 0.95,
+    "timeout": 60000
+  },
+  "googleVision": {
+    "enabled": false,
+    "credentialsPath": "",
+    "features": ["LABEL_DETECTION", "OBJECT_LOCALIZATION", "IMAGE_PROPERTIES"]
+  },
+  "processing": {
+    "batchSize": 10,
+    "parallelWorkers": 4,
+    "jpgQuality": 90,
+    "maxImageSize": 2048,
+    "useEmbeddedPreview": true
+  },
+  "similarity": {
+    "enabled": true,
+    "hammingThreshold": 8,
+    "hashSize": 16
+  },
+  "xmp": {
+    "applyToDerivatives": true,
+    "includeAnalysisDate": true,
+    "includeAISource": true
+  },
+  "paths": {
+    "tempDirectory": "./temp",
+    "logDirectory": "./z_Logs and traces"
+  },
+  "logging": {
+    "level": "info",
+    "maxFiles": 10,
+    "maxSize": "10m"
+  }
+}
+
