@@ -312,36 +312,35 @@ h1 {
 /* Results Tab - Fixed Header Table */
 #resultsTableWrapper {
   width: 100%;
-  max-height: 600px;
-  overflow-y: auto;
-  overflow-x: hidden;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  position: relative;
+  overflow: hidden;
+  display: block;
+  max-height: 600px;
 }
 
 #resultsTableWrapper table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background-color: white;
-  table-layout: fixed;
+  border-collapse: collapse;
+  display: block;
 }
 
-#resultsTableWrapper .results-table th:nth-child(1) { width: 200px; }
-#resultsTableWrapper .results-table th:nth-child(2) { width: 300px; }
-#resultsTableWrapper .results-table th:nth-child(3) { width: 150px; }
-#resultsTableWrapper .results-table th:nth-child(4) { width: 200px; }
-
 #resultsTableWrapper thead {
+  display: block;
+  width: 100%;
   position: sticky;
   top: 0;
   z-index: 100;
+  background-color: #f8f9fa;
+}
+
+#resultsTableWrapper thead tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
 }
 
 #resultsTableWrapper th {
-  position: sticky;
-  top: 0;
   background-color: #f8f9fa !important;
   padding: 12px 16px;
   text-align: left;
@@ -350,12 +349,39 @@ h1 {
   border-bottom: 2px solid #dee2e6;
   font-size: 14px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+}
+
+#resultsTableWrapper th:nth-child(1) { width: 200px; }
+#resultsTableWrapper th:nth-child(2) { width: 400px; }
+#resultsTableWrapper th:nth-child(3) { width: 250px; }
+#resultsTableWrapper th:nth-child(4) { width: 200px; }
+
+#resultsTableWrapper tbody {
+  display: block;
+  width: 100%;
+  max-height: 540px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 #resultsTableWrapper tbody tr {
-  background-color: white;
+  display: table;
+  width: 100%;
+  table-layout: fixed;
 }
+
+#resultsTableWrapper tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 14px;
+  color: #495057;
+  vertical-align: top;
+}
+
+#resultsTableWrapper tbody td:nth-child(1) { width: 200px; }
+#resultsTableWrapper tbody td:nth-child(2) { width: 400px; }
+#resultsTableWrapper tbody td:nth-child(3) { width: 250px; }
+#resultsTableWrapper tbody td:nth-child(4) { width: 200px; }
 
 #resultsTableWrapper tbody tr:hover {
   background-color: #f8f9fa;
