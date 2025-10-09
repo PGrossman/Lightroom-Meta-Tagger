@@ -2472,8 +2472,14 @@ async function renderClusterThumbnailGrid() {
   const grid = document.getElementById('clusterThumbnailGrid');
   grid.innerHTML = '';
   
+  console.log('🎨 === RENDERING THUMBNAIL GRID ===');
+  console.log('📊 allClustersForAnalysis.length:', allClustersForAnalysis.length);
+  console.log('📋 allClustersForAnalysis:', allClustersForAnalysis.map(g => g.mainRep?.representativeFilename));
+  
   for (let i = 0; i < allClustersForAnalysis.length; i++) {
     const group = allClustersForAnalysis[i];
+    console.log(`  Rendering card ${i}: ${group.mainRep?.representativeFilename}`);
+    
     const card = document.createElement('div');
     card.className = 'cluster-thumbnail-card';
     
@@ -2520,7 +2526,11 @@ async function renderClusterThumbnailGrid() {
     card.onclick = () => selectCluster(i);
     
     grid.appendChild(card);
+    console.log(`  ✅ Card ${i} appended to grid`);
   }
+  
+  console.log(`🎨 Total cards in grid: ${grid.children.length}`);
+  console.log('🎨 === END RENDERING ===\n');
   
   // Update "Generate All" button state
   updateGenerateAllButtonState();
