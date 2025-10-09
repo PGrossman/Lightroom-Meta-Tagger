@@ -2370,7 +2370,7 @@ async function batchAnalyzeAllClusters() {
   
   console.log('\n🚀 Starting batch AI analysis...');
   
-  // Remove duplicates first
+  // ✅ FIX: Deduplicate FIRST before analyzing
   const uniqueClusters = [];
   const seenPaths = new Set();
   
@@ -2379,10 +2379,13 @@ async function batchAnalyzeAllClusters() {
     if (!seenPaths.has(repPath)) {
       seenPaths.add(repPath);
       uniqueClusters.push(group);
+      console.log(`✅ Will analyze: ${group.mainRep?.representativeFilename}`);
+    } else {
+      console.log(`❌ Skip duplicate: ${group.mainRep?.representativeFilename}`);
     }
   });
   
-  console.log(`📊 Analyzing ${uniqueClusters.length} unique clusters...`);
+  console.log(`📊 Analyzing ${uniqueClusters.length} unique clusters (removed ${allProcessedImages.length - uniqueClusters.length} duplicates)`);
   
   // Clear previous analysis
   analyzedClusters.clear();
