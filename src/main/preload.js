@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanDirectoryWithClustering: (dirPath, threshold) => 
     ipcRenderer.invoke('scan-directory-with-clustering', dirPath, threshold),
   
+  // Processing (Phase 2)
+  processImages: (scanResults, dirPath) => 
+    ipcRenderer.invoke('process-images', scanResults, dirPath),
+  
   // Database
   getDatabasePath: () => ipcRenderer.invoke('get-database-path'),
   selectDatabaseLocation: () => ipcRenderer.invoke('select-database-location'),
@@ -16,9 +20,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDatabaseStats: () => ipcRenderer.invoke('get-database-stats'),
   clearDatabase: () => ipcRenderer.invoke('clear-database'),
   checkDatabaseStatus: () => ipcRenderer.invoke('check-database-status'),
+  getProcessedImages: () => ipcRenderer.invoke('get-processed-images'),
+  
+  // Thumbnail retrieval
+  getPreviewImage: (imagePath) => ipcRenderer.invoke('get-preview-image', imagePath),
   
   // Settings
   getAllSettings: () => ipcRenderer.invoke('get-all-settings'),
+  
+  // CLIP service management
+  checkClipService: () => ipcRenderer.invoke('check-clip-service'),
+  restartClipService: () => ipcRenderer.invoke('restart-clip-service'),
+  
+  // AI Settings
+  saveAISettings: (settings) => ipcRenderer.invoke('save-ai-settings', settings),
+  testGoogleVisionAPI: (apiKey) => ipcRenderer.invoke('test-google-vision-api', apiKey),
+  
+  // AI Analysis
+  analyzeClusterWithAI: (clusterGroup, provider) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, provider),
+  generateXMPFiles: (data) => ipcRenderer.invoke('generate-xmp-files', data),
   
   // File system helpers for drag & drop (via IPC to main process)
   isDirectory: (filePath) => ipcRenderer.invoke('is-directory', filePath),

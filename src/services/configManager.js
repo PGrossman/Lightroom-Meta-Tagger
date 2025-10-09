@@ -111,6 +111,26 @@ class ConfigManager {
    * Get all settings
    */
   getAllSettings() {
+    // Load the main project config.json file
+    const projectConfigPath = path.join(process.cwd(), 'config.json');
+    
+    try {
+      if (fs.existsSync(projectConfigPath)) {
+        const projectConfig = JSON.parse(fs.readFileSync(projectConfigPath, 'utf8'));
+        
+        // Merge with user settings
+        return {
+          ...projectConfig,
+          databasePath: this.getDatabasePath(),
+          lastUsedDirectory: this.getLastUsedDirectory(),
+          timestampThreshold: this.getTimestampThreshold()
+        };
+      }
+    } catch (error) {
+      logger.error('Failed to load project config', { error: error.message });
+    }
+    
+    // Fallback to user config only
     return {
       databasePath: this.getDatabasePath(),
       lastUsedDirectory: this.getLastUsedDirectory(),

@@ -386,10 +386,14 @@ class FileManager {
         return seqA.localeCompare(seqB);
       });
       
+      // CRITICAL FIX: Use full paths for both images and imagePaths
+      const fullPaths = files.map(f => f.path);
+      
       return {
-        representative: path.basename(files[0].path),
-        images: files.map(f => path.basename(f.path)),
-        imagePaths: files.map(f => f.path),
+        representative: fullPaths[0], // ✅ Full path
+        representativeFilename: path.basename(fullPaths[0]),
+        images: fullPaths, // ✅ CHANGED: Full paths, not basenames
+        imagePaths: fullPaths, // ✅ Full paths
         imageCount: files.length,
         isBracketed: files.length > 1,
         fileType: 'RED',
@@ -442,11 +446,11 @@ class FileManager {
     logger.info('RED clustering complete', { clusters: redClusters.length });
     
     // Import clustering services for Canon files
-    const TimestampExtractor = require('./timestampExtractor');
+    const ExifExtractor = require('./exifExtractor');
     const ClusteringService = require('./clusteringService');
     
-    const timestampExtractor = new TimestampExtractor();
-    const clusteringService = new ClusteringService(timestampExtractor);
+    const exifExtractor = new ExifExtractor();
+    const clusteringService = new ClusteringService(exifExtractor);
     
     // Cluster Canon files by timestamp (pass paths only)
     const canonClusters = await clusteringService.clusterByTimestamp(

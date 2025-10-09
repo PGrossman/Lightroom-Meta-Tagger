@@ -1,4 +1,4 @@
-# Technical Architecture - Lightroom XMP Generator
+# Technical Architecture - Lightroom XMP Generator (CORRECTED)
 
 ## System Architecture Overview
 
@@ -8,9 +8,8 @@
 ├─────────────────────────────────────────────────────────────┤
 │  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
 │  │ File Manager   │  │ Job Queue    │  │ Config Manager │  │
-│  │ - Scan dirs    │  │ - Batch ctrl │  │ - Settings     │  │
-│  │ - Detect base  │  │ - Prioritize │  │ - API keys     │  │
-│  │ - Find derivs  │  │ - Progress   │  │ - Thresholds   │  │
+│  │ - Import data  │  │ - Batch ctrl │  │ - Settings     │  │
+│  │ - Parse groups │  │ - Progress   │  │ - Thresholds   │  │
 │  └────────────────┘  └──────────────┘  └────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -19,49 +18,70 @@
 │                    Processing Pipeline                       │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  Step 1: Image Preprocessing                                 │
+│  INPUT: Phase 1 Attribute Groups (from Lightroom/metadata)   │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │ • Load CR2/CR3 file                                  │   │
-│  │ • Extract embedded preview OR                        │   │
-│  │ • Full RAW decode if no preview                      │   │
-│  │ • Resize to reasonable size (e.g., 2048px longest)   │   │
-│  │ • Convert to JPG format                              │   │
-│  │ • Generate perceptual hash (pHash)                   │   │
+│  │ Group 1: Parent A.CR2 + 5 children                   │   │
+│  │ Group 2: Parent B.CR2 + 3 children                   │   │
+│  │ Group 3: Parent C.CR2 + 7 children                   │   │
+│  │ ... (13 groups total)                                │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                               │
-│  Step 2: Similarity Clustering                               │
+│  Step 1: Extract Parent Images Only                          │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │ • Compare pHash with other images in batch           │   │
-│  │ • Calculate Hamming distances                        │   │
-│  │ • Group images with distance < threshold             │   │
-│  │ • Select representative (best quality/exposure)      │   │
+│  │ • Extract parent image paths from each group         │   │
+│  │ • Validate parent files exist                        │   │
+│  │ • Result: Array of 13 parent images                  │   │
 │  └──────────────────────────────────────────────────────┘   │
 │                                                               │
-│  Step 3: AI Vision Analysis                                  │
+│  Step 2: Thumbnail Generation (Parents Only)                 │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │ Ollama Service (Primary)                             │   │
-│  │ ┌──────────────────────────────────────────────────┐ │   │
-│  │ │ • Send JPG to local Ollama                       │ │   │
-│  │ │ • Request: objects, scene, keywords, confidence  │ │   │
-│  │ │ • Parse structured response                      │ │   │
-│  │ │ • Evaluate confidence score                      │ │   │
-│  │ └──────────────────────────────────────────────────┘ │   │
+│  │ • Load each parent CR2/CR3 file                      │   │
+│  │ • Extract embedded preview OR decode RAW             │   │
+│  │ • Generate 2 sizes:                                  │   │
+│  │   - Large: 400px (for representative display)        │   │
+│  │   - Medium: 200px (for similar parents display)      │   │
+│  │ • Save thumbnails to temp directory                  │   │
+│  │ • NO thumbnails generated for children               │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 3: Perceptual Hash Generation                          │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • Generate pHash for each parent image               │   │
+│  │ • Use 16-bit hash for accuracy                       │   │
+│  │ • Store hash with parent metadata                    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 4: Parent-to-Parent Similarity Detection               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • Compare ALL parent images against each other       │   │
+│  │ • Calculate Hamming distance (N × N comparison)      │   │
+│  │ • Identify similar parents (distance < threshold)    │   │
+│  │ • Cluster similar parents together                   │   │
+│  │ • Select best representative per cluster             │   │
+│  │ • Calculate similarity scores (%)                    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  Step 5: Super-Group Formation                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ • For each similarity cluster:                       │   │
+│  │   - Assign representative parent                     │   │
+│  │   - List other similar parents with scores           │   │
+│  │   - Aggregate ALL children from similar parents      │   │
+│  │   - Store file paths only for children               │   │
+│  │ • Result: Fewer super-groups than original groups    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│                                                               │
+│  OUTPUT: Super-Groups for Results Page                       │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Super-Group 1:                                       │   │
+│  │   Representative: Parent A (thumbnail)               │   │
+│  │   Similar: Parent B (97%, thumbnail), Parent E (96%)│   │
+│  │   Children: 15 files (paths only)                    │   │
 │  │                                                       │   │
-│  │ If confidence < 95% → Google Vision (Fallback)       │   │
-│  │ ┌──────────────────────────────────────────────────┐ │   │
-│  │ │ • Encode JPG to base64                           │ │   │
-│  │ │ • Send to Google Vision API                      │ │   │
-│  │ │ • Receive labels, descriptions, entities         │ │   │
-│  │ │ • Merge with Ollama results if needed            │ │   │
-│  │ └──────────────────────────────────────────────────┘ │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                               │
-│  Step 4: XMP Generation                                      │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │ • Build XMP structure from metadata                  │   │
-│  │ • Apply to representative and all similar images     │   │
-│  │ • Write .xmp sidecar files                           │   │
-│  │ • Validate XMP format                                │   │
+│  │ Super-Group 2:                                       │   │
+│  │   Representative: Parent C (thumbnail)               │   │
+│  │   Similar: None                                      │   │
+│  │   Children: 7 files (paths only)                     │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -69,12 +89,15 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                  Electron Renderer Process                   │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ UI Dashboard │  │ Progress View│  │ Settings Panel   │  │
-│  │ - Start/Stop │  │ - Current job│  │ - Ollama config  │  │
-│  │ - Dir select │  │ - Success/err│  │ - Google API key │  │
-│  │ - Statistics │  │ - ETA        │  │ - Thresholds     │  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              Results Page Display                     │  │
+│  │                                                        │  │
+│  │  For each Super-Group:                                │  │
+│  │    • Show representative parent (large thumbnail)     │  │
+│  │    • Show similar parents (medium thumbnails + %)     │  │
+│  │    • List children count (no thumbnails)              │  │
+│  │    • Provide Confirm/Split actions                    │  │
+│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,218 +106,327 @@
 ### 1. File Manager Service
 
 **Responsibilities**
-- Recursively scan directories for image files
-- Identify base images (.CR2, .CR3)
-- Match derivatives to base images
-- Maintain file database/cache
+- Import Phase 1 attribute grouping data
+- Parse parent-child relationships
+- Validate file existence
+- Extract parent images for processing
 
 **Key Methods**
 ```javascript
-async scanDirectory(path, options)
-async findBaseImages(directory)
-async findDerivatives(baseImage)
-async buildFileTree(directory)
+async importAttributeGroups(dataPath)
+async parseGroups(rawData)
+async validateParentFiles(parents)
+async extractParentImages(groups)
 ```
 
-**Algorithm: Derivative Detection**
-```
-For each file in directory:
-  1. Extract base name (before first hyphen or dot)
-  2. Check if base exists as .CR2 or .CR3
-  3. If yes, mark as derivative and link to base
-  4. If no, check if current file IS base
+**Data Structure - Input**
+```javascript
+// Expected input format from Phase 1
+{
+  attributeGroups: [
+    {
+      id: "group_1",
+      parent: {
+        path: "/path/to/_MG_9194.CR2",
+        metadata: { date: "2025-01-15", location: "..." }
+      },
+      children: [
+        "/path/to/_MG_9194-adj.tif",
+        "/path/to/_MG_9194-adj-Edit.tif",
+        // ... more children
+      ]
+    },
+    // ... more groups
+  ]
+}
 ```
 
-### 2. Image Processor Service
+### 2. Thumbnail Generator Service
 
 **Responsibilities**
-- RAW to JPG conversion
-- Image resizing and optimization
-- Perceptual hash generation
-- Image quality assessment
+- Generate thumbnails ONLY for parent images
+- Create two sizes: 400px (large) and 200px (medium)
+- Extract embedded previews when possible (faster)
+- Fallback to full RAW decode if needed
 
 **Key Methods**
 ```javascript
-async rawToJpg(rawPath, options)
-async generatePHash(imagePath)
-async assessQuality(imagePath) // For representative selection
-async extractPreview(rawPath)  // Faster than full decode
+async generateParentThumbnails(parentImages)
+async extractPreview(rawPath)
+async createThumbnail(imagePath, size)
+async saveThumbnail(imageData, path, size)
 ```
 
 **Performance Optimizations**
-- Use embedded preview from RAW when available (much faster)
-- Cache converted JPGs temporarily
+- Use embedded preview from RAW (much faster than full decode)
+- Cache thumbnails to avoid regeneration
 - Parallel processing with worker threads
-- Batch operations to utilize 64GB RAM
+- Skip children entirely (major time savings)
 
 ### 3. Similarity Detector Service
 
 **Responsibilities**
-- Compare images using perceptual hashing
-- Cluster similar/bracketed images
+- Generate perceptual hashes for parent images
+- Compare ALL parents against each other
+- Calculate Hamming distances
+- Cluster similar parents
 - Select representative from each cluster
 
 **Key Methods**
 ```javascript
-async compareImages(image1, image2)
-async clusterSimilarImages(images, threshold)
+async generateParentHashes(parentImages)
+async compareAllParents(parentHashes)
+async clusterSimilarParents(comparisonMatrix, threshold)
 async selectRepresentative(cluster)
+async calculateSimilarityScore(hash1, hash2)
 ```
 
-**Algorithm: pHash Clustering**
+**Algorithm: Parent-to-Parent Comparison**
 ```
-1. Generate pHash for all base images
-2. Create similarity matrix:
-   - Compare each pair using Hamming distance
-   - Distance threshold: 5-10 bits (configurable)
-3. Use connected components or DBSCAN for clustering
+1. Generate pHash for all 13 parent images
+2. Create similarity matrix (13 × 13):
+   For i = 0 to 12:
+     For j = i+1 to 12:
+       distance = hammingDistance(hash[i], hash[j])
+       if distance < threshold:
+         mark parents i and j as similar
+3. Cluster similar parents using connected components
 4. For each cluster:
-   - Calculate quality score (sharpness, exposure)
-   - Select image with highest score
+   - Select representative (best quality/exposure)
+   - Store other parents as "similar" with scores
+5. Return super-groups (fewer than 13 original groups)
 ```
 
-**Recommended Library**: `imghash` npm package or `sharp` with custom hashing
+**Hamming Distance Threshold**
+- Default: 8 bits (configurable)
+- Lower = stricter matching (only nearly identical images)
+- Higher = looser matching (more images grouped together)
 
-### 4. Ollama Service
+### 4. Super-Group Builder Service
 
 **Responsibilities**
-- Communicate with local Ollama instance
-- Format prompts for vision analysis
-- Parse and structure responses
-- Assess confidence/quality of results
+- Build final super-groups from similarity clusters
+- Aggregate children from similar parents
+- Calculate similarity percentages
+- Prepare data for Results Page display
 
 **Key Methods**
 ```javascript
-async analyzeImage(imagePath)
-async checkAvailability()
-async getConfidenceScore(response)
+async buildSuperGroups(similarityClusters, attributeGroups)
+async aggregateChildren(parentPaths, attributeGroups)
+async calculateSimilarityPercent(hammingDistance)
 ```
 
-**Prompt Template**
-```
-Analyze this photograph in detail. Provide:
-1. Main subjects (people, animals, objects)
-2. Scene type (landscape, portrait, macro, etc.)
-3. Setting/location characteristics
-4. Colors and lighting
-5. Mood/atmosphere
-6. Suggested keywords (at least 10)
-
-Format as JSON:
+**Data Structure - Output**
+```javascript
 {
-  "subjects": [...],
-  "scene_type": "...",
-  "setting": "...",
-  "keywords": [...],
-  "description": "...",
-  "confidence": 0.0-1.0
+  superGroups: [
+    {
+      id: "sg_1",
+      representativeParent: {
+        path: "/path/to/parent_A.CR2",
+        thumbnailLarge: "/thumbnails/400px/parent_A.jpg",
+        thumbnailMedium: "/thumbnails/200px/parent_A.jpg",
+        metadata: { ... },
+        originalGroupId: "group_1"
+      },
+      similarParents: [
+        {
+          path: "/path/to/parent_B.CR2",
+          thumbnailMedium: "/thumbnails/200px/parent_B.jpg",
+          similarityScore: 97, // percentage
+          hammingDistance: 2,
+          originalGroupId: "group_2",
+          childCount: 3
+        },
+        {
+          path: "/path/to/parent_E.CR2",
+          thumbnailMedium: "/thumbnails/200px/parent_E.jpg",
+          similarityScore: 96,
+          hammingDistance: 3,
+          originalGroupId: "group_5",
+          childCount: 7
+        }
+      ],
+      allChildren: [
+        // Aggregated from all similar parents
+        "/path/to/_MG_9194-adj.tif",
+        "/path/to/_MG_9194-adj-Edit.tif",
+        "/path/to/_MG_9195-adj.tif",
+        // ... 15 total children from A, B, and E
+      ],
+      totalParents: 3,
+      totalChildren: 15,
+      totalImages: 18
+    },
+    {
+      id: "sg_2",
+      representativeParent: {
+        path: "/path/to/parent_C.CR2",
+        thumbnailLarge: "/thumbnails/400px/parent_C.jpg",
+        thumbnailMedium: "/thumbnails/200px/parent_C.jpg",
+        metadata: { ... },
+        originalGroupId: "group_3"
+      },
+      similarParents: [], // No similar parents found
+      allChildren: [
+        // 7 children from C only
+      ],
+      totalParents: 1,
+      totalChildren: 7,
+      totalImages: 8
+    }
+  ],
+  summary: {
+    originalGroups: 13,
+    superGroups: 8, // Reduced from 13
+    totalImages: 150,
+    reductionPercent: 38 // (13-8)/13 * 100
+  }
 }
 ```
 
-**Recommended Model**: LLaVA 1.6 or BakLLaVA (best vision performance in Ollama)
+## Results Page UI Specification
 
-### 5. Google Vision Service
+### Layout Components
 
-**Responsibilities**
-- Fallback analysis when Ollama insufficient
-- Handle API authentication
-- Rate limiting and error handling
-- Cost tracking
-
-**Key Methods**
-```javascript
-async analyzeImage(imageBuffer)
-async checkQuota()
-async estimateCost(imageCount)
+**Super-Group Card**
+```html
+<div class="super-group-card">
+  <!-- Representative Parent -->
+  <div class="representative-section">
+    <h3>Representative Parent</h3>
+    <img src="{thumbnailLarge}" class="parent-large" />
+    <p class="file-name">{filename}</p>
+  </div>
+  
+  <!-- Similar Parents (if any) -->
+  <div class="similar-parents-section" *ngIf="similarParents.length > 0">
+    <h3>Similar Parents Found ({similarParents.length})</h3>
+    <div class="similar-grid">
+      <div *ngFor="parent of similarParents" class="similar-parent">
+        <img src="{parent.thumbnailMedium}" class="parent-medium" />
+        <p class="similarity-score">{parent.similarityScore}% match</p>
+        <p class="file-name">{parent.filename}</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Children Summary (no thumbnails) -->
+  <div class="children-section">
+    <h3>Child Images</h3>
+    <p class="child-count">
+      {totalChildren} files
+      <span *ngIf="similarParents.length > 0">
+        ({childBreakdown})
+      </span>
+    </p>
+    <details>
+      <summary>View file list</summary>
+      <ul class="file-list">
+        <li *ngFor="child of allChildren">{child.filename}</li>
+      </ul>
+    </details>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div class="actions">
+    <button class="confirm-btn" (click)="confirmMatch()">
+      ✓ Confirm Match
+    </button>
+    <button class="split-btn" (click)="splitGroup()">
+      Split Group
+    </button>
+  </div>
+</div>
 ```
 
-**API Features to Use**
-- Label Detection (primary)
-- Object Localization
-- Image Properties (colors)
-- Web Detection (similar images, context)
-- Safe Search (optional, filter inappropriate)
+### CSS Specifications
+```css
+.parent-large {
+  width: 400px;
+  height: auto;
+  border: 2px solid #333;
+  border-radius: 8px;
+}
 
-### 6. XMP Generator Service
+.parent-medium {
+  width: 200px;
+  height: auto;
+  border: 1px solid #666;
+  border-radius: 4px;
+  cursor: pointer;
+}
 
-**Responsibilities**
-- Create valid Adobe XMP sidecar files
-- Map AI metadata to XMP fields
-- Handle hierarchical keywords
-- Validate output
+.parent-medium:hover {
+  border-color: #0066cc;
+  box-shadow: 0 0 10px rgba(0, 102, 204, 0.3);
+}
 
-**Key Methods**
-```javascript
-async generateXMP(metadata, imagePath)
-async validateXMP(xmpContent)
-async writeXMPFile(xmpPath, content)
+.similarity-score {
+  font-weight: bold;
+  color: #0066cc;
+  font-size: 14px;
+}
+
+.similar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.file-list {
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+}
 ```
 
-**XMP Structure Template**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/">
-  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-    <rdf:Description rdf:about=""
-      xmlns:dc="http://purl.org/dc/elements/1.1/"
-      xmlns:xmp="http://ns.adobe.com/xap/1.0/"
-      xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/">
-      
-      <dc:title>
-        <rdf:Alt>
-          <rdf:li xml:lang="x-default">{TITLE}</rdf:li>
-        </rdf:Alt>
-      </dc:title>
-      
-      <dc:description>
-        <rdf:Alt>
-          <rdf:li xml:lang="x-default">{DESCRIPTION}</rdf:li>
-        </rdf:Alt>
-      </dc:description>
-      
-      <dc:subject>
-        <rdf:Bag>
-          {KEYWORDS_AS_RDF_LI}
-        </rdf:Bag>
-      </dc:subject>
-      
-      <xmp:Rating>{RATING}</xmp:Rating>
-      <photoshop:Category>{CATEGORY}</photoshop:Category>
-      
-    </rdf:Description>
-  </rdf:RDF>
-</x:xmpmeta>
-```
+### User Interactions
 
-## Data Flow
+**Confirm Match**
+- Validates the similarity grouping
+- Proceeds to AI analysis phase (Step 3)
+- Marks super-group as approved
 
-### Processing a Single Image
+**Split Group**
+- Removes selected similar parent from cluster
+- Creates new super-group for split parent
+- Allows user to correct AI mistakes
+
+**View Full Image**
+- Click any parent thumbnail for full-size preview
+- Shows comparison view side-by-side
+- Helps user verify similarity accuracy
+
+## Data Flow (Corrected)
+
+### Complete Processing Pipeline
 
 ```
-1. User selects directory
+1. Import Phase 1 attribute groups (13 groups with parent+children)
    ↓
-2. File Manager scans and identifies bases + derivatives
+2. Extract parent images only (13 parents)
    ↓
-3. For each base image:
-   a. Image Processor converts RAW → JPG
-   b. Generate pHash
+3. Generate thumbnails for all parents (NO children)
    ↓
-4. Similarity Detector clusters similar images
+4. Generate pHash for all parents
    ↓
-5. For each cluster representative:
-   a. Ollama Service analyzes
-   b. If confidence < 95%:
-      → Google Vision Service analyzes
-   c. Merge/combine results
+5. Compare parents against each other (N × N)
    ↓
-6. XMP Generator creates sidecars for:
-   - Representative image
-   - All similar images in cluster
-   - All derivatives of those images
+6. Cluster similar parents (distance < threshold)
    ↓
-7. Write XMP files to disk
+7. Build super-groups:
+   - Select representative per cluster
+   - List similar parents with scores
+   - Aggregate children from all similar parents
    ↓
-8. Update UI with progress
+8. Display Results Page with thumbnails for visual verification
+   ↓
+9. User confirms or splits groups
+   ↓
+10. Proceed to AI analysis (Step 3) - only analyze representatives
 ```
 
 ## Configuration Management
@@ -302,95 +434,81 @@ async writeXMPFile(xmpPath, content)
 **Config File Structure** (`config.json`)
 ```json
 {
-  "ollama": {
-    "endpoint": "http://localhost:11434",
-    "model": "llava:latest",
-    "temperature": 0.1,
-    "confidenceThreshold": 0.95
-  },
-  "googleVision": {
-    "apiKey": "encrypted_or_keychain",
-    "enabled": true,
-    "features": ["LABEL_DETECTION", "OBJECT_LOCALIZATION"]
-  },
-  "processing": {
-    "batchSize": 10,
-    "parallelWorkers": 4,
-    "jpgQuality": 90,
-    "maxImageSize": 2048,
-    "useEmbeddedPreview": true
-  },
+  "version": "1.0.0",
   "similarity": {
+    "enabled": true,
     "hammingThreshold": 8,
     "algorithm": "phash",
-    "clusterMethod": "dbscan"
+    "hashSize": 16,
+    "minClusterSize": 2
   },
-  "xmp": {
-    "applyToDerivatives": true,
-    "includeAnalysisDate": true,
-    "includeConfidence": false
+  "thumbnails": {
+    "generateForParentsOnly": true,
+    "sizes": {
+      "large": 400,
+      "medium": 200
+    },
+    "quality": 90,
+    "format": "jpg"
+  },
+  "processing": {
+    "useEmbeddedPreview": true,
+    "parallelWorkers": 4,
+    "cacheResults": true
+  },
+  "ui": {
+    "defaultView": "grid",
+    "showSimilarityScores": true,
+    "showFileNames": true,
+    "enableFullImagePreview": true
   }
 }
 ```
 
-## Error Handling Strategy
-
-### Critical Errors (Stop Processing)
-- Ollama not available AND Google API not configured
-- Write permission denied for output directory
-- Corrupted configuration file
-
-### Recoverable Errors (Skip & Log)
-- Individual RAW file cannot be decoded
-- Network timeout on Google API (retry 3x)
-- XMP write failed for specific file
-
-### Warnings (Continue with Degradation)
-- Embedded preview not found (fallback to full decode)
-- Ollama low confidence (escalate to Google)
-- Similarity detection fails (process individually)
-
 ## Performance Targets
 
-- **RAW Conversion**: < 2s per image (using embedded preview)
-- **Ollama Analysis**: 5-15s per image (depends on model)
-- **Google Vision**: 1-3s per image (network dependent)
-- **XMP Generation**: < 100ms per file
-- **Batch Processing**: 100-200 images per hour (conservative)
-
-## Security Considerations
-
-1. **API Key Storage**
-   - Use macOS Keychain via `keytar` npm package
-   - Never commit keys to git
-   - Encrypt in config if keychain unavailable
-
-2. **Input Validation**
-   - Validate file paths to prevent directory traversal
-   - Check file types before processing
-   - Limit file sizes to prevent DoS
-
-3. **Network Security**
-   - Use HTTPS for Google API
-   - Validate Ollama endpoint
-   - Timeout all network requests
+- **Thumbnail Generation**: < 1s per parent (using embedded preview)
+- **pHash Generation**: < 0.5s per parent
+- **Similarity Comparison**: < 5s for 13 parents (169 comparisons)
+- **Super-Group Building**: < 1s
+- **Total Processing Time**: < 30s for 13 parent images
+- **NO processing time for children** (major optimization)
 
 ## Testing Strategy
 
 ### Unit Tests
-- File pattern matching (base vs derivative)
+- Parent extraction from attribute groups
+- Thumbnail generation (two sizes)
 - pHash generation and comparison
-- XMP template rendering
-- Config loading and validation
+- Hamming distance calculation
+- Clustering algorithm accuracy
 
 ### Integration Tests
-- RAW to JPG conversion pipeline
-- Ollama API communication
-- Google Vision API communication
-- XMP file writing and Lightroom import
+- Full pipeline from import to super-group output
+- Thumbnail caching and retrieval
+- Results page data rendering
+- User actions (confirm/split)
 
-### End-to-End Tests
-- Process sample directory of 10 images
-- Verify XMP files created correctly
-- Import XMP into Lightroom Classic
-- Verify metadata appears correctly
+### Visual Verification Tests
+- Load sample parent images with known similarity
+- Verify clustering accuracy
+- Test threshold sensitivity
+- Ensure thumbnails display correctly
+
+### Test Dataset
+```
+test-data/
+├── attribute-groups.json      # Sample Phase 1 output
+├── parents/
+│   ├── similar_set_1/
+│   │   ├── parent_A.CR2      # Nearly identical
+│   │   ├── parent_B.CR2      # Same subject, slight angle
+│   │   └── parent_C.CR2      # Same subject, different exposure
+│   ├── similar_set_2/
+│   │   ├── parent_D.CR2
+│   │   └── parent_E.CR2
+│   └── unique/
+│       ├── parent_F.CR2      # Should not cluster with others
+│       └── parent_G.CR2
+└── expected-output.json       # Expected super-groups
+```

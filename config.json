@@ -9,8 +9,16 @@
   },
   "googleVision": {
     "enabled": false,
+    "apiKey": "",
     "credentialsPath": "",
+    "autoFallback": true,
     "features": ["LABEL_DETECTION", "OBJECT_LOCALIZATION", "IMAGE_PROPERTIES"]
+  },
+  "aiAnalysis": {
+    "provider": "ollama",
+    "confidenceThreshold": 85,
+    "requireConfidenceScore": true,
+    "allowManualOverride": true
   },
   "processing": {
     "batchSize": 10,
@@ -21,8 +29,11 @@
   },
   "similarity": {
     "enabled": true,
-    "hammingThreshold": 8,
-    "hashSize": 16
+    "hammingThreshold": 82,
+    "hashSize": 16,
+    "autoDetect": true,
+    "showInResults": true,
+    "autoMergeThreshold": 98
   },
   "xmp": {
     "applyToDerivatives": true,

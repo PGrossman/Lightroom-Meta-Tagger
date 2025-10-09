@@ -2,8 +2,8 @@
 const logger = require('../utils/logger');
 
 class ClusteringService {
-  constructor(timestampExtractor) {
-    this.timestampExtractor = timestampExtractor;
+  constructor(exifExtractor) {
+    this.exifExtractor = exifExtractor;
   }
 
   /**
@@ -21,7 +21,7 @@ class ClusteringService {
     // Extract timestamps for all images
     const imageData = [];
     for (const imagePath of imagePaths) {
-      const timestamp = await this.timestampExtractor.extractFromRAW(imagePath);
+      const timestamp = await this.exifExtractor.extractFromRAW(imagePath);
       
       if (timestamp) {
         imageData.push({
@@ -149,17 +149,30 @@ class ClusteringService {
   formatClusterForDisplay(cluster, index) {
     const path = require('path');
     
+    logger.debug('Formatting cluster for display', {
+      clusterIndex: index,
+      originalRepresentative: cluster.representative,
+      isAbsolute: cluster.representative?.startsWith('/'),
+      imageCount: cluster.images ? cluster.images.length : cluster.imageCount,
+      fileType: cluster.fileType
+    });
+    
     return {
       id: index,
-      representative: path.basename(cluster.representative),
-      representativePath: cluster.representative,
-      imageCount: cluster.images.length,
-      images: cluster.images.map(p => path.basename(p)),
-      imagePaths: cluster.images,
-      startTime: this.timestampExtractor.formatTimestamp(cluster.startTime),
-      endTime: this.timestampExtractor.formatTimestamp(cluster.endTime),
-      duration: ((cluster.endTime - cluster.startTime) / 1000).toFixed(1) + 's',
-      isBracketed: cluster.images.length > 1
+      representative: cluster.representative, // KEEP FULL PATH HERE
+      representativePath: cluster.representative, // Full path
+      representativeFilename: path.basename(cluster.representative), // Just filename for display
+      imageCount: cluster.images ? cluster.images.length : cluster.imageCount,
+      images: cluster.images ? cluster.images.map(p => path.basename(p)) : [],
+      imagePaths: cluster.images || cluster.imagePaths || [], // KEEP FULL PATHS
+      startTime: this.exifExtractor.formatTimestamp(cluster.startTime),
+      endTime: this.exifExtractor.formatTimestamp(cluster.endTime),
+      duration: cluster.endTime && cluster.startTime 
+        ? ((cluster.endTime - cluster.startTime) / 1000).toFixed(1) + 's' 
+        : '0s',
+      isBracketed: cluster.imageCount > 1 || (cluster.images && cluster.images.length > 1),
+      fileType: cluster.fileType,
+      hasGPS: cluster.hasGPS || false
     };
   }
 }

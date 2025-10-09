@@ -29,9 +29,10 @@
     "axios": "^1.6.0",
     "better-sqlite3": "^12.4.1",
     "dotenv": "^16.3.0",
+    "exiftool-vendored": "^31.1.0",
     "hamming-distance": "^1.0.0",
     "imghash": "^0.0.3",
-    "sharp": "^0.33.0",
+    "sharp": "^0.33.5",
     "winston": "^3.11.0"
   }
 }

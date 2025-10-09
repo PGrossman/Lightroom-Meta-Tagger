@@ -201,6 +201,274 @@ class DatabaseService {
   }
 
   /**
+   * Save or update an image record with GPS and metadata
+   */
+  saveImage(imagePath, metadata = {}) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO images (file_path, file_name, directory, file_size, capture_timestamp)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(file_path) DO UPDATE SET
+          file_name = excluded.file_name,
+          directory = excluded.directory,
+          file_size = excluded.file_size,
+          capture_timestamp = excluded.capture_timestamp,
+          updated_at = strftime('%s', 'now')
+      `);
+
+      const fileName = path.basename(imagePath);
+      const directory = path.dirname(imagePath);
+
+      const result = stmt.run(
+        imagePath,
+        fileName,
+        directory,
+        metadata.fileSize || null,
+        metadata.timestamp || null
+      );
+
+      // Get the image ID (either newly inserted or existing)
+      // CRITICAL: After upsert, always query for the correct ID
+      const imageRow = this.db.prepare('SELECT id FROM images WHERE file_path = ?').get(imagePath);
+      const imageId = imageRow.id;
+
+      // Save GPS data if provided
+      if (metadata.gps) {
+        this.saveGPS(imageId, metadata.gps);
+      }
+
+      // Save keywords if provided
+      if (metadata.keywords) {
+        this.saveKeywords(imageId, metadata.keywords);
+      }
+
+      return { success: true, imageId };
+
+    } catch (error) {
+      logger.error('Failed to save image', { imagePath, error: error.message });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save GPS coordinates for an image (stored in analysis_results for now)
+   * TODO: Consider adding dedicated GPS table in future
+   */
+  saveGPS(imageId, gps) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO analysis_results (image_id, analysis_method, keywords)
+        VALUES (?, 'gps', ?)
+        ON CONFLICT(image_id) DO UPDATE SET
+          keywords = excluded.keywords
+      `);
+
+      const gpsData = JSON.stringify({
+        latitude: gps.latitude,
+        longitude: gps.longitude
+      });
+
+      stmt.run(imageId, gpsData);
+      
+      logger.debug('GPS data saved', { imageId, gps });
+      return { success: true };
+
+    } catch (error) {
+      logger.error('Failed to save GPS', { imageId, error: error.message });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save folder keywords for an image
+   */
+  saveKeywords(imageId, keywords) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // Store as JSON string in keywords field
+      const keywordData = Array.isArray(keywords) 
+        ? keywords.join(', ')
+        : keywords;
+
+      const stmt = this.db.prepare(`
+        INSERT INTO analysis_results (image_id, analysis_method, keywords)
+        VALUES (?, 'folder_keywords', ?)
+      `);
+
+      stmt.run(imageId, keywordData);
+      
+      logger.debug('Keywords saved', { imageId, count: keywords.length || 0 });
+      return { success: true };
+
+    } catch (error) {
+      logger.error('Failed to save keywords', { imageId, error: error.message });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save perceptual hash for an image
+   */
+  savePerceptualHash(imageId, hash, previewPath = null) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+        UPDATE processing_status
+        SET status = 'hashed', error_message = ?
+        WHERE image_id = ? AND stage = 'processing'
+      `);
+
+      const hashData = JSON.stringify({ hash, previewPath });
+      stmt.run(hashData, imageId);
+
+      logger.debug('Perceptual hash saved', { imageId });
+      return { success: true };
+
+    } catch (error) {
+      logger.error('Failed to save hash', { imageId, error: error.message });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save complete processing results for a batch of images
+   */
+  saveProcessingResults(results) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    if (!Array.isArray(results) || results.length === 0) {
+      logger.warn('No results to save', { resultsCount: results?.length || 0 });
+      return { success: true, saved: 0, failed: 0 };
+    }
+
+    try {
+      const transaction = this.db.transaction((resultsArray) => {
+        let saved = 0;
+        let failed = 0;
+        const errors = [];
+
+        for (const result of resultsArray) {
+          try {
+            // Validate required fields
+            if (!result.path) {
+              throw new Error('Missing required field: path');
+            }
+
+            // CRITICAL: Only save successful results
+            if (result.success === false) {
+              logger.debug('Skipping failed result', { path: result.path, error: result.error });
+              failed++;
+              continue;
+            }
+
+            // Save image with metadata
+            const imageResult = this.saveImage(result.path, {
+              timestamp: result.timestamp,
+              gps: result.gps,
+              keywords: result.keywords,
+              fileSize: result.fileSize
+            });
+
+            if (!imageResult.success) {
+              throw new Error(`Image save failed: ${imageResult.error}`);
+            }
+
+            // Save perceptual hash if available
+            if (result.hash && imageResult.imageId) {
+              this.savePerceptualHash(imageResult.imageId, result.hash, result.previewPath);
+            }
+
+            saved++;
+            logger.debug('Result saved successfully', { 
+              path: result.path, 
+              imageId: imageResult.imageId 
+            });
+
+          } catch (err) {
+            failed++;
+            const errorInfo = { 
+              path: result.path, 
+              error: err.message,
+              stack: err.stack 
+            };
+            errors.push(errorInfo);
+            logger.error('Failed to save result', errorInfo);
+          }
+        }
+
+        // Log summary
+        if (failed > 0) {
+          logger.warn('Some results failed to save', { 
+            saved, 
+            failed, 
+            errorCount: errors.length,
+            firstError: errors[0]?.error 
+          });
+        }
+
+        return { saved, failed, errors };
+      });
+
+      const stats = transaction(results);
+
+      logger.info('Processing results saved', { 
+        total: results.length,
+        saved: stats.saved, 
+        failed: stats.failed,
+        successRate: `${Math.round((stats.saved / results.length) * 100)}%`
+      });
+      
+      return { success: true, ...stats };
+
+    } catch (error) {
+      logger.error('Transaction failed, rolling back', { 
+        error: error.message,
+        stack: error.stack,
+        resultsCount: results.length
+      });
+      return { 
+        success: false, 
+        error: error.message,
+        saved: 0,
+        failed: results.length
+      };
+    }
+  }
+
+  /**
+   * Get image by path
+   */
+  getImageByPath(imagePath) {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const stmt = this.db.prepare('SELECT * FROM images WHERE file_path = ?');
+      return stmt.get(imagePath);
+    } catch (error) {
+      logger.error('Failed to get image', { imagePath, error: error.message });
+      return null;
+    }
+  }
+
+  /**
    * Close database connection
    */
   close() {
@@ -234,7 +502,94 @@ class DatabaseService {
     
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
+
+  /**
+   * Get all processed images with their metadata and analysis results
+   */
+  getAllProcessedImages() {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const query = `
+        SELECT 
+          i.id,
+          i.file_path,
+          i.file_name,
+          i.directory,
+          i.file_size,
+          i.capture_timestamp,
+          i.created_at,
+          i.updated_at,
+          ar.analysis_method,
+          ar.keywords,
+          ar.confidence,
+          ar.analyzed_at as analysis_created_at
+        FROM images i
+        LEFT JOIN analysis_results ar ON i.id = ar.image_id
+        ORDER BY i.created_at DESC
+      `;
+
+      const stmt = this.db.prepare(query);
+      const rows = stmt.all();
+
+      // Group by image and collect all analysis results
+      const imageMap = new Map();
+      
+      rows.forEach(row => {
+        const imageId = row.id;
+        
+        if (!imageMap.has(imageId)) {
+          imageMap.set(imageId, {
+            id: row.id,
+            filePath: row.file_path,
+            fileName: row.file_name,
+            directory: row.directory,
+            fileSize: row.file_size,
+            captureTimestamp: row.capture_timestamp,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            analysisResults: []
+          });
+        }
+
+        // Add analysis result if it exists
+        if (row.analysis_method) {
+          imageMap.get(imageId).analysisResults.push({
+            method: row.analysis_method,
+            keywords: row.keywords,
+            confidenceScore: row.confidence,
+            createdAt: row.analysis_created_at
+          });
+        }
+      });
+
+      const processedImages = Array.from(imageMap.values());
+      
+      logger.info('Retrieved processed images', { 
+        count: processedImages.length,
+        withAnalysis: processedImages.filter(img => img.analysisResults.length > 0).length
+      });
+
+      return {
+        success: true,
+        images: processedImages,
+        totalCount: processedImages.length
+      };
+
+    } catch (error) {
+      logger.error('Failed to get processed images', { error: error.message });
+      return {
+        success: false,
+        error: error.message,
+        images: [],
+        totalCount: 0
+      };
+    }
+  }
 }
 
 module.exports = DatabaseService;
+
 
