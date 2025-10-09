@@ -2553,9 +2553,21 @@ async function renderClusterThumbnailGrid() {
  */
 async function selectCluster(clusterIndex) {
   console.log('🎯 selectCluster called with index:', clusterIndex);
-  console.log('Total clusters:', allClustersForAnalysis.length);
-  console.log('Cluster at index:', allClustersForAnalysis[clusterIndex]?.mainRep?.representativeFilename);
   
+  // ✅ AUTO-SAVE: Save current cluster's metadata before switching
+  if (currentClusterIndex !== null && currentClusterIndex !== clusterIndex) {
+    try {
+      console.log('💾 Auto-saving cluster', currentClusterIndex, 'before switching');
+      const editedMetadata = collectMetadataFromForm();
+      analyzedClusters.set(currentClusterIndex, editedMetadata);
+      console.log('✅ Auto-saved metadata for cluster', currentClusterIndex);
+    } catch (error) {
+      console.error('❌ Failed to auto-save metadata:', error);
+      // Continue with switch anyway
+    }
+  }
+  
+  // Now switch to new cluster
   currentClusterIndex = clusterIndex;
   const group = allClustersForAnalysis[clusterIndex];
   
@@ -2570,7 +2582,7 @@ async function selectCluster(clusterIndex) {
     return;
   }
   
-  // Load metadata
+  // Load metadata for selected cluster
   const savedMetadata = analyzedClusters.get(clusterIndex);
   
   console.log('✅ Loading metadata for:', group.mainRep?.representativeFilename);
@@ -3110,31 +3122,67 @@ function addKeyword() {
  * Collect edited metadata from form
  */
 function collectMetadataFromForm() {
-  // Collect keywords
-  const keywords = Array.from(document.querySelectorAll('.keyword-tag span:first-child'))
-    .map(span => span.textContent);
-  
-  // Collect hashtags (split by space or comma)
-  const hashtagsText = document.getElementById('metaHashtags').value;
-  const hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
-  
-  return {
-    title: document.getElementById('metaTitle').value,
-    description: document.getElementById('metaDescription').value,
-    caption: document.getElementById('metaCaption').value,
-    keywords: keywords,
-    category: document.getElementById('metaCategory').value,
-    sceneType: document.getElementById('metaSceneType').value,
+  // Collect all field values
+  const metadata = {
+    title: document.getElementById('metaTitle')?.value || '',
+    description: document.getElementById('metaDescription')?.value || '',
+    caption: document.getElementById('metaCaption')?.value || '',
+    category: document.getElementById('metaCategory')?.value || '',
+    sceneType: document.getElementById('metaSceneType')?.value || '',
+    mood: document.getElementById('metaMood')?.value || '',
+    altText: document.getElementById('metaAltText')?.value || '',
+    
+    // Location
     location: {
-      city: document.getElementById('metaCity').value,
-      state: document.getElementById('metaState').value,
-      country: document.getElementById('metaCountry').value,
-      specificLocation: document.getElementById('metaSpecificLocation').value
+      city: document.getElementById('metaCity')?.value || '',
+      state: document.getElementById('metaState')?.value || '',
+      country: document.getElementById('metaCountry')?.value || '',
+      specificLocation: document.getElementById('metaSpecificLocation')?.value || ''
     },
-    mood: document.getElementById('metaMood').value,
-    hashtags: hashtags,
-    altText: document.getElementById('metaAltText').value
+    
+    // Keywords - collect from the keywords container
+    keywords: [],
+    
+    // Subjects - collect from subjects container
+    subjects: [],
+    
+    // Hashtags - collect from hashtags container
+    hashtags: [],
+    
+    // Preserve confidence and provider info
+    confidence: currentAnalysisData?.metadata?.confidence || 85,
+    provider: currentAnalysisData?.metadata?.provider || 'ollama'
   };
+  
+  // Collect keywords
+  const keywordElements = document.querySelectorAll('#keywordsContainer .keyword-text');
+  keywordElements.forEach(el => {
+    const keyword = el.textContent.trim();
+    if (keyword) {
+      metadata.keywords.push(keyword);
+    }
+  });
+  
+  // Collect subjects
+  const subjectElements = document.querySelectorAll('#subjectsContainer .keyword-text');
+  subjectElements.forEach(el => {
+    const subject = el.textContent.trim();
+    if (subject) {
+      metadata.subjects.push(subject);
+    }
+  });
+  
+  // Collect hashtags
+  const hashtagElements = document.querySelectorAll('#hashtagsContainer .keyword-text');
+  hashtagElements.forEach(el => {
+    const hashtag = el.textContent.trim();
+    if (hashtag) {
+      metadata.hashtags.push(hashtag);
+    }
+  });
+  
+  console.log('📦 Collected metadata:', metadata);
+  return metadata;
 }
 
 /**
