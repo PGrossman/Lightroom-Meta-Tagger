@@ -3147,32 +3147,18 @@ function collectMetadataFromForm() {
     provider: currentAnalysisData?.metadata?.provider || 'ollama'
   };
   
-  // Collect keywords
-  const keywordElements = document.querySelectorAll('#keywordsContainer .keyword-text');
-  keywordElements.forEach(el => {
-    const keyword = el.textContent.trim();
+  // ✅ Collect keywords from .keyword-tag elements in AI Analysis tab
+  const keywordTags = document.querySelectorAll('#keywordsContainer .keyword-tag span:first-child');
+  keywordTags.forEach(span => {
+    const keyword = span.textContent.trim();
     if (keyword) {
       metadata.keywords.push(keyword);
     }
   });
   
-  // Collect subjects
-  const subjectElements = document.querySelectorAll('#subjectsContainer .keyword-text');
-  subjectElements.forEach(el => {
-    const subject = el.textContent.trim();
-    if (subject) {
-      metadata.subjects.push(subject);
-    }
-  });
-  
-  // Collect hashtags
-  const hashtagElements = document.querySelectorAll('#hashtagsContainer .keyword-text');
-  hashtagElements.forEach(el => {
-    const hashtag = el.textContent.trim();
-    if (hashtag) {
-      metadata.hashtags.push(hashtag);
-    }
-  });
+  // Collect hashtags (split by space)
+  const hashtagsText = document.getElementById('metaHashtags')?.value || '';
+  metadata.hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
   
   console.log('📦 Collected metadata:', metadata);
   return metadata;
