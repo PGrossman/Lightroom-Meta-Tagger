@@ -222,13 +222,6 @@ function initializeEventListeners() {
         return;
       }
       
-      // Show confirmation
-      const confirmed = confirm(
-        `Run AI analysis on all clusters?\n\n` +
-        `This will analyze each super cluster representative with Ollama.`
-      );
-      
-      if (!confirmed) return;
       
       // Disable button during analysis
       runAnalysisBtn.disabled = true;
