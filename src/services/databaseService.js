@@ -124,6 +124,27 @@ class DatabaseService {
       )
     `);
 
+    // Personal data table - stores creator and copyright information
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS personal_data (
+        id INTEGER PRIMARY KEY,
+        creatorName TEXT NOT NULL,
+        jobTitle TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        postalCode TEXT,
+        country TEXT,
+        phone TEXT,
+        email TEXT NOT NULL,
+        website TEXT,
+        copyrightStatus TEXT DEFAULT 'copyrighted',
+        copyrightNotice TEXT NOT NULL,
+        rightsUsageTerms TEXT,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_images_path ON images(file_path);

@@ -15,6 +15,7 @@
       <button class="tab-button active" data-tab="ingest">Ingest / Process Images</button>
       <button class="tab-button" data-tab="results">Visual Analysis</button>
       <button class="tab-button" data-tab="ai-analysis">AI Analysis</button>
+      <button class="tab-button" data-tab="personal-data">Personal Data</button>
       <button class="tab-button" data-tab="settings">Settings</button>
     </div>
 
@@ -357,6 +358,120 @@
             </button>
           </div>
 
+        </div>
+      </div>
+
+      <!-- Personal Data Tab -->
+      <div id="personal-data-tab" class="tab-panel">
+        <h2>📋 Creator & Copyright Information</h2>
+        <p style="color: #6c757d; margin-bottom: 30px;">
+          This information will be embedded into all XMP files for copyright and attribution.
+        </p>
+
+        <div class="settings-section">
+          <!-- Creator Information -->
+          <div class="settings-group">
+            <h3>👤 Creator Information</h3>
+            
+            <div class="setting-item">
+              <label for="creatorName">Creator Name *</label>
+              <input type="text" id="creatorName" class="metadata-input" placeholder="e.g., Philip Ethan Grossman">
+              <span class="field-hint">Your full name as photographer/creator</span>
+            </div>
+
+            <div class="setting-item">
+              <label for="creatorJobTitle">Job Title</label>
+              <input type="text" id="creatorJobTitle" class="metadata-input" placeholder="e.g., Professional Photographer">
+              <span class="field-hint">Optional: Your professional title</span>
+            </div>
+          </div>
+
+          <!-- Contact Information -->
+          <div class="settings-group">
+            <h3>📞 Contact Information</h3>
+            
+            <div class="setting-item">
+              <label for="creatorAddress">Address</label>
+              <input type="text" id="creatorAddress" class="metadata-input" placeholder="Street address">
+            </div>
+
+            <div class="metadata-row">
+              <div class="metadata-field">
+                <label for="creatorCity">City</label>
+                <input type="text" id="creatorCity" class="metadata-input" placeholder="City">
+              </div>
+              <div class="metadata-field">
+                <label for="creatorState">State/Province</label>
+                <input type="text" id="creatorState" class="metadata-input" placeholder="State">
+              </div>
+            </div>
+
+            <div class="metadata-row">
+              <div class="metadata-field">
+                <label for="creatorPostalCode">Postal Code</label>
+                <input type="text" id="creatorPostalCode" class="metadata-input" placeholder="ZIP/Postal">
+              </div>
+              <div class="metadata-field">
+                <label for="creatorCountry">Country</label>
+                <input type="text" id="creatorCountry" class="metadata-input" placeholder="Country">
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <label for="creatorPhone">Phone</label>
+              <input type="tel" id="creatorPhone" class="metadata-input" placeholder="+1-555-123-4567">
+            </div>
+
+            <div class="setting-item">
+              <label for="creatorEmail">E-Mail *</label>
+              <input type="email" id="creatorEmail" class="metadata-input" placeholder="your@email.com">
+              <span class="field-hint">Primary contact email</span>
+            </div>
+
+            <div class="setting-item">
+              <label for="creatorWebsite">Website</label>
+              <input type="url" id="creatorWebsite" class="metadata-input" placeholder="https://yourwebsite.com">
+            </div>
+          </div>
+
+          <!-- Copyright Information -->
+          <div class="settings-group">
+            <h3>© Copyright Information</h3>
+            
+            <div class="setting-item">
+              <label for="copyrightStatus">Copyright Status</label>
+              <select id="copyrightStatus" class="metadata-input">
+                <option value="unknown">Unknown</option>
+                <option value="copyrighted" selected>Copyrighted</option>
+                <option value="public-domain">Public Domain</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <label for="copyrightNotice">Copyright Notice *</label>
+              <input type="text" id="copyrightNotice" class="metadata-input" 
+                     placeholder="© 2025 Your Name. All Rights Reserved."
+                     value="© 2025 Philip Ethan Grossman. All Rights Reserved.">
+              <span class="field-hint">Standard copyright notice embedded in all files</span>
+            </div>
+
+            <div class="setting-item">
+              <label for="rightsUsageTerms">Rights Usage Terms</label>
+              <textarea id="rightsUsageTerms" class="metadata-input" rows="4" 
+                        placeholder="Describe usage rights, licensing terms, or restrictions..."></textarea>
+              <span class="field-hint">Optional: Detailed licensing or usage terms</span>
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <div style="text-align: center; margin-top: 40px;">
+            <button id="savePersonalDataBtn" class="select-btn" style="padding: 14px 32px; font-size: 16px;">
+              💾 Save Personal Data
+            </button>
+            <p style="font-size: 12px; color: #6c757d; margin-top: 10px;">
+              This information will be used for all future XMP file generation
+            </p>
+          </div>
         </div>
       </div>
 

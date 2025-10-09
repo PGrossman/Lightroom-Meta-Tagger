@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveAISettings: (settings) => ipcRenderer.invoke('save-ai-settings', settings),
   testGoogleVisionAPI: (apiKey) => ipcRenderer.invoke('test-google-vision-api', apiKey),
   
+  // Personal Data
+  getPersonalData: () => ipcRenderer.invoke('get-personal-data'),
+  savePersonalData: (data) => ipcRenderer.invoke('save-personal-data', data),
+  
   // AI Analysis
   analyzeClusterWithAI: (clusterGroup, provider) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, provider),
   generateXMPFiles: (data) => ipcRenderer.invoke('generate-xmp-files', data),

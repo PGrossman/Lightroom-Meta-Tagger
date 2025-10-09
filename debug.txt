@@ -1703,3 +1703,193 @@ clusterCount: 13
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T20:33:57.036Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T20:34:08.444Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T20:34:27.025Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T20:50:50.975Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T20:51:17.334Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T20:51:36.377Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T20:59:53.967Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T21:00:15.632Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T21:00:34.046Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T21:28:05.530Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T21:29:15.057Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T21:29:33.809Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T21:40:24.862Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T21:41:07.633Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T21:41:26.459Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T21:46:40.566Z ===
+
+
+=== MAIN.JS LOADED 2025-10-09T21:50:46.534Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T21:51:01.434Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T21:51:19.878Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T22:06:28.537Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T22:06:43.029Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T22:07:02.188Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T22:18:35.247Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-09T22:18:54.327Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-09T22:19:12.887Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-09T23:55:08.639Z ===

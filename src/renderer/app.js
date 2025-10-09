@@ -212,6 +212,23 @@ function initializeEventListeners() {
     });
     console.log('✅ Toggle API key visibility listener attached');
   }
+
+  // Personal Data tab listener
+  const personalDataTab = document.querySelector('[data-tab="personal-data"]');
+  if (personalDataTab) {
+    personalDataTab.addEventListener('click', () => {
+      console.log('✅ Personal Data tab clicked');
+      loadPersonalData(); // Load saved data when tab opens
+    });
+    console.log('✅ Personal Data tab listener attached');
+  }
+
+  // Save Personal Data button
+  const savePersonalDataBtn = document.getElementById('savePersonalDataBtn');
+  if (savePersonalDataBtn) {
+    savePersonalDataBtn.addEventListener('click', savePersonalData);
+    console.log('✅ Save Personal Data button listener attached');
+  }
   
   // Run Analysis button (Visual Analysis tab)
   const runAnalysisBtn = document.getElementById('runAnalysisBtn');
@@ -3317,6 +3334,79 @@ function initializeAIAnalysisListeners() {
   }
   
   console.log('✅ AI Analysis listeners attached');
+}
+
+// ============================================
+// Personal Data Functions
+// ============================================
+
+/**
+ * Load personal data from database
+ */
+async function loadPersonalData() {
+  try {
+    const data = await window.electronAPI.getPersonalData();
+    
+    if (data.success && data.data) {
+      document.getElementById('creatorName').value = data.data.creatorName || '';
+      document.getElementById('creatorJobTitle').value = data.data.jobTitle || '';
+      document.getElementById('creatorAddress').value = data.data.address || '';
+      document.getElementById('creatorCity').value = data.data.city || '';
+      document.getElementById('creatorState').value = data.data.state || '';
+      document.getElementById('creatorPostalCode').value = data.data.postalCode || '';
+      document.getElementById('creatorCountry').value = data.data.country || '';
+      document.getElementById('creatorPhone').value = data.data.phone || '';
+      document.getElementById('creatorEmail').value = data.data.email || '';
+      document.getElementById('creatorWebsite').value = data.data.website || '';
+      document.getElementById('copyrightStatus').value = data.data.copyrightStatus || 'copyrighted';
+      document.getElementById('copyrightNotice').value = data.data.copyrightNotice || '';
+      document.getElementById('rightsUsageTerms').value = data.data.rightsUsageTerms || '';
+      
+      console.log('✅ Personal data loaded');
+    }
+  } catch (error) {
+    console.error('❌ Failed to load personal data:', error);
+  }
+}
+
+/**
+ * Save personal data to database
+ */
+async function savePersonalData() {
+  const data = {
+    creatorName: document.getElementById('creatorName').value,
+    jobTitle: document.getElementById('creatorJobTitle').value,
+    address: document.getElementById('creatorAddress').value,
+    city: document.getElementById('creatorCity').value,
+    state: document.getElementById('creatorState').value,
+    postalCode: document.getElementById('creatorPostalCode').value,
+    country: document.getElementById('creatorCountry').value,
+    phone: document.getElementById('creatorPhone').value,
+    email: document.getElementById('creatorEmail').value,
+    website: document.getElementById('creatorWebsite').value,
+    copyrightStatus: document.getElementById('copyrightStatus').value,
+    copyrightNotice: document.getElementById('copyrightNotice').value,
+    rightsUsageTerms: document.getElementById('rightsUsageTerms').value
+  };
+  
+  // Validate required fields
+  if (!data.creatorName || !data.email || !data.copyrightNotice) {
+    alert('❌ Please fill in all required fields (marked with *)');
+    return;
+  }
+  
+  try {
+    const result = await window.electronAPI.savePersonalData(data);
+    
+    if (result.success) {
+      alert('✅ Personal data saved successfully!');
+    } else {
+      alert('❌ Failed to save: ' + result.error);
+    }
+  } catch (error) {
+    console.error('❌ Failed to save personal data:', error);
+    alert('❌ Error saving personal data: ' + error.message);
+  }
 }
 
 // ============================================

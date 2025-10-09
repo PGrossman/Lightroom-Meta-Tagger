@@ -83,14 +83,8 @@ initializeAIServices().then(success => {
   }
 });
 
-// Initialize XMP Generator
+// Initialize XMP Generator (will be initialized after database)
 let xmpGenerator;
-try {
-  xmpGenerator = new XMPGenerator();
-  logger.info('XMP Generator initialized');
-} catch (error) {
-  logger.error('Failed to initialize XMP Generator', { error: error.message });
-}
 
 // DEBUG: Test derivative detection on startup
 logger.info('Running derivative detection test...');
@@ -107,6 +101,15 @@ function initializeDatabase() {
     const result = databaseService.initialize(savedDbPath);
     if (result.success) {
       logger.info('Database loaded from saved location', { dbPath: savedDbPath });
+      
+      // Initialize XMP Generator with database service
+      try {
+        xmpGenerator = new XMPGenerator(databaseService.db);
+        logger.info('✅ XMP Generator initialized with database');
+      } catch (error) {
+        logger.error('Failed to initialize XMP Generator', { error: error.message });
+      }
+      
       return { initialized: true, dbPath: savedDbPath };
     }
   }
@@ -829,6 +832,15 @@ ipcMain.handle('set-database-path', async (event, dbPath) => {
     if (result.success) {
       // Save to config
       configManager.setDatabasePath(dbPath);
+      
+      // Initialize XMP Generator with new database
+      try {
+        xmpGenerator = new XMPGenerator(databaseService.db);
+        logger.info('✅ XMP Generator initialized with new database');
+      } catch (error) {
+        logger.error('Failed to initialize XMP Generator', { error: error.message });
+      }
+      
       return { success: true, dbPath };
     }
     
@@ -1053,6 +1065,46 @@ ipcMain.handle('test-google-vision-api', async (event, apiKey) => {
 });
 
 // ============================================
+// Personal Data IPC Handlers
+// ============================================
+
+ipcMain.handle('get-personal-data', async () => {
+  try {
+    const data = await db.get('SELECT * FROM personal_data LIMIT 1');
+    return { success: true, data };
+  } catch (error) {
+    logger.error('Failed to get personal data', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('save-personal-data', async (event, data) => {
+  try {
+    logger.info('Saving personal data', { 
+      creatorName: data.creatorName,
+      email: data.email 
+    });
+    
+    await db.run(`
+      INSERT OR REPLACE INTO personal_data (
+        id, creatorName, jobTitle, address, city, state, postalCode, 
+        country, phone, email, website, copyrightStatus, copyrightNotice, rightsUsageTerms
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      data.creatorName, data.jobTitle, data.address, data.city, data.state,
+      data.postalCode, data.country, data.phone, data.email, data.website,
+      data.copyrightStatus, data.copyrightNotice, data.rightsUsageTerms
+    ]);
+    
+    logger.info('Personal data saved successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to save personal data', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// ============================================
 // AI Analysis IPC Handlers
 // ============================================
 
@@ -1133,94 +1185,46 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
 
 ipcMain.handle('generate-xmp-files', async (event, data) => {
   try {
-    logger.info('Generating XMP files', {
-      affectedImages: data.affectedImages?.length || 0
+    logger.info('Generating XMP files for cluster', {
+      clusterRep: data.cluster?.mainRep?.representativeFilename
     });
     
     if (!xmpGenerator) {
       throw new Error('XMP Generator not initialized');
     }
     
-    const { cluster, metadata, affectedImages } = data;
-    
-    if (!affectedImages || affectedImages.length === 0) {
-      throw new Error('No images to process');
-    }
-    
     // Send progress
     event.sender.send('progress-update', {
       stage: 'xmp-generation',
-      message: 'Generating XMP files...',
+      message: 'Collecting files and generating XMP...',
       percent: 0
     });
     
-    // Generate XMP for all affected images
-    const results = [];
-    const total = affectedImages.length;
+    // ✅ Use the new generateXMPFiles method that handles ALL files
+    const result = await xmpGenerator.generateXMPFiles(data);
     
-    for (let i = 0; i < affectedImages.length; i++) {
-      const imagePath = affectedImages[i];
+    if (result.success) {
+      logger.info('XMP generation complete', {
+        total: result.filesProcessed,
+        success: result.successCount,
+        failed: result.failCount
+      });
       
-      try {
-        // Extract EXIF data for copyright year
-        const exifData = await extractEXIFData(imagePath);
-        
-        // Generate XMP file
-        const xmpPath = await xmpGenerator.generateXMP(
-          imagePath,
-          metadata,
-          exifData
-        );
-        
-        results.push({
-          imagePath,
-          xmpPath,
-          success: true
-        });
-        
-        // Send progress update
-        const percent = Math.round(((i + 1) / total) * 100);
-        event.sender.send('progress-update', {
-          stage: 'xmp-generation',
-          message: `Generated ${i + 1} of ${total} XMP files...`,
-          percent: percent
-        });
-        
-      } catch (error) {
-        logger.error('Failed to generate XMP for image', {
-          imagePath,
-          error: error.message
-        });
-        
-        results.push({
-          imagePath,
-          error: error.message,
-          success: false
-        });
-      }
+      event.sender.send('progress-update', {
+        stage: 'xmp-generation',
+        message: `XMP generation complete! ${result.successCount} files processed.`,
+        percent: 100
+      });
+      
+      return {
+        success: true,
+        count: result.successCount,
+        filesProcessed: result.filesProcessed,
+        results: result.results
+      };
+    } else {
+      throw new Error(result.error || 'XMP generation failed');
     }
-    
-    // Count successes
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    
-    logger.info('XMP generation complete', {
-      total: total,
-      success: successCount,
-      failed: failureCount
-    });
-    
-    event.sender.send('progress-update', {
-      stage: 'xmp-generation',
-      message: 'XMP generation complete!',
-      percent: 100
-    });
-    
-    return {
-      success: true,
-      count: successCount,
-      results: results
-    };
     
   } catch (error) {
     logger.error('XMP generation failed', {
