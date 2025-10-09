@@ -2043,8 +2043,8 @@ h1 {
 
 .cluster-thumbnail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
   margin: 20px 0;
   padding: 20px;
   background: #f8f9fa;
@@ -2107,5 +2107,29 @@ h1 {
 .status-analyzed {
   background: #d4edda;
   color: #155724;
+}
+
+/* Generate XMP button in header */
+#generateAllXMPBtn {
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  transition: all 0.3s;
+}
+
+#generateAllXMPBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+#generateAllXMPBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Inline confidence badge */
+#aiConfidenceInline {
+  display: inline-block;
+  vertical-align: middle;
 }
 

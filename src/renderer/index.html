@@ -199,25 +199,26 @@
 
       <!-- AI Analysis Tab -->
       <div id="ai-analysis-tab" class="tab-panel">
-        <h2>AI Metadata Analysis</h2>
         
-        <!-- Cluster Selection Grid (NEW) -->
-        <div id="clusterSelectionSection" style="display: none;">
-          <h3>Select Cluster to Analyze</h3>
-          <div id="clusterThumbnailGrid" class="cluster-thumbnail-grid">
-            <!-- Thumbnails will be inserted here -->
+        <!-- Header with Title and Generate Button -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0;">AI Metadata Analysis</h2>
+            <p style="margin: 5px 0 0 0; font-size: 14px; color: #6c757d;">
+              Select Cluster to Analyze
+              <span id="aiConfidenceInline" style="margin-left: 15px; padding: 4px 10px; background: #d1ecf1; color: #0c5460; border-radius: 12px; font-size: 12px; font-weight: 600; display: none;">
+                <!-- Confidence will be inserted here -->
+              </span>
+            </p>
           </div>
           
-          <!-- Generate All XMP Button -->
-          <div style="text-align: center; margin: 20px 0;">
-            <button id="generateAllXMPBtn" class="select-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 16px 48px; font-size: 18px;" disabled>
-              ✅ Generate XMP Files for All Clusters
-            </button>
-            <p id="xmpGenerationStatus" style="margin-top: 10px; font-size: 14px; color: #6c757d;"></p>
-          </div>
+          <!-- Generate XMP Button (Top Right) -->
+          <button id="generateAllXMPBtn" class="select-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 12px 32px; font-size: 16px; white-space: nowrap; display: none;" disabled>
+            ✅ Generate XMP
+          </button>
         </div>
         
-        <!-- Empty State (shown when no clusters analyzed yet) -->
+        <!-- Empty State -->
         <div id="aiAnalysisEmpty" class="no-results">
           <h3>No Analysis Available</h3>
           <p>Go to the Visual Analysis tab and click "Run Analysis" to generate metadata for clusters.</p>
@@ -225,35 +226,21 @@
             Go to Visual Analysis
           </button>
         </div>
+        
+        <!-- Cluster Selection Section -->
+        <div id="clusterSelectionSection" style="display: none;">
+          <div id="clusterThumbnailGrid" class="cluster-thumbnail-grid">
+            <!-- Thumbnails will be inserted here -->
+          </div>
+          
+          <!-- Status text below thumbnails -->
+          <p id="xmpGenerationStatus" style="text-align: center; margin: 10px 0; font-size: 14px; color: #6c757d;"></p>
+        </div>
 
         <!-- Analysis Results (shown for selected cluster) -->
         <div id="aiAnalysisResults" style="display: none;">
           
-          <!-- Confidence Score Section -->
-          <div id="confidenceSection" class="confidence-indicator">
-            <h3>📊 Analysis Confidence</h3>
-            <div class="confidence-details">
-              <div class="confidence-provider">
-                <span id="confidenceProvider">🤖 Ollama</span>
-                <span id="confidenceScore">85%</span>
-              </div>
-              <div class="confidence-bar">
-                <div id="confidenceFill" class="confidence-fill"></div>
-              </div>
-              <p id="confidenceMessage" class="confidence-message"></p>
-            </div>
-            
-            <!-- Low Confidence Warning (hidden by default) -->
-            <div id="lowConfidenceWarning" class="low-confidence-warning" style="display: none;">
-              <p>⚠️ <strong>Low Confidence Analysis</strong></p>
-              <p>The AI is not very confident about this analysis. You can:</p>
-              <div class="confidence-actions">
-                <button id="reanalyzeOllamaBtn" class="setting-btn">🔄 Re-analyze with Ollama</button>
-                <button id="analyzeGoogleBtn" class="setting-btn">🌐 Analyze with Google Vision</button>
-                <button id="acceptManuallyBtn" class="select-btn">✏️ Accept & Edit Manually</button>
-              </div>
-            </div>
-          </div>
+          <!-- REMOVED: Big confidence bar section - now using inline badge -->
 
           <!-- Metadata Fields (All Editable) -->
           <div class="metadata-section">

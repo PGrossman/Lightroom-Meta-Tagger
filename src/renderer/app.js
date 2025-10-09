@@ -2434,10 +2434,13 @@ async function batchAnalyzeAllClusters() {
 function loadClustersForAnalysis() {
   // Check if we have clusters (either from batch analysis or from allProcessedImages)
   const sourceClusters = allClustersForAnalysis.length > 0 ? allClustersForAnalysis : allProcessedImages;
+  const generateBtn = document.getElementById('generateAllXMPBtn');
   
   if (!sourceClusters || sourceClusters.length === 0) {
+    // Show empty state, hide button
     document.getElementById('aiAnalysisEmpty').style.display = 'block';
     document.getElementById('clusterSelectionSection').style.display = 'none';
+    if (generateBtn) generateBtn.style.display = 'none';
     return;
   }
   
@@ -2457,10 +2460,15 @@ function loadClustersForAnalysis() {
   
   console.log(`✅ Loaded ${uniqueClusters.length} unique super clusters (${analyzedClusters.size} analyzed)`);
   
-  // Show cluster selection
+  // Show cluster grid and button
   document.getElementById('aiAnalysisEmpty').style.display = 'none';
   document.getElementById('clusterSelectionSection').style.display = 'block';
+  if (generateBtn) generateBtn.style.display = 'block';
   document.getElementById('aiAnalysisResults').style.display = 'none';
+  
+  // Hide confidence badge when showing cluster grid
+  const confidenceInline = document.getElementById('aiConfidenceInline');
+  if (confidenceInline) confidenceInline.style.display = 'none';
   
   renderClusterThumbnailGrid();
 }
@@ -2851,8 +2859,28 @@ function displayAIAnalysisResults(analysisData) {
   document.getElementById('aiAnalysisEmpty').style.display = 'none';
   document.getElementById('aiAnalysisResults').style.display = 'block';
   
-  // Display confidence score
-  displayConfidenceScore(analysisData.metadata);
+  // Update inline confidence indicator
+  const confidenceInline = document.getElementById('aiConfidenceInline');
+  if (confidenceInline && analysisData.metadata.confidence) {
+    const confidence = analysisData.metadata.confidence;
+    const provider = analysisData.metadata.provider === 'google_vision' ? 'Google' : 'Ollama';
+    
+    confidenceInline.textContent = `${provider}: ${confidence}%`;
+    
+    // Color based on confidence
+    if (confidence >= 90) {
+      confidenceInline.style.background = '#d4edda';
+      confidenceInline.style.color = '#155724';
+    } else if (confidence >= 80) {
+      confidenceInline.style.background = '#d1ecf1';
+      confidenceInline.style.color = '#0c5460';
+    } else {
+      confidenceInline.style.background = '#fff3cd';
+      confidenceInline.style.color = '#856404';
+    }
+    
+    confidenceInline.style.display = 'inline-block';
+  }
   
   // Populate metadata fields
   populateMetadataFields(analysisData.metadata);
