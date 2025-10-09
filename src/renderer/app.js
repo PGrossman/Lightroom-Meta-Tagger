@@ -2545,7 +2545,21 @@ async function renderClusterThumbnailGrid() {
  * Select a cluster for analysis/editing
  */
 async function selectCluster(clusterIndex) {
+  // ✅ CRITICAL FIX: Force blur on active input BEFORE collecting metadata
+  const activeElement = document.activeElement;
+  if (activeElement && (activeElement.tagName === 'INPUT' || 
+                         activeElement.tagName === 'TEXTAREA' || 
+                         activeElement.contentEditable === 'true')) {
+    console.log('⚠️ Forcing blur on active element:', activeElement.id || activeElement.className);
+    activeElement.blur();
+    
+    // Wait 10ms for blur event to process
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+
   console.log('🎯 selectCluster called with index:', clusterIndex);
+  console.log('Total clusters:', allClustersForAnalysis.length);
+  console.log('Cluster at index:', allClustersForAnalysis[clusterIndex]?.mainRep?.representativeFilename);
   
   // ✅ AUTO-SAVE: Save current cluster's metadata before switching
   if (currentClusterIndex !== null && currentClusterIndex !== clusterIndex) {
