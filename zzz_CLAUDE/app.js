@@ -1141,8 +1141,24 @@ async function loadProcessedResults() {
     if (window.similarityResults && window.similarityResults.length > 0) {
       console.log('Building similarity groups...');
       const groups = buildSimilarityGroups(window.processedClusters, window.similarityResults);
-      allProcessedImages = groups;
-      console.log(`Loaded ${groups.length} similarity groups (collapsed from ${window.processedClusters.length} clusters)`);
+      
+      // ✅ DEDUPLICATE - Remove groups with same mainRep
+      const seenPaths = new Set();
+      const uniqueGroups = [];
+      
+      groups.forEach((group, idx) => {
+        const repPath = group.mainRep.representativePath;
+        if (!seenPaths.has(repPath)) {
+          seenPaths.add(repPath);
+          uniqueGroups.push(group);
+          console.log(`✅ Keep group ${idx}: ${group.mainRep.representativeFilename}`);
+        } else {
+          console.log(`❌ Skip duplicate group ${idx}: ${group.mainRep.representativeFilename}`);
+        }
+      });
+      
+      allProcessedImages = uniqueGroups;
+      console.log(`Loaded ${uniqueGroups.length} unique similarity groups (removed ${groups.length - uniqueGroups.length} duplicates)`);
     } else {
       // No similarity results, treat each cluster as its own group
       allProcessedImages = window.processedClusters.map(cluster => ({
