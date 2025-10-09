@@ -2149,6 +2149,10 @@ td:nth-child(4) {
 .cluster-thumbnail-info {
   font-size: 12px;
   color: #495057;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .cluster-thumbnail-status {

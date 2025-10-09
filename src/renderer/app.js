@@ -2512,20 +2512,8 @@ async function renderClusterThumbnailGrid() {
     info.className = 'cluster-thumbnail-info';
     info.textContent = group.mainRep.representativeFilename;
     
-    // Status
-    const status = document.createElement('div');
-    status.className = 'cluster-thumbnail-status';
-    if (analyzedClusters.has(i)) {
-      status.className += ' status-analyzed';
-      status.textContent = '✅ Analyzed';
-    } else {
-      status.className += ' status-not-analyzed';
-      status.textContent = '⏳ Not Analyzed';
-    }
-    
     card.appendChild(img);
     card.appendChild(info);
-    card.appendChild(status);
     
     // Click handler
     card.onclick = () => selectCluster(i);
@@ -2545,36 +2533,32 @@ async function renderClusterThumbnailGrid() {
  * Select a cluster for analysis/editing
  */
 async function selectCluster(clusterIndex) {
-  // ✅ CRITICAL FIX: Force blur on active input BEFORE collecting metadata
-  const activeElement = document.activeElement;
-  if (activeElement && (activeElement.tagName === 'INPUT' || 
-                         activeElement.tagName === 'TEXTAREA' || 
-                         activeElement.contentEditable === 'true')) {
-    console.log('⚠️ Forcing blur on active element:', activeElement.id || activeElement.className);
-    activeElement.blur();
-    
-    // Wait 10ms for blur event to process
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-
   console.log('🎯 selectCluster called with index:', clusterIndex);
-  console.log('Total clusters:', allClustersForAnalysis.length);
-  console.log('Cluster at index:', allClustersForAnalysis[clusterIndex]?.mainRep?.representativeFilename);
   
-  // ✅ AUTO-SAVE: Save current cluster's metadata before switching
+  // ✅ SIMPLE FIX: Save current cluster FIRST before doing anything else
   if (currentClusterIndex !== null && currentClusterIndex !== clusterIndex) {
     try {
-      console.log('💾 Auto-saving cluster', currentClusterIndex, 'before switching');
+      console.log('💾 Auto-saving current cluster', currentClusterIndex, 'before switching');
+      
+      // Force blur on ANY active element to ensure values are committed to DOM
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+      
+      // Wait 50ms for blur to complete and DOM to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Now collect metadata
       const editedMetadata = collectMetadataFromForm();
       analyzedClusters.set(currentClusterIndex, editedMetadata);
-      console.log('✅ Auto-saved metadata for cluster', currentClusterIndex);
+      
+      console.log('✅ Auto-saved metadata:', editedMetadata);
     } catch (error) {
       console.error('❌ Failed to auto-save metadata:', error);
-      // Continue with switch anyway
     }
   }
   
-  // Now switch to new cluster
+  // Now proceed with switching
   currentClusterIndex = clusterIndex;
   const group = allClustersForAnalysis[clusterIndex];
   
@@ -2684,7 +2668,7 @@ function updateGenerateAllButtonState() {
     status.style.color = '#ffc107';
   } else {
     btn.disabled = false;
-    status.textContent = `✅ All ${totalClusters} clusters analyzed!`;
+    status.textContent = '';
     status.style.color = '#28a745';
   }
 }
