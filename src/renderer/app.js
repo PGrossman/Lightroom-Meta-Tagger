@@ -2470,7 +2470,11 @@ function loadClustersForAnalysis() {
  */
 async function renderClusterThumbnailGrid() {
   const grid = document.getElementById('clusterThumbnailGrid');
-  grid.innerHTML = '';
+  
+  // ✅ FORCE CLEAR - Remove all children completely
+  while (grid.firstChild) {
+    grid.removeChild(grid.firstChild);
+  }
   
   console.log('🎨 === RENDERING THUMBNAIL GRID ===');
   console.log('📊 allClustersForAnalysis.length:', allClustersForAnalysis.length);
@@ -3237,10 +3241,8 @@ function initializeAIAnalysisListeners() {
   }
   
   // Load clusters when AI Analysis tab is clicked
-  const aiAnalysisTab = document.querySelector('[data-tab="ai-analysis"]');
-  if (aiAnalysisTab) {
-    aiAnalysisTab.addEventListener('click', loadClustersForAnalysis);
-  }
+  // Note: loadClustersForAnalysis() is called automatically after batch analysis
+  // No need for tab click listener to avoid duplicate calls
   
   // Low confidence warning buttons
   const reanalyzeOllamaBtn = document.getElementById('reanalyzeOllamaBtn');
