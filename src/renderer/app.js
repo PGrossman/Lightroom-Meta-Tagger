@@ -1099,10 +1099,23 @@ function buildSimilarityGroups(clusters, similarityResults) {
         };
       });
     
+    // ✅ FIX: Ensure derivatives are preserved in the group structure
     const group = {
-      mainRep: mainRep,
-      similarReps: similarReps,
-      allClusters: groupClusters,
+      mainRep: {
+        ...mainRep,
+        derivatives: mainRep.derivatives || []  // Preserve derivatives from processedClusters
+      },
+      similarReps: similarReps.map(sim => ({
+        ...sim,
+        cluster: {
+          ...sim.cluster,
+          derivatives: sim.cluster.derivatives || []  // Preserve derivatives from each similar cluster
+        }
+      })),
+      allClusters: groupClusters.map(c => ({
+        ...c,
+        derivatives: c.derivatives || []  // Preserve derivatives in allClusters too
+      })),
       connectionCount: maxConnections
     };
     
