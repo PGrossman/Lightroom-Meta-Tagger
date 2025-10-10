@@ -72,8 +72,13 @@ class XMPGenerator {
       }
       
       // 3. All derivatives of main cluster
+      // ✅ FIX: Derivatives are at cluster.mainRep.derivatives (top level of mainRep)
       if (cluster.mainRep?.derivatives && Array.isArray(cluster.mainRep.derivatives)) {
         cluster.mainRep.derivatives.forEach(path => allFilesToProcess.add(path));
+      }
+      // Also check cluster.derivatives (alternative location from process-images)
+      if (cluster.derivatives && Array.isArray(cluster.derivatives)) {
+        cluster.derivatives.forEach(path => allFilesToProcess.add(path));
       }
       
       // 4. All similar representatives and their files
@@ -113,9 +118,19 @@ class XMPGenerator {
         totalFiles: filesToProcess.length,
         mainRepFiles: cluster.mainRep?.imagePaths?.length || 0,
         mainRepDerivatives: cluster.mainRep?.derivatives?.length || 0,
+        clusterDerivatives: cluster.derivatives?.length || 0,
         similarClusters: cluster.similarReps?.length || 0,
         allClustersCount: (cluster.similarReps?.length || 0) + 1,
         fileList: filesToProcess.map(f => path.basename(f))
+      });
+      
+      // 🔍 DEBUG: Log cluster structure
+      logger.debug('Cluster structure debug', {
+        hasMainRep: !!cluster.mainRep,
+        hasMainRepDerivatives: !!cluster.mainRep?.derivatives,
+        hasClusterDerivatives: !!cluster.derivatives,
+        mainRepKeys: cluster.mainRep ? Object.keys(cluster.mainRep) : [],
+        clusterKeys: Object.keys(cluster)
       });
 
       // Load personal data for creator/copyright info
