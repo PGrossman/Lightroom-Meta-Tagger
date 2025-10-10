@@ -18,7 +18,8 @@ class XMPGenerator {
     }
 
     try {
-      const data = await this.db.get('SELECT * FROM personal_data LIMIT 1');
+      // ✅ FIX: Use prepare().get() for better-sqlite3
+      const data = this.db.prepare('SELECT * FROM personal_data WHERE id = 1').get();
       
       if (data) {
         this.personalData = data;
@@ -107,12 +108,14 @@ class XMPGenerator {
       // Convert Set to Array and remove any null/undefined
       const filesToProcess = Array.from(allFilesToProcess).filter(p => p);
       
+      // 🔍 DEBUG: Log all files being processed
       logger.info('Files collected for XMP generation', {
         totalFiles: filesToProcess.length,
         mainRepFiles: cluster.mainRep?.imagePaths?.length || 0,
         mainRepDerivatives: cluster.mainRep?.derivatives?.length || 0,
         similarClusters: cluster.similarReps?.length || 0,
-        allClustersCount: cluster.allClusters?.length || 0
+        allClustersCount: (cluster.similarReps?.length || 0) + 1,
+        fileList: filesToProcess.map(f => path.basename(f))
       });
 
       // Load personal data for creator/copyright info
