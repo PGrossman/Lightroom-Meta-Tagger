@@ -140,16 +140,16 @@ If you cannot determine a field with confidence, leave it as an empty string and
    * Build LLM prompt with context
    */
   buildPrompt(context) {
-    let prompt = `Analyze this photograph and provide comprehensive metadata for cataloging and social media.
+    let prompt = `You are analyzing a photograph to generate comprehensive metadata for a professional photography catalog.
 
 CONTEXT INFORMATION:`;
 
     if (context.existingKeywords?.length > 0) {
-      prompt += `\n- Existing keywords: ${context.existingKeywords.join(', ')}`;
+      prompt += `\n- Existing keywords from folder structure: ${context.existingKeywords.join(', ')}`;
     }
     
     if (context.gps) {
-      prompt += `\n- GPS Coordinates: ${context.gps.latitude}, ${context.gps.longitude}`;
+      prompt += `\n- GPS Coordinates: ${context.gps.latitude}, ${context.gps.longitude} (Use this to help identify the location)`;
     }
     
     if (context.folderName) {
@@ -160,16 +160,57 @@ CONTEXT INFORMATION:`;
 
     prompt += `
 
+CRITICAL INSTRUCTIONS FOR KEYWORDS:
+- Focus on CONCRETE, SPECIFIC, TECHNICAL keywords about what is VISIBLE in the image
+- Include: specific equipment/models (aircraft types, vehicle models, camera gear), locations, landmarks, architectural features, specific activities
+- Technical details: "F-18 Hornet", "Boeing 747", "Canon EOS", "Golden Gate Bridge", "Gothic architecture"
+- Avoid abstract concepts like: "precision", "teamwork", "excellence", "power", "beauty", "mood", "atmosphere"
+- Avoid generic descriptors like: "professional", "dynamic", "stunning", "impressive"
+- For aircraft: Include specific model/type, military branch if applicable (e.g., "F-18 Super Hornet", "US Navy", "Blue Angels")
+- For locations: Include specific place names, not just "city" or "landscape"
+- For events: Include specific event names, years, or identifying details
+- Action-focused: "aerial refueling", "formation flying", "sunset landing" (not "teamwork" or "coordination")
+- Visual subjects: "contrail", "afterburner", "nose art", "cockpit canopy" (specific parts visible)
+
+BAD KEYWORDS (too abstract/generic):
+❌ "precision", "teamwork", "excellence", "power", "dynamic", "professional", "stunning", "impressive", "beauty", "skill", "coordination", "synchronization"
+
+GOOD KEYWORDS (specific/technical/visible):
+✅ "F-18 Super Hornet", "Blue Angels", "US Navy", "delta formation", "smoke trails", "military aviation", "jet fighter", "afterburner", "air show", "formation flight"
+
+KEYWORD PRIORITY (in order of importance):
+1. Specific equipment/models/types visible in image
+2. Specific locations, landmarks, place names
+3. Technical features, parts, components visible
+4. Specific activities or actions happening
+5. Military branch, organization, event name (if applicable)
+6. Time period indicators (if identifiable)
+7. Environmental/weather conditions (only if notable and specific)
+
+For military aviation specifically:
+- Always include: aircraft model, military branch, squadron/unit if identifiable
+- Technical details: "afterburner", "vapor trails", "weapons systems", "landing gear"
+- Mission types: "air-to-air refueling", "carrier landing", "tactical formation"
+- NOT: "power", "precision", "excellence", "teamwork"
+
 Respond with ONLY valid JSON in this exact format:
 {
   "confidence": 85,
   "uncertainFields": [],
-  "title": "Descriptive title (10-15 words)",
-  "description": "Detailed 2-3 sentence description (150-300 chars)",
-  "caption": "Social media ready caption (100-200 chars)",
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7"],
-  "category": "Primary category (e.g., Aviation, Landscape, Architecture, Travel)",
-  "sceneType": "Scene type (Landscape, Portrait, Macro, Architecture, etc.)",
+  "title": "Short, descriptive title (10-15 words)",
+  "description": "Detailed 2-3 sentence description (150-300 characters)",
+  "caption": "Engaging social media caption (100-200 characters)",
+  "keywords": [
+    "specific technical keyword 1",
+    "specific model/type 2",
+    "visible subject 3",
+    "location name 4",
+    "specific activity 5",
+    "technical feature 6",
+    "equipment type 7"
+  ],
+  "category": "Main category (e.g., Aviation, Architecture, Nature, Sports)",
+  "sceneType": "Specific scene type (e.g., Air Show, Urban Landscape, Wildlife Close-up)",
   "location": {
     "city": "City name or empty string",
     "state": "State/Province or empty string",
@@ -178,7 +219,7 @@ Respond with ONLY valid JSON in this exact format:
   },
   "mood": "Overall mood/atmosphere",
   "subjects": ["main subject 1", "main subject 2"],
-  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5", "#hashtag6", "#hashtag7", "#hashtag8", "#hashtag9", "#hashtag10"],
+  "hashtags": ["#specifictag1", "#technicaltag2", "#locationtag3", "#hashtag4", "#hashtag5", "#hashtag6", "#hashtag7", "#hashtag8", "#hashtag9", "#hashtag10"],
   "altText": "Accessibility description for screen readers (concise, descriptive)"
 }
 
@@ -186,7 +227,8 @@ IMPORTANT:
 - confidence should be 0-100 based on how certain you are
 - Add field names to uncertainFields if you're not confident about them
 - Use GPS coordinates to help identify location if provided
-- Incorporate existing keywords naturally if they're relevant`;
+- Incorporate existing keywords naturally if they're relevant and specific enough
+- Always prioritize what is ACTUALLY VISIBLE over abstract concepts`;
 
     return prompt;
   }
