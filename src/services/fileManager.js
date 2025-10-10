@@ -96,7 +96,8 @@ class FileManager {
 
   /**
    * Check if file is a potential derivative
-   * Excludes RED base TIF files
+   * Includes: .tif, .tiff, .psd, .jpg, .jpeg, .png, .psb
+   * Excludes: RED base TIF files (matching specific pattern)
    */
   isDerivative(filename) {
     const ext = path.extname(filename).toLowerCase();
@@ -106,12 +107,26 @@ class FileManager {
       return false;
     }
     
-    // If it's a TIF/TIFF, make sure it's NOT a RED base file
+    // If it's a TIF/TIFF, check if it's a RED base file
     if (ext === '.tif' || ext === '.tiff') {
-      // If it matches RED base pattern, it's NOT a derivative
-      if (this.isBaseImage(filename)) {
+      const nameWithoutExt = path.parse(filename).name;
+      const redBasePattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}_S\d{3}\.\d+$/i;
+      
+      // If it matches the EXACT RED base pattern (with S### and frame number), it's NOT a derivative
+      if (redBasePattern.test(nameWithoutExt)) {
         return false;
       }
+      
+      // If it has "-Edit" or "-Pano" or other suffixes, it IS a derivative
+      // Examples: A006_C001_0315GH_S000.0000127-Edit.tif = derivative
+      //           _GP_4599-Pano-Edit-Edit-Edit.tif = derivative
+      //           _GP_4599-Pano-Edit.tif = derivative
+      return true;
+    }
+    
+    // PSD files are ALWAYS derivatives
+    if (ext === '.psd' || ext === '.psb') {
+      return true;
     }
     
     return true;
