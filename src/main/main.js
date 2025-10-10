@@ -745,8 +745,15 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
       const repResult = imageResults.find(r => r.path === cluster.representative);
       const clusterKW = clusterKeywords.get(cluster.representative) || { all: [] };
       
-      // ✅ ADD: Get derivatives for this cluster's representative
-      const derivatives = scanResults.derivatives.get(cluster.representative) || [];
+      // ✅ ADD: Get derivatives for this cluster's representative (handle both Map and object)
+      let derivatives = [];
+      if (scanResults.derivatives) {
+        if (scanResults.derivatives instanceof Map) {
+          derivatives = scanResults.derivatives.get(cluster.representative) || [];
+        } else {
+          derivatives = scanResults.derivatives[cluster.representative] || [];
+        }
+      }
       
       return {
         representative: path.basename(cluster.representative),
