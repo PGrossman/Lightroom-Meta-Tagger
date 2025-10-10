@@ -745,12 +745,16 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
       const repResult = imageResults.find(r => r.path === cluster.representative);
       const clusterKW = clusterKeywords.get(cluster.representative) || { all: [] };
       
+      // ✅ ADD: Get derivatives for this cluster's representative
+      const derivatives = scanResults.derivatives.get(cluster.representative) || [];
+      
       return {
         representative: path.basename(cluster.representative),
         representativePath: cluster.representative,
         representativeFilename: path.basename(cluster.representative),
         imageCount: cluster.imageCount,
         imagePaths: cluster.imagePaths,
+        derivatives: derivatives,  // ✅ ADD: Derivatives array for XMP generation
         isBracketed: cluster.isBracketed,
         keywords: clusterKW.all, // ✅ CORRECT - uses cluster-specific keywords
         timestamp: repResult?.timestamp,
