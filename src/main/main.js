@@ -1068,9 +1068,16 @@ ipcMain.handle('test-google-vision-api', async (event, apiKey) => {
 // Personal Data IPC Handlers
 // ============================================
 
+// Get personal data
 ipcMain.handle('get-personal-data', async () => {
   try {
-    const data = await db.get('SELECT * FROM personal_data LIMIT 1');
+    const data = databaseService.db.prepare('SELECT * FROM personal_data WHERE id = 1').get();
+    
+    logger.info('Personal data retrieved', { 
+      hasData: !!data,
+      creator: data?.creatorName 
+    });
+    
     return { success: true, data };
   } catch (error) {
     logger.error('Failed to get personal data', { error: error.message });
@@ -1078,25 +1085,36 @@ ipcMain.handle('get-personal-data', async () => {
   }
 });
 
+// Save personal data
 ipcMain.handle('save-personal-data', async (event, data) => {
   try {
-    logger.info('Saving personal data', { 
-      creatorName: data.creatorName,
-      email: data.email 
-    });
+    logger.info('Saving personal data', { creator: data.creatorName });
     
-    await db.run(`
+    const stmt = databaseService.db.prepare(`
       INSERT OR REPLACE INTO personal_data (
         id, creatorName, jobTitle, address, city, state, postalCode, 
         country, phone, email, website, copyrightStatus, copyrightNotice, rightsUsageTerms
       ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      data.creatorName, data.jobTitle, data.address, data.city, data.state,
-      data.postalCode, data.country, data.phone, data.email, data.website,
-      data.copyrightStatus, data.copyrightNotice, data.rightsUsageTerms
-    ]);
+    `);
+    
+    stmt.run(
+      data.creatorName,
+      data.jobTitle || null,
+      data.address || null,
+      data.city || null,
+      data.state || null,
+      data.postalCode || null,
+      data.country || null,
+      data.phone || null,
+      data.email,
+      data.website || null,
+      data.copyrightStatus || 'copyrighted',
+      data.copyrightNotice,
+      data.rightsUsageTerms || null
+    );
     
     logger.info('Personal data saved successfully');
+    
     return { success: true };
   } catch (error) {
     logger.error('Failed to save personal data', { error: error.message });
