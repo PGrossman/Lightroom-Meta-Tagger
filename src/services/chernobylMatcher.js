@@ -128,7 +128,7 @@ class ChernobylMatcher {
         if (matchedWords.length > 0) {
           textScore = Math.min(70, (matchedWords.length / uniqueWords.length) * 70);
           matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
-          console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')})`);
+          console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
         }
       }
       
@@ -156,9 +156,17 @@ class ChernobylMatcher {
       
       const totalScore = textScore + gpsScore;
       
+      // Debug: Log all potential matches with scores
+      if (textScore > 0 || gpsScore > 0) {
+        if (totalScore >= 30) {
+          console.log(`   ✅ ADDED to matches: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)})`);
+        } else {
+          console.log(`   ❌ FILTERED OUT: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)}) - Below threshold`);
+        }
+      }
+      
       // Only include if score is meaningful
       if (totalScore >= 30) {
-        console.log(`   ✅ ADDED to matches: "${title}" (score: ${totalScore})`);
         matches.push({
           objectId: obj['Object ID'],
           title: obj['English Title'],
