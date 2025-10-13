@@ -9,7 +9,7 @@ if (!fs.existsSync(logDir)) {
 }
 
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || 'info', // Overall logger level
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
@@ -17,12 +17,16 @@ const logger = winston.createLogger({
     })
   ),
   transports: [
+    // File transport - ERROR level only to keep file small
     new winston.transports.File({ 
       filename: path.join(logDir, 'app.log'),
+      level: 'error', // ✅ Only log errors to file
       maxsize: 10485760, // 10MB
       maxFiles: 10
     }),
+    // Console transport - INFO level for debugging
     new winston.transports.Console({
+      level: 'info', // Keep console verbose for development
       format: winston.format.colorize({ all: true })
     })
   ]
