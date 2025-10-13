@@ -250,6 +250,7 @@ h1 {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  pointer-events: none;
 }
 
 .process-icon-small {
@@ -1429,6 +1430,7 @@ td:nth-child(4) {
   cursor: not-allowed;
   transform: none;
   opacity: 0.6;
+  pointer-events: none;
 }
 
 .process-icon {
@@ -2233,5 +2235,12 @@ td:nth-child(4) {
   outline: none;
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Primary button disabled state */
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
