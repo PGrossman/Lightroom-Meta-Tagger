@@ -18,6 +18,29 @@ class ChernobylMatcher {
     // Clear log file on initialization (fresh log for each session)
     fs.writeFileSync(this.logFilePath, '');
     
+    // ✅ ENHANCEMENT: Define significant words and their categories
+    this.significantWords = {
+      structures: ['statue', 'monument', 'memorial', 'sculpture', 'bust', 'building', 'tower', 'palace', 'cinema', 'theater', 'theatre'],
+      locations: ['square', 'park', 'street', 'avenue', 'plaza', 'place'],
+      specific: ['prometheus', 'lenin', 'reactor', 'duga', 'avanhard', 'energetik', 'pripyat', 'polissya', 'sarcophagus', 'shelter'],
+      generic: ['chernobyl', 'building', 'area', 'zone']
+    };
+    
+    // ✅ ENHANCEMENT: Category relevance mapping
+    this.categoryRelevance = {
+      'statue': ['statue', 'memorial', 'monument', 'sculpture', 'bust'],
+      'monument': ['memorial', 'monument', 'statue', 'sculpture'],
+      'memorial': ['memorial', 'monument', 'statue'],
+      'cinema': ['cinema', 'theater', 'theatre', 'cultural'],
+      'palace': ['palace', 'cultural', 'culture'],
+      'square': ['square', 'plaza', 'place'],
+      'building': ['building', 'structure'],
+      'reactor': ['reactor', 'nuclear', 'power', 'unit'],
+      'hospital': ['hospital', 'medical', 'health'],
+      'school': ['school', 'education'],
+      'hotel': ['hotel', 'hostel', 'accommodation']
+    };
+    
     this.log('🗂️  ChernobylMatcher initialized');
     if (csvPath) {
       this.log(`   CSV path: ${this.csvPath}`);
@@ -31,6 +54,74 @@ class ChernobylMatcher {
     console.log(message);
     const timestamp = new Date().toISOString();
     fs.appendFileSync(this.logFilePath, `${timestamp} ${message}\n`);
+  }
+
+  /**
+   * ✅ ENHANCEMENT: Determine if a word is significant (not generic)
+   */
+  isSignificantWord(word) {
+    const lower = word.toLowerCase();
+    for (const category of ['structures', 'locations', 'specific']) {
+      if (this.significantWords[category].includes(lower)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * ✅ ENHANCEMENT: Determine if a word is generic
+   */
+  isGenericWord(word) {
+    return this.significantWords.generic.includes(word.toLowerCase());
+  }
+
+  /**
+   * ✅ ENHANCEMENT: Calculate category relevance bonus
+   */
+  getCategoryBonus(subjectWords, categories, tags) {
+    let bonus = 0;
+    const categoryText = `${categories} ${tags}`.toLowerCase();
+    
+    for (const word of subjectWords) {
+      const wordLower = word.toLowerCase();
+      if (this.categoryRelevance[wordLower]) {
+        for (const relatedCategory of this.categoryRelevance[wordLower]) {
+          if (categoryText.includes(relatedCategory)) {
+            bonus += 15;
+            this.log(`   🎯 Category relevance: "${word}" matches "${relatedCategory}" (+15)`);
+            break; // Only count once per word
+          }
+        }
+      }
+    }
+    
+    return Math.min(bonus, 45); // Cap at 45 points
+  }
+
+  /**
+   * ✅ ENHANCEMENT: Extract phrases from subject
+   */
+  extractPhrases(text) {
+    const phrases = [];
+    const words = text.split(/\s+/);
+    
+    // Add full text if 2+ words
+    if (words.length >= 2) {
+      phrases.push(text);
+    }
+    
+    // Extract sub-phrases (consecutive words)
+    for (let i = 0; i < words.length - 1; i++) {
+      for (let j = i + 2; j <= words.length; j++) {
+        const phrase = words.slice(i, j).join(' ');
+        if (phrase.length >= 5) { // Min 5 chars
+          phrases.push(phrase);
+        }
+      }
+    }
+    
+    return [...new Set(phrases)]; // Remove duplicates
   }
 
   async loadDatabase() {
@@ -138,48 +229,86 @@ class ChernobylMatcher {
         matchType = 'Title contains subject';
         this.log(`   ✅ CONTAINS match: "${title}"`);
       }
-      // Word overlap
+      // ✅ ENHANCEMENT: Phrase matching first
       else {
-        const matchedWords = uniqueWords.filter(word => 
-          searchableText.includes(word)
-        );
+        // Try phrase matching first
+        const phrases = this.extractPhrases(subjectLower);
+        let maxPhraseScore = 0;
+        let bestPhraseMatch = '';
         
-        if (matchedWords.length > 0) {
-          // Base score calculation
-          textScore = Math.min(70, (matchedWords.length / uniqueWords.length) * 70);
+        for (const phrase of phrases) {
+          if (phrase.length < 5) continue;
           
-          // ✅ Bonus for matching significant/rare words (not generic)
-          const significantWords = [
-            'prometheus', 'statue', 'monument', 'cinema', 'palace', 'theater', 
-            'hospital', 'school', 'kindergarten', 'hotel', 'restaurant',
-            'museum', 'memorial', 'stadium', 'pool', 'gym', 'church',
-            'reactor', 'turbine', 'cooling', 'sarcophagus', 'shelter',
-            'bridge', 'tower', 'antenna', 'radar', 'duga'
-          ];
-          
-          const hasSignificantMatch = matchedWords.some(w => significantWords.includes(w));
-          
-          if (hasSignificantMatch) {
-            const originalScore = textScore;
-            textScore += 20; // Boost score for important word matches
-            matchType = `${matchedWords.length}/${uniqueWords.length} words (significant match)`;
-            this.log(`   🎯 SIGNIFICANT WORD BOOST: "${title}" (${matchedWords.join(', ')}) - Score: ${Math.round(originalScore)} → ${Math.round(textScore)}`);
-          } else {
-            matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
-            this.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
+          if (title.includes(phrase)) {
+            const phraseScore = 95 - (title.length - phrase.length) * 2;
+            if (phraseScore > maxPhraseScore) {
+              maxPhraseScore = Math.max(phraseScore, 85);
+              bestPhraseMatch = phrase;
+              matchType = `Title contains phrase "${phrase}"`;
+              this.log(`   ✅ PHRASE match: "${title}" contains "${phrase}" - Score: ${Math.round(maxPhraseScore)}`);
+            }
           }
           
-          // Bonus for multiple specific words
-          if (matchedWords.length >= 2) {
-            textScore += 10;
-            this.log(`   💎 MULTI-WORD BONUS: +10 points (total now: ${Math.round(textScore)})`);
+          if (categories.includes(phrase) || tags.includes(phrase)) {
+            const phraseScore = 75;
+            if (phraseScore > maxPhraseScore) {
+              maxPhraseScore = phraseScore;
+              bestPhraseMatch = phrase;
+              matchType = `Categories/tags contain phrase "${phrase}"`;
+              this.log(`   ✅ CATEGORY PHRASE match: "${phrase}" - Score: ${Math.round(maxPhraseScore)}`);
+            }
           }
+        }
+        
+        if (maxPhraseScore > 0) {
+          textScore = maxPhraseScore;
+        }
+        
+        // ✅ ENHANCEMENT: Enhanced word matching (if no phrase match)
+        if (textScore === 0) {
+          const titleWords = title.split(/\s+/).filter(w => w.length >= 3);
+          const matchedWords = titleWords.filter(w => uniqueWords.includes(w));
           
-          // Penalty for generic single words only (not if significant)
-          const genericWords = ['chernobyl', 'pripyat', 'building', 'zone', 'area'];
-          if (matchedWords.length === 1 && genericWords.includes(matchedWords[0]) && !hasSignificantMatch) {
-            textScore = Math.min(textScore, 25); // Cap at 25 for generic-only matches
-            this.log(`   ⚠️ GENERIC WORD PENALTY: Capped at 25 points`);
+          if (matchedWords.length > 0) {
+            // Base score calculation
+            const overlapRatio = matchedWords.length / Math.max(titleWords.length, uniqueWords.length);
+            textScore = overlapRatio * 60;
+            
+            // Count significant vs generic matched words
+            const matchedSignificant = matchedWords.filter(w => this.isSignificantWord(w));
+            const matchedGeneric = matchedWords.filter(w => this.isGenericWord(w));
+            
+            this.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - baseScore: ${Math.round(textScore)}`);
+            
+            // ✅ ENHANCEMENT: Combo bonus for multiple significant words
+            if (matchedSignificant.length >= 2) {
+              const comboBonus = 20 + (matchedSignificant.length - 2) * 10;
+              textScore += comboBonus;
+              this.log(`   🎯 SIGNIFICANT WORD COMBO: ${matchedSignificant.length} words (${matchedSignificant.join(', ')}) - Bonus: +${comboBonus}`);
+              matchType = `${matchedSignificant.length}/${uniqueWords.length} significant words match`;
+            }
+            // Single significant word boost
+            else if (matchedSignificant.length === 1) {
+              textScore += 20;
+              this.log(`   🎯 SIGNIFICANT WORD BOOST: "${title}" (${matchedSignificant[0]}) - Score: ${Math.round(textScore - 20)} → ${Math.round(textScore)}`);
+              matchType = `1/${uniqueWords.length} words (significant match)`;
+            }
+            // Generic word penalty (only if ONLY generic words match)
+            else if (matchedGeneric.length > 0 && matchedSignificant.length === 0) {
+              this.log(`   ⚠️ GENERIC WORD PENALTY: Capped at 25 points`);
+              textScore = Math.min(textScore, 25);
+              matchType = `Generic word: ${matchedGeneric.join(', ')}`;
+            }
+            else {
+              matchType = `Word overlap: ${matchedWords.join(', ')}`;
+            }
+            
+            // ✅ ENHANCEMENT: Category relevance bonus
+            const categoryBonus = this.getCategoryBonus(uniqueWords, categories, tags);
+            if (categoryBonus > 0) {
+              textScore += categoryBonus;
+              matchType += ` [+${categoryBonus} category bonus]`;
+            }
           }
         }
       }
@@ -233,7 +362,7 @@ class ChernobylMatcher {
           totalScore: Math.round(totalScore),
           distance: distance,
           matchType: matchType,
-          confidence: this.calculateConfidence(totalScore, gps !== null)
+          confidence: this.calculateConfidence(totalScore, matchType)
         });
       }
     }
@@ -276,10 +405,26 @@ class ChernobylMatcher {
   /**
    * Calculate confidence level based on score
    */
-  calculateConfidence(totalScore, hasGPS) {
-    if (totalScore >= 90) return 'Very High';
-    if (totalScore >= 70) return 'High';
+  /**
+   * ✅ ENHANCEMENT: Improved confidence thresholds
+   */
+  calculateConfidence(totalScore, matchType) {
+    // Boost confidence for multiple significant word matches
+    const hasMultipleSignificant = matchType && matchType.includes('significant words match');
+    const hasCategoryBonus = matchType && matchType.includes('category bonus');
+    const hasPhraseMatch = matchType && matchType.includes('phrase');
+    
+    if (totalScore >= 130) return 'Exact Match';
+    if (totalScore >= 110) return 'Very High';
+    
+    // Lower threshold for high confidence if phrase match or multiple significant words
+    if (totalScore >= 75 && (hasMultipleSignificant || hasCategoryBonus || hasPhraseMatch)) return 'High';
+    if (totalScore >= 80) return 'High';
+    
+    // Medium confidence for decent multi-word matches
+    if (totalScore >= 55 && hasMultipleSignificant) return 'Medium';
     if (totalScore >= 50) return 'Medium';
+    
     if (totalScore >= 30) return 'Low';
     return 'Very Low';
   }
