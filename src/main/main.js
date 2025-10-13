@@ -1009,23 +1009,43 @@ ipcMain.handle('restart-clip-service', async () => {
 // Save AI settings
 ipcMain.handle('save-ai-settings', async (event, settings) => {
   try {
-    logger.info('Saving AI settings', { 
+    logger.info('Saving AI settings', {
       hasOllamaEndpoint: !!settings.ollamaEndpoint,
       hasOllamaModel: !!settings.ollamaModel,
       confidenceThreshold: settings.confidenceThreshold,
       hasGoogleVisionKey: !!settings.googleVisionApiKey
     });
     
-    // Update config sections
-    config.ollama.endpoint = settings.ollamaEndpoint;
-    config.ollama.model = settings.ollamaModel;
-    config.aiAnalysis.confidenceThreshold = settings.confidenceThreshold;
-    config.googleVision.apiKey = settings.googleVisionApiKey;
+    // ✅ FIXED: Use configManager.set() for each setting
+    if (settings.ollamaEndpoint) {
+      const ollama = configManager.get('ollama') || {};
+      ollama.endpoint = settings.ollamaEndpoint;
+      configManager.set('ollama', ollama);
+    }
     
-    // Save to file
-    await configManager.saveConfig(config);
+    if (settings.ollamaModel) {
+      const ollama = configManager.get('ollama') || {};
+      ollama.model = settings.ollamaModel;
+      configManager.set('ollama', ollama);
+    }
+    
+    if (settings.confidenceThreshold !== undefined) {
+      const aiAnalysis = configManager.get('aiAnalysis') || {};
+      aiAnalysis.confidenceThreshold = settings.confidenceThreshold;
+      configManager.set('aiAnalysis', aiAnalysis);
+    }
+    
+    if (settings.googleVisionApiKey) {
+      const googleVision = configManager.get('googleVision') || {};
+      googleVision.apiKey = settings.googleVisionApiKey;
+      configManager.set('googleVision', googleVision);
+    }
     
     logger.info('AI settings saved successfully');
+    
+    // Reinitialize AI Analysis Service with new settings
+    await initializeAIServices();
+    
     return { success: true };
     
   } catch (error) {
@@ -1204,28 +1224,25 @@ ipcMain.handle('select-chernobyl-database', async () => {
 
 ipcMain.handle('save-chernobyl-db-settings', async (event, settings) => {
   try {
-    const config = configManager.getAllSettings();
+    // ✅ FIXED: Use configManager.set() not saveConfig()
+    const currentChernobylDB = configManager.get('chernobylDB') || {};
     
-    if (!config.chernobylDB) {
-      config.chernobylDB = {};
-    }
+    // Update the chernobylDB object
+    const updatedChernobylDB = {
+      ...currentChernobylDB,
+      path: settings.path || ''
+    };
     
-    config.chernobylDB.path = settings.path || '';
+    // Save using configManager.set() which auto-saves
+    configManager.set('chernobylDB', updatedChernobylDB);
     
-    configManager.saveConfig();
-    
-    logger.info('Chernobyl DB path saved', { 
-      hasPath: !!settings.path 
-    });
+    logger.info('Chernobyl DB path saved', { hasPath: !!settings.path });
     
     return { success: true };
     
   } catch (error) {
-    logger.error('Failed to save Chernobyl DB path', { error: error.message });
-    return { 
-      success: false, 
-      error: error.message 
-    };
+    logger.error('Failed to save Chernobyl DB settings', { error: error.message });
+    return { success: false, error: error.message };
   }
 });
 
