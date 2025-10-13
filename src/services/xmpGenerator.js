@@ -55,8 +55,19 @@ class XMPGenerator {
     try {
       logger.info('Starting XMP generation', { 
         clusterRep: cluster.mainRep?.representativeFilename,
-        totalAffectedImages: affectedImages?.length || 0
+        totalAffectedImages: affectedImages?.length || 0,
+        hasGPS: !!(metadata.gps?.latitude || metadata.gps?.longitude)
       });
+      
+      // Log GPS data if present
+      if (metadata.gps?.latitude || metadata.gps?.longitude) {
+        logger.info('📍 GPS Data found - will propagate to all cluster images', {
+          latitude: metadata.gps.latitude,
+          longitude: metadata.gps.longitude,
+          altitude: metadata.gps.altitude,
+          source: metadata.gps.source || 'unknown'
+        });
+      }
 
       // ✅ COMPLETE: Collect ALL files that need XMP
       const allFilesToProcess = new Set();
@@ -287,7 +298,8 @@ class XMPGenerator {
       xmlns:xmp="http://ns.adobe.com/xap/1.0/"
       xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
       xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/"
-      xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/">
+      xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/"
+      xmlns:exif="http://ns.adobe.com/exif/1.0/">
       
       <!-- Title -->
       <dc:title>
@@ -353,6 +365,9 @@ ${metadata.sceneType ? `      <Iptc4xmpCore:Scene>
       <!-- Location -->
 ${this.formatLocation(metadata.location)}
       
+      <!-- GPS Coordinates -->
+${this.formatGPSData(metadata.gps)}
+      
       <!-- Metadata Date -->
       <xmp:MetadataDate>${timestamp}</xmp:MetadataDate>
       <xmp:ModifyDate>${timestamp}</xmp:ModifyDate>
@@ -367,6 +382,33 @@ ${metadata.altText ? `      <Iptc4xmpCore:AltTextAccessibility>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>`;
+  }
+
+  /**
+   * Format GPS coordinates for XMP
+   * Converts GPS data to EXIF-compliant XMP tags
+   */
+  formatGPSData(gps) {
+    if (!gps || (!gps.latitude && gps.latitude !== 0) || (!gps.longitude && gps.longitude !== 0)) {
+      return '';
+    }
+    
+    let xml = '';
+    
+    // XMP uses decimal degrees format
+    // Latitude: positive = North, negative = South
+    // Longitude: positive = East, negative = West
+    xml += `      <exif:GPSLatitude>${gps.latitude}</exif:GPSLatitude>\n`;
+    xml += `      <exif:GPSLongitude>${gps.longitude}</exif:GPSLongitude>\n`;
+    xml += `      <exif:GPSVersionID>2.3.0.0</exif:GPSVersionID>\n`;
+    
+    // Optional: Altitude (in meters)
+    if (gps.altitude !== undefined && gps.altitude !== null) {
+      xml += `      <exif:GPSAltitude>${Math.abs(gps.altitude)}</exif:GPSAltitude>\n`;
+      xml += `      <exif:GPSAltitudeRef>${gps.altitude >= 0 ? '0' : '1'}</exif:GPSAltitudeRef>\n`;
+    }
+    
+    return xml;
   }
 
   /**

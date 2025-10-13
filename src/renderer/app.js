@@ -3230,14 +3230,29 @@ function populateMetadataFields(metadata) {
     document.getElementById('metaSpecificLocation').value = metadata.location.specificLocation || '';
   }
   
-  // GPS coordinates (if available)
-  if (currentAnalysisData?.cluster?.mainRep?.gps) {
-    const gps = currentAnalysisData.cluster.mainRep.gps;
-    document.getElementById('gpsDisplaySection').style.display = 'block';
-    document.getElementById('gpsCoordinates').textContent = `${gps.latitude}, ${gps.longitude}`;
-  } else {
-    document.getElementById('gpsDisplaySection').style.display = 'none';
+  // GPS coordinates - Check multiple sources with priority:
+  // 1. Manual GPS (user edited)
+  // 2. GPS Analysis from AI
+  // 3. EXIF GPS from parent
+  let gpsData = null;
+  let gpsSource = '';
+  
+  if (metadata.manualGPS?.latitude) {
+    gpsData = metadata.manualGPS;
+    gpsSource = 'Manual Entry';
+  } else if (metadata.gpsAnalysis?.latitude) {
+    gpsData = {
+      latitude: parseFloat(metadata.gpsAnalysis.latitude),
+      longitude: parseFloat(metadata.gpsAnalysis.longitude),
+      altitude: metadata.gpsAnalysis.altitude || null
+    };
+    gpsSource = 'AI Analysis';
+  } else if (currentAnalysisData?.cluster?.mainRep?.gps) {
+    gpsData = currentAnalysisData.cluster.mainRep.gps;
+    gpsSource = 'EXIF Data';
   }
+  
+  displayGPSSection(gpsData, gpsSource);
   
   // Hashtags
   const hashtags = metadata.hashtags || [];
@@ -3245,6 +3260,185 @@ function populateMetadataFields(metadata) {
   
   // Alt Text
   document.getElementById('metaAltText').value = metadata.altText || '';
+}
+
+/**
+ * Display GPS section with edit capability
+ */
+function displayGPSSection(gpsData, source) {
+  const gpsSection = document.getElementById('gpsDisplaySection');
+  
+  if (!gpsData || (!gpsData.latitude && gpsData.latitude !== 0)) {
+    // No GPS - show "Add GPS" button
+    gpsSection.innerHTML = `
+      <button id="addGPSBtn" class="secondary-button" style="margin-top: 10px;">
+        📍 Add GPS Coordinates
+      </button>
+    `;
+    gpsSection.style.display = 'block';
+    
+    // Add event listener
+    document.getElementById('addGPSBtn').addEventListener('click', () => {
+      showGPSEditForm(null, 'Manual Entry');
+    });
+    return;
+  }
+  
+  // Has GPS - show display with edit capability
+  gpsSection.innerHTML = `
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <strong style="color: #2c3e50;">📍 GPS Coordinates</strong>
+        <div>
+          <span style="font-size: 11px; color: #6c757d; background: #e9ecef; padding: 3px 8px; border-radius: 10px; margin-right: 8px;">
+            ${source}
+          </span>
+          <button id="editGPSBtn" class="secondary-button" style="padding: 4px 12px; font-size: 13px;">
+            Edit
+          </button>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;">
+        <span style="color: #6c757d;">Latitude:</span>
+        <span style="color: #2c3e50; font-family: monospace;">${gpsData.latitude}</span>
+        
+        <span style="color: #6c757d;">Longitude:</span>
+        <span style="color: #2c3e50; font-family: monospace;">${gpsData.longitude}</span>
+        
+        ${gpsData.altitude ? `
+          <span style="color: #6c757d;">Altitude:</span>
+          <span style="color: #2c3e50; font-family: monospace;">${gpsData.altitude}m</span>
+        ` : ''}
+      </div>
+      
+      <button id="copyGPSBtn" class="secondary-button" style="width: 100%; margin-top: 10px; font-size: 13px;">
+        📋 Copy Coordinates
+      </button>
+    </div>
+  `;
+  gpsSection.style.display = 'block';
+  
+  // Add event listeners
+  document.getElementById('editGPSBtn').addEventListener('click', () => {
+    showGPSEditForm(gpsData, source);
+  });
+  
+  document.getElementById('copyGPSBtn').addEventListener('click', () => {
+    const text = `${gpsData.latitude}, ${gpsData.longitude}`;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyGPSBtn');
+      const originalText = btn.textContent;
+      btn.textContent = '✅ Copied!';
+      btn.style.background = '#27ae60';
+      btn.style.color = 'white';
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    });
+  });
+}
+
+/**
+ * Show GPS edit form
+ */
+function showGPSEditForm(currentGPS, source) {
+  const gpsSection = document.getElementById('gpsDisplaySection');
+  
+  gpsSection.innerHTML = `
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <strong style="color: #856404;">📍 Edit GPS Coordinates</strong>
+        <span style="font-size: 11px; color: #856404;">Will apply to ALL cluster images</span>
+      </div>
+      
+      <div style="display: grid; gap: 10px;">
+        <div>
+          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Latitude (decimal degrees)</label>
+          <input type="number" id="gpsLatInput" step="0.000001" placeholder="51.389167" 
+                 value="${currentGPS?.latitude || ''}"
+                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
+          <span style="font-size: 11px; color: #856404;">North: positive, South: negative</span>
+        </div>
+        
+        <div>
+          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Longitude (decimal degrees)</label>
+          <input type="number" id="gpsLonInput" step="0.000001" placeholder="30.099444"
+                 value="${currentGPS?.longitude || ''}"
+                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
+          <span style="font-size: 11px; color: #856404;">East: positive, West: negative</span>
+        </div>
+        
+        <div>
+          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Altitude (meters, optional)</label>
+          <input type="number" id="gpsAltInput" step="0.1" placeholder="123.5"
+                 value="${currentGPS?.altitude || ''}"
+                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+          <button id="saveGPSBtn" class="secondary-button" style="background: #28a745; color: white;">
+            ✓ Save GPS
+          </button>
+          <button id="cancelGPSBtn" class="secondary-button">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add event listeners
+  document.getElementById('saveGPSBtn').addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('gpsLatInput').value);
+    const lon = parseFloat(document.getElementById('gpsLonInput').value);
+    const alt = document.getElementById('gpsAltInput').value ? 
+                 parseFloat(document.getElementById('gpsAltInput').value) : null;
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      alert('Please enter valid latitude and longitude values');
+      return;
+    }
+    
+    // Validate ranges
+    if (lat < -90 || lat > 90) {
+      alert('Latitude must be between -90 and 90');
+      return;
+    }
+    if (lon < -180 || lon > 180) {
+      alert('Longitude must be between -180 and 180');
+      return;
+    }
+    
+    // Save GPS to current metadata
+    if (currentAnalysisData && currentAnalysisData.metadata) {
+      currentAnalysisData.metadata.manualGPS = {
+        latitude: lat,
+        longitude: lon,
+        altitude: alt,
+        source: 'Manual Entry'
+      };
+      
+      console.log('✅ GPS coordinates updated for cluster:', currentAnalysisData.metadata.manualGPS);
+      
+      // Redisplay GPS section
+      displayGPSSection(currentAnalysisData.metadata.manualGPS, 'Manual Entry');
+      
+      // Show success message
+      updateStatus('GPS coordinates updated - will apply to all cluster images on XMP generation', 'complete');
+    }
+  });
+  
+  document.getElementById('cancelGPSBtn').addEventListener('click', () => {
+    // Restore previous display
+    if (currentGPS) {
+      displayGPSSection(currentGPS, source);
+    } else {
+      displayGPSSection(null, '');
+    }
+  });
 }
 
 /**
@@ -3358,6 +3552,30 @@ function collectMetadataFromForm() {
     provider: currentAnalysisData?.metadata?.provider || 'ollama'
   };
   
+  // ✅ Collect GPS data if present (priority: manualGPS > gpsAnalysis > EXIF)
+  if (currentAnalysisData?.metadata?.manualGPS?.latitude) {
+    metadata.gps = {
+      latitude: currentAnalysisData.metadata.manualGPS.latitude,
+      longitude: currentAnalysisData.metadata.manualGPS.longitude,
+      altitude: currentAnalysisData.metadata.manualGPS.altitude || null,
+      source: 'Manual Entry'
+    };
+  } else if (currentAnalysisData?.metadata?.gpsAnalysis?.latitude) {
+    metadata.gps = {
+      latitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.latitude),
+      longitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.longitude),
+      altitude: currentAnalysisData.metadata.gpsAnalysis.altitude || null,
+      source: 'AI Analysis'
+    };
+  } else if (currentAnalysisData?.cluster?.mainRep?.gps) {
+    metadata.gps = {
+      latitude: currentAnalysisData.cluster.mainRep.gps.latitude,
+      longitude: currentAnalysisData.cluster.mainRep.gps.longitude,
+      altitude: currentAnalysisData.cluster.mainRep.gps.altitude || null,
+      source: 'EXIF Data'
+    };
+  }
+  
   // ✅ Collect keywords from .keyword-tag elements in AI Analysis tab
   const keywordTags = document.querySelectorAll('#keywordsContainer .keyword-tag span:first-child');
   keywordTags.forEach(span => {
@@ -3372,6 +3590,9 @@ function collectMetadataFromForm() {
   metadata.hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
   
   console.log('📦 Collected metadata:', metadata);
+  if (metadata.gps) {
+    console.log('📍 GPS will be written to all cluster images:', metadata.gps);
+  }
   return metadata;
 }
 
