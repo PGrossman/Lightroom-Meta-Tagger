@@ -85,9 +85,59 @@ If you cannot determine a field with confidence, leave it as an empty string and
   }
 
   /**
+   * Match AI results to Chernobyl database
+   */
+  async matchToDatabase(metadata, chernobylMatcher) {
+    if (!chernobylMatcher) {
+      return null;
+    }
+
+    try {
+      // Get subject from metadata
+      const subject = metadata.subjectDetection?.subject || metadata.title;
+      if (!subject) {
+        this.logger.warn('No subject found for database matching');
+        return null;
+      }
+      
+      // Get GPS if available
+      const gps = metadata.gpsAnalysis?.latitude ? {
+        latitude: metadata.gpsAnalysis.latitude,
+        longitude: metadata.gpsAnalysis.longitude
+      } : null;
+      
+      this.logger.info('Searching Chernobyl database', { subject, hasGPS: !!gps });
+      
+      const matches = await chernobylMatcher.findMatches(subject, gps);
+      
+      if (matches.length > 0 && matches[0].totalScore > 50) {
+        this.logger.info('Database match found', {
+          subject,
+          match: matches[0].title,
+          score: matches[0].totalScore,
+          confidence: matches[0].confidence
+        });
+        
+        return {
+          matched: true,
+          topMatch: matches[0],
+          allMatches: matches
+        };
+      }
+      
+      this.logger.info('No strong database matches found', { subject });
+      return { matched: false, allMatches: matches };
+      
+    } catch (error) {
+      this.logger.error('Database matching failed', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
    * Main analysis method with automatic fallback logic
    */
-  async analyzeCluster(cluster, existingData = {}, forceProvider = null) {
+  async analyzeCluster(cluster, existingData = {}, forceProvider = null, chernobylMatcher = null) {
     const context = this.buildContext(cluster, existingData);
     const repPath = cluster.mainRep.representativePath;
 
@@ -109,6 +159,26 @@ If you cannot determine a field with confidence, leave it as an empty string and
           confidence: result.confidence,
           threshold: this.confidenceThreshold
         });
+      }
+    }
+
+    // ✅ NEW: Try database matching if enabled
+    if (chernobylMatcher) {
+      this.logger.info('Attempting Chernobyl database matching...');
+      const dbMatch = await this.matchToDatabase(result, chernobylMatcher);
+      
+      if (dbMatch) {
+        result.databaseMatch = dbMatch;
+        
+        // Enrich metadata with high-confidence matches
+        if (dbMatch.matched && dbMatch.topMatch.totalScore > 80) {
+          result.databaseEnriched = true;
+          this.logger.info('Metadata enriched from database', {
+            original: result.title,
+            matched: dbMatch.topMatch.title,
+            score: dbMatch.topMatch.totalScore
+          });
+        }
       }
     }
 

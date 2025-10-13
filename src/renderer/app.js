@@ -2444,6 +2444,10 @@ async function batchAnalyzeAllClusters() {
   console.log('🚀 === BATCH ANALYSIS DEBUG ===');
   console.log('Raw allProcessedImages:', allProcessedImages.length);
   
+  // ✅ Get the checkbox state
+  const useChernobylDB = document.getElementById('useChernobylDB')?.checked || false;
+  console.log('Chernobyl DB matching enabled:', useChernobylDB);
+  
   // Log each item with full details
   allProcessedImages.forEach((group, idx) => {
     console.log(`\n[${idx}]:`, {
@@ -2482,6 +2486,9 @@ async function batchAnalyzeAllClusters() {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
     
+    // ✅ Add the flag to the cluster group
+    group.useChernobylDB = useChernobylDB;
+    
     try {
       console.log(`🔍 Analyzing [${i + 1}/${uniqueClusters.length}]: ${clusterName}`);
       
@@ -2495,6 +2502,11 @@ async function batchAnalyzeAllClusters() {
         // Store metadata in the Map
         analyzedClusters.set(i, result.data.metadata);
         console.log(`✅ Analysis complete for: ${clusterName}`);
+        
+        // ✅ Log database match if found
+        if (result.data.metadata.databaseMatch?.matched) {
+          console.log(`   🗺️ Database match: ${result.data.metadata.databaseMatch.topMatch.title}`);
+        }
       } else {
         console.error(`❌ Analysis failed for: ${clusterName}`, result.error);
         alert(`Analysis failed for ${clusterName}: ${result.error}`);
@@ -2981,6 +2993,9 @@ function displayAIAnalysisResults(analysisData) {
   // Populate metadata fields
   populateMetadataFields(analysisData.metadata);
   
+  // ✅ NEW: Display database match if available
+  displayDatabaseMatch(analysisData.metadata);
+  
   // Display static metadata
   displayStaticMetadata(analysisData);
   
@@ -3159,6 +3174,96 @@ function createKeywordTag(keyword) {
   tag.appendChild(remove);
   
   return tag;
+}
+
+/**
+ * Display Chernobyl database match if available
+ */
+function displayDatabaseMatch(metadata) {
+  // Remove any existing database match section
+  const existingMatch = document.querySelector('.database-match-section');
+  if (existingMatch) {
+    existingMatch.remove();
+  }
+  
+  // Check if we have a database match
+  if (!metadata.databaseMatch?.matched) {
+    return;
+  }
+  
+  const match = metadata.databaseMatch.topMatch;
+  
+  // Find the metadata fields container to insert before
+  const metadataFields = document.getElementById('aiAnalysisResults');
+  if (!metadataFields) return;
+  
+  // Create database match section
+  const dbMatchHTML = `
+    <div class="database-match-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 5px solid #27ae60;">
+      <h3 style="color: #27ae60; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 24px;">🎯</span>
+        <span>Chernobyl Database Match Found</span>
+        <span style="background: #27ae60; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600;">
+          ${match.confidence}
+        </span>
+      </h3>
+      
+      <div style="display: grid; gap: 12px; background: white; padding: 15px; border-radius: 6px;">
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Matched Title:</strong>
+          <span style="color: #34495e;">${match.title}</span>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Match Score:</strong>
+          <span style="color: #34495e;">
+            ${match.totalScore}/130 
+            <span style="font-size: 12px; color: #7f8c8d;">(Text: ${match.textScore}, GPS: ${match.gpsScore})</span>
+          </span>
+        </div>
+        
+        ${match.matchType ? `
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Match Type:</strong>
+          <span style="color: #34495e;">${match.matchType}</span>
+        </div>
+        ` : ''}
+        
+        ${match.categories ? `
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Categories:</strong>
+          <span style="color: #34495e;">${match.categories}</span>
+        </div>
+        ` : ''}
+        
+        ${match.tags ? `
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Tags:</strong>
+          <span style="color: #34495e; font-size: 13px;">${match.tags}</span>
+        </div>
+        ` : ''}
+        
+        ${match.distance !== null ? `
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">Distance:</strong>
+          <span style="color: #34495e;">${match.distance.toFixed(2)} km from GPS</span>
+        </div>
+        ` : ''}
+        
+        ${match.url ? `
+        <div style="display: flex; gap: 10px;">
+          <strong style="min-width: 120px; color: #2c3e50;">WikiMapia:</strong>
+          <a href="${match.url}" target="_blank" style="color: #3498db; text-decoration: none;">
+            View on WikiMapia →
+          </a>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+  
+  // Insert at the top of the results section
+  metadataFields.insertAdjacentHTML('afterbegin', dbMatchHTML);
 }
 
 /**

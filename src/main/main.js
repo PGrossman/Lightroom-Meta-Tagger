@@ -16,6 +16,7 @@ const SimilarityDetector = require('../services/similarityDetector');
 const ClipServiceManager = require('../services/clipServiceManager');
 const AIAnalysisService = require('../services/aiAnalysisService');
 const XMPGenerator = require('../services/xmpGenerator');
+const ChernobylMatcher = require('../services/chernobylMatcher');
 const SystemCheck = require('../utils/systemCheck');
 const logger = require('../utils/logger');
 
@@ -32,6 +33,25 @@ const clipServiceManager = new ClipServiceManager();
 
 // Initialize AI Analysis Service
 let aiAnalysisService = null;
+
+// Initialize Chernobyl Matcher (lazy-loaded when needed)
+let chernobylMatcher = null;
+
+function getChernobylMatcher() {
+  const config = configManager.getAllSettings();
+  const chernobylDBPath = config.chernobylDB?.path;
+  
+  if (!chernobylDBPath) {
+    return null;
+  }
+  
+  if (!chernobylMatcher) {
+    chernobylMatcher = new ChernobylMatcher(chernobylDBPath);
+    logger.info('ChernobylMatcher initialized', { path: chernobylDBPath });
+  }
+  
+  return chernobylMatcher;
+}
 
 async function initializeAIServices() {
   try {
@@ -1288,11 +1308,21 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
       percent: 10
     });
     
-    // Perform analysis
+    // ✅ NEW: Get Chernobyl matcher if database matching is enabled
+    // Note: We'll get the flag from the cluster metadata passed through
+    const useChernobylDB = clusterGroup.useChernobylDB || false;
+    const matcher = useChernobylDB ? getChernobylMatcher() : null;
+    
+    if (useChernobylDB && !matcher) {
+      logger.warn('Chernobyl DB requested but not configured');
+    }
+    
+    // Perform analysis (pass matcher)
     const analysisResult = await aiAnalysisService.analyzeCluster(
       clusterGroup,
       {},
-      forceProvider
+      forceProvider,
+      matcher // ✅ Pass the matcher
     );
     
     event.sender.send('progress-update', {
@@ -1304,7 +1334,8 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
     logger.info('AI analysis complete', {
       confidence: analysisResult.metadata.confidence,
       provider: analysisResult.metadata.provider,
-      imageCount: analysisResult.imageCount
+      imageCount: analysisResult.imageCount,
+      databaseMatch: analysisResult.metadata.databaseMatch?.matched || false
     });
     
     return {
