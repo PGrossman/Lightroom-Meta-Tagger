@@ -52,8 +52,8 @@ window.addEventListener('DOMContentLoaded', () => {
   // Check database on startup
   checkDatabaseOnStartup();
   
-  // Update Chernobyl checkbox state
-  updateChernobylCheckboxState();
+  // Update Chernobyl checkbox state on initial load
+  updateChernobylCheckboxState(); // Async, but we don't need to wait
 });
 
 // Initialize modal listeners AFTER full page load (including modal HTML)
@@ -3721,24 +3721,32 @@ async function saveChernobylDBPath(path) {
   }
 }
 
-function updateChernobylCheckboxState() {
+async function updateChernobylCheckboxState() {
   const checkbox = document.getElementById('useChernobylDB');
   const hint = document.getElementById('chernobylDBHint');
-  const pathInput = document.getElementById('chernobylDBPath');
   
-  if (checkbox && hint && pathInput) {
-    const isConfigured = pathInput.value && pathInput.value.trim() !== '';
-    
-    checkbox.disabled = !isConfigured;
-    
-    if (isConfigured) {
-      hint.textContent = 'Match AI results against Chernobyl database';
-      hint.style.color = '#27ae60';
-      checkbox.checked = false; // Default unchecked, user decides per run
-    } else {
-      hint.textContent = 'Not configured - Set up in Settings tab';
+  if (checkbox && hint) {
+    try {
+      // ✅ Check the actual saved config, not the DOM input field
+      const settings = await window.electronAPI.getAllSettings();
+      const isConfigured = settings.chernobylDB?.path && settings.chernobylDB.path.trim() !== '';
+      
+      checkbox.disabled = !isConfigured;
+      
+      if (isConfigured) {
+        hint.textContent = 'Match AI results against Chernobyl database';
+        hint.style.color = '#27ae60';
+        checkbox.checked = false; // Default unchecked, user decides per run
+      } else {
+        hint.textContent = 'Not configured - Set up in Settings tab';
+        hint.style.color = '#e74c3c';
+        checkbox.checked = false;
+        checkbox.disabled = true;
+      }
+    } catch (error) {
+      console.error('Failed to check Chernobyl DB config:', error);
+      hint.textContent = 'Error checking configuration';
       hint.style.color = '#e74c3c';
-      checkbox.checked = false;
       checkbox.disabled = true;
     }
   }
