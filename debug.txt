@@ -2195,3 +2195,6 @@ config exists: true
 config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
 config.similarity.enabled: true
 config.similarity.hammingThreshold: 82
+
+
+=== MAIN.JS LOADED 2025-10-13T17:38:04.523Z ===

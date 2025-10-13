@@ -47,7 +47,22 @@
               <span id="progressText" class="progress-text">0%</span>
             </div>
             
-            <!-- Process Images Button - NEXT TO FILE COUNTS -->
+            <!-- Processing Options -->
+            <div class="ingest-options" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
+              <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #2c3e50;">Processing Options</h3>
+              
+              <label class="checkbox-container" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="useChernobylDB" style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;" />
+                <span style="font-size: 14px; color: #2c3e50;">
+                  <strong>🗺️ Use Chernobyl Database Matching</strong>
+                  <span id="chernobylDBHint" style="display: block; font-size: 12px; color: #6c757d; margin-top: 4px;">
+                    Not configured - Set up in Settings tab
+                  </span>
+                </span>
+              </label>
+            </div>
+            
+            <!-- Process Images Button -->
             <div class="process-section">
               <button id="processImagesBtn" class="btn btn-primary process-btn" disabled>
                 <svg class="process-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -630,45 +645,31 @@
               <div id="googleVisionStatus" style="margin-top: 8px; display: none;"></div>
             </div>
             
-            <!-- Chernobyl Database Section -->
+            <!-- Chernobyl Database Configuration -->
             <div class="setting-item">
-              <h3 style="margin: 20px 0 10px 0; color: #3498db;">🗺️ Chernobyl Database Matching (Optional)</h3>
+              <h3 style="margin: 20px 0 10px 0; color: #3498db;">🗺️ Chernobyl Database</h3>
               <p class="setting-hint" style="margin-bottom: 15px;">
-                Match AI-generated metadata against the Chernobyl WikiMapia database for enhanced accuracy and additional context.
+                Configure the Chernobyl WikiMapia database CSV file location. This is a one-time setup.
               </p>
               
-              <div class="setting-row" style="margin-bottom: 15px;">
-                <label class="checkbox-container" style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="checkbox" id="enableChernobylDB" style="margin-right: 8px;" />
-                  <span>Enable Chernobyl Database Matching</span>
-                </label>
+              <div class="setting-input-group" style="margin-bottom: 10px;">
+                <label for="chernobylDBPath" style="display: block; margin-bottom: 5px;">Database CSV File:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                  <input type="text" id="chernobylDBPath" class="setting-input" readonly 
+                         placeholder="Select WikiMap_Chernobyl_Master_English.csv" 
+                         style="flex: 1;" />
+                  <button id="selectChernobylDBBtn" class="select-btn" style="flex-shrink: 0;">Browse...</button>
+                  <button id="clearChernobylDBBtn" class="select-btn" style="flex-shrink: 0; background: #e74c3c;">Clear</button>
+                </div>
               </div>
               
-              <div id="chernobylDBConfig" style="display: none; margin-top: 15px; padding-left: 20px;">
-                <div class="setting-input-group" style="margin-bottom: 10px;">
-                  <label for="chernobylDBPath" style="display: block; margin-bottom: 5px;">Database CSV Path:</label>
-                  <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="chernobylDBPath" class="setting-input" readonly 
-                           placeholder="Select WikiMap_Chernobyl_Master_English.csv" 
-                           style="flex: 1;" />
-                    <button id="selectChernobylDBBtn" class="select-btn" style="flex-shrink: 0;">Browse...</button>
-                  </div>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                  <strong>Status:</strong>
-                  <span id="chernobylDBStatus" style="color: #95a5a6; margin-left: 8px;">Not configured</span>
-                </div>
-                
-                <div class="setting-hint" style="margin-top: 12px; font-size: 13px;">
-                  <strong>How it works:</strong>
-                  <ul style="margin: 8px 0 0 20px; line-height: 1.6;">
-                    <li>AI analyzes the image and generates metadata</li>
-                    <li>System searches database for matching locations</li>
-                    <li>High-confidence matches enrich the metadata automatically</li>
-                    <li>Match results shown in AI Analysis tab</li>
-                  </ul>
-                </div>
+              <div style="margin-top: 10px;">
+                <strong>Status:</strong>
+                <span id="chernobylDBStatus" style="color: #95a5a6; margin-left: 8px;">Not configured</span>
+              </div>
+              
+              <div class="setting-hint" style="margin-top: 12px; font-size: 13px; line-height: 1.6;">
+                <strong>Note:</strong> After configuring the database here, you can enable/disable database matching per processing run on the Ingest tab.
               </div>
             </div>
             

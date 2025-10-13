@@ -235,17 +235,22 @@ ipcMain.handle('scan-directory-with-clustering', async (event, dirPath, timestam
 
 // Process Images IPC Handler - Phase 2 Processing Pipeline
 console.log('=== REGISTERING process-images IPC HANDLER ===');
-ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
+ipcMain.handle('process-images', async (event, scanResults, dirPath, useChernobylDB) => {
   try {
     // === CRITICAL DEBUG - RUN THIS FIRST ===
     console.log('=== PROCESS-IMAGES HANDLER STARTED ===');
-    console.log('Arguments received:', { scanResults: !!scanResults, dirPath });
+    console.log('Arguments received:', { 
+      scanResults: !!scanResults, 
+      dirPath,
+      useChernobylDB // ✅ Now we have the checkbox state!
+    });
     console.log('configManager exists:', typeof configManager);
     console.log('configManager.getAllSettings exists:', typeof configManager.getAllSettings);
     
     // Write to debug file
     fs.appendFileSync('debug.txt', `\n\n=== PROCESS-IMAGES CALLED ${new Date().toISOString()} ===\n`);
     fs.appendFileSync('debug.txt', `scanResults: ${!!scanResults}\n`);
+    fs.appendFileSync('debug.txt', `useChernobylDB: ${useChernobylDB}\n`);
     fs.appendFileSync('debug.txt', `dirPath: ${dirPath}\n`);
     
     const testConfig = configManager.getAllSettings();
@@ -1205,20 +1210,18 @@ ipcMain.handle('save-chernobyl-db-settings', async (event, settings) => {
       config.chernobylDB = {};
     }
     
-    config.chernobylDB.enabled = settings.enabled || false;
     config.chernobylDB.path = settings.path || '';
     
     configManager.saveSettings(config);
     
-    logger.info('Chernobyl DB settings saved', { 
-      enabled: settings.enabled,
+    logger.info('Chernobyl DB path saved', { 
       hasPath: !!settings.path 
     });
     
     return { success: true };
     
   } catch (error) {
-    logger.error('Failed to save Chernobyl DB settings', { error: error.message });
+    logger.error('Failed to save Chernobyl DB path', { error: error.message });
     return { 
       success: false, 
       error: error.message 

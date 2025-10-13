@@ -22,7 +22,6 @@
     "promptStrategy": "balanced"
   },
   "chernobylDB": {
-    "enabled": false,
     "path": ""
   },
   "processing": {
