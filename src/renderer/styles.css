@@ -2237,10 +2237,22 @@ td:nth-child(4) {
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
-/* Primary button disabled state */
+/* Primary button base styles */
+.primary-button {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+  background: #2980b9 !important;
+}
+
 .primary-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
   pointer-events: none;
+  background: #9ca3af !important;
 }
 
