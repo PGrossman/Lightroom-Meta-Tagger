@@ -85,85 +85,12 @@ If you cannot determine a field with confidence, leave it as an empty string and
   }
 
   /**
-   * Match AI results to Chernobyl database
-   */
-  async matchToDatabase(metadata, chernobylMatcher) {
-    console.log('\n🗺️ === DATABASE MATCHING START ===');
-    console.log('   chernobylMatcher exists:', !!chernobylMatcher);
-    console.log('   metadata:', metadata);
-    
-    if (!chernobylMatcher) {
-      console.log('   ❌ No matcher provided, skipping database matching');
-      return null;
-    }
-
-    try {
-      // Get subject from metadata
-      const subject = metadata.subjectDetection?.subject || metadata.title;
-      console.log('   Subject from metadata:', subject);
-      console.log('   subjectDetection:', metadata.subjectDetection);
-      console.log('   title:', metadata.title);
-      
-      if (!subject) {
-        console.log('   ❌ No subject found for database matching');
-        this.logger.warn('No subject found for database matching');
-        return null;
-      }
-      
-      // Get GPS if available
-      const gps = metadata.gpsAnalysis?.latitude ? {
-        latitude: metadata.gpsAnalysis.latitude,
-        longitude: metadata.gpsAnalysis.longitude
-      } : null;
-      
-      console.log('   GPS data:', gps);
-      console.log('   ✅ Calling chernobylMatcher.findMatches()...');
-      this.logger.info('Searching Chernobyl database', { subject, hasGPS: !!gps });
-      
-      const matches = await chernobylMatcher.findMatches(subject, gps);
-      console.log('   📊 Matches returned:', matches.length);
-      
-      if (matches.length > 0 && matches[0].totalScore > 50) {
-        console.log('   ✅ DATABASE MATCH FOUND!');
-        console.log('      Top match:', matches[0].title);
-        console.log('      Score:', matches[0].totalScore);
-        console.log('      Confidence:', matches[0].confidence);
-        
-        this.logger.info('Database match found', {
-          subject,
-          match: matches[0].title,
-          score: matches[0].totalScore,
-          confidence: matches[0].confidence
-        });
-        
-        return {
-          matched: true,
-          topMatch: matches[0],
-          allMatches: matches
-        };
-      }
-      
-      console.log('   ⚠️ No strong matches (best score:', matches[0]?.totalScore || 'none', ')');
-      this.logger.info('No strong database matches found', { subject });
-      return { matched: false, allMatches: matches };
-      
-    } catch (error) {
-      console.log('   ❌ DATABASE MATCHING ERROR:', error.message);
-      console.log('   Error stack:', error.stack);
-      this.logger.error('Database matching failed', { error: error.message });
-      return null;
-    }
-    console.log('🗺️ === DATABASE MATCHING END ===\n');
-  }
-
-  /**
    * Main analysis method with automatic fallback logic
    */
-  async analyzeCluster(cluster, existingData = {}, forceProvider = null, chernobylMatcher = null) {
+  async analyzeCluster(cluster, existingData = {}, forceProvider = null) {
     console.log('\n🤖 === AI ANALYSIS START ===');
     console.log('   Cluster:', cluster.mainRep?.representativeFilename || 'unknown');
     console.log('   forceProvider:', forceProvider);
-    console.log('   chernobylMatcher passed:', !!chernobylMatcher);
     
     const context = this.buildContext(cluster, existingData);
     const repPath = cluster.mainRep.representativePath;
@@ -186,31 +113,6 @@ If you cannot determine a field with confidence, leave it as an empty string and
           confidence: result.confidence,
           threshold: this.confidenceThreshold
         });
-      }
-    }
-
-    // ✅ NEW: Try database matching if enabled
-    console.log('   🗺️ Checking if database matching is enabled...');
-    console.log('      chernobylMatcher:', !!chernobylMatcher);
-    
-    if (chernobylMatcher) {
-      console.log('   ✅ Database matching IS enabled, proceeding...');
-      this.logger.info('Attempting Chernobyl database matching...');
-      const dbMatch = await this.matchToDatabase(result, chernobylMatcher);
-      console.log('   📊 Database match result:', dbMatch);
-      
-      if (dbMatch) {
-        result.databaseMatch = dbMatch;
-        
-        // Enrich metadata with high-confidence matches
-        if (dbMatch.matched && dbMatch.topMatch.totalScore > 80) {
-          result.databaseEnriched = true;
-          this.logger.info('Metadata enriched from database', {
-            original: result.title,
-            matched: dbMatch.topMatch.title,
-            score: dbMatch.topMatch.totalScore
-          });
-        }
       }
     }
 

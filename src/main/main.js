@@ -16,7 +16,6 @@ const SimilarityDetector = require('../services/similarityDetector');
 const ClipServiceManager = require('../services/clipServiceManager');
 const AIAnalysisService = require('../services/aiAnalysisService');
 const XMPGenerator = require('../services/xmpGenerator');
-const ChernobylMatcher = require('../services/chernobylMatcher');
 const SystemCheck = require('../utils/systemCheck');
 const logger = require('../utils/logger');
 
@@ -33,25 +32,6 @@ const clipServiceManager = new ClipServiceManager();
 
 // Initialize AI Analysis Service
 let aiAnalysisService = null;
-
-// Initialize Chernobyl Matcher (lazy-loaded when needed)
-let chernobylMatcher = null;
-
-function getChernobylMatcher() {
-  const config = configManager.getAllSettings();
-  const chernobylDBPath = config.chernobylDB?.path;
-  
-  if (!chernobylDBPath) {
-    return null;
-  }
-  
-  if (!chernobylMatcher) {
-    chernobylMatcher = new ChernobylMatcher(chernobylDBPath);
-    logger.info('ChernobylMatcher initialized', { path: chernobylDBPath });
-  }
-  
-  return chernobylMatcher;
-}
 
 async function initializeAIServices() {
   try {
@@ -1179,85 +1159,6 @@ ipcMain.handle('save-personal-data', async (event, data) => {
 });
 
 // ============================================
-// Chernobyl Database IPC Handlers
-// ============================================
-
-ipcMain.handle('select-chernobyl-database', async () => {
-  try {
-    const result = await dialog.showOpenDialog({
-      title: 'Select Chernobyl Database CSV',
-      filters: [
-        { name: 'CSV Files', extensions: ['csv'] },
-        { name: 'All Files', extensions: ['*'] }
-      ],
-      properties: ['openFile']
-    });
-
-    if (result.canceled || result.filePaths.length === 0) {
-      return { success: false, canceled: true };
-    }
-
-    const csvPath = result.filePaths[0];
-    
-    // Validate it's a CSV and count rows
-    try {
-      const Papa = require('papaparse');
-      const csvContent = fs.readFileSync(csvPath, 'utf8');
-      
-      const parsed = Papa.parse(csvContent, { 
-        header: true,
-        skipEmptyLines: true 
-      });
-      
-      const validRows = parsed.data.filter(row => 
-        row['English Title'] && row['English Title'].trim() !== ''
-      );
-      
-      logger.info('Chernobyl database selected', { 
-        path: csvPath,
-        totalRows: parsed.data.length,
-        validRows: validRows.length 
-      });
-      
-      return {
-        success: true,
-        path: csvPath,
-        rowCount: validRows.length
-      };
-      
-    } catch (parseError) {
-      logger.error('Failed to parse CSV', { error: parseError.message });
-      return {
-        success: false,
-        error: `Invalid CSV file: ${parseError.message}`
-      };
-    }
-    
-  } catch (error) {
-    logger.error('Failed to select Chernobyl database', { error: error.message });
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-});
-
-ipcMain.handle('save-chernobyl-db-settings', async (event, settings) => {
-  try {
-    // ✅ Use dedicated setter method (cleaner API)
-    configManager.setChernobylDBPath(settings.path || '');
-    
-    logger.info('Chernobyl DB path saved', { hasPath: !!settings.path });
-    
-    return { success: true };
-    
-  } catch (error) {
-    logger.error('Failed to save Chernobyl DB settings', { error: error.message });
-    return { success: false, error: error.message };
-  }
-});
-
-// ============================================
 // AI Analysis IPC Handlers
 // ============================================
 
@@ -1299,21 +1200,11 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
       percent: 10
     });
     
-    // ✅ NEW: Get Chernobyl matcher if database matching is enabled
-    // Note: We'll get the flag from the cluster metadata passed through
-    const useChernobylDB = clusterGroup.useChernobylDB || false;
-    const matcher = useChernobylDB ? getChernobylMatcher() : null;
-    
-    if (useChernobylDB && !matcher) {
-      logger.warn('Chernobyl DB requested but not configured');
-    }
-    
-    // Perform analysis (pass matcher)
+    // Perform analysis
     const analysisResult = await aiAnalysisService.analyzeCluster(
       clusterGroup,
       {},
-      forceProvider,
-      matcher // ✅ Pass the matcher
+      forceProvider
     );
     
     event.sender.send('progress-update', {
@@ -1325,8 +1216,7 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
     logger.info('AI analysis complete', {
       confidence: analysisResult.metadata.confidence,
       provider: analysisResult.metadata.provider,
-      imageCount: analysisResult.imageCount,
-      databaseMatch: analysisResult.metadata.databaseMatch?.matched || false
+      imageCount: analysisResult.imageCount
     });
     
     return {

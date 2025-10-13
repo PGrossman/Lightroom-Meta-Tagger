@@ -40,10 +40,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPersonalData: () => ipcRenderer.invoke('get-personal-data'),
   savePersonalData: (data) => ipcRenderer.invoke('save-personal-data', data),
   
-  // Chernobyl Database
-  selectChernobylDatabase: () => ipcRenderer.invoke('select-chernobyl-database'),
-  saveChernobylDBSettings: (settings) => ipcRenderer.invoke('save-chernobyl-db-settings', settings),
-  
   // AI Analysis
   analyzeClusterWithAI: (clusterGroup, provider) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, provider),
   generateXMPFiles: (data) => ipcRenderer.invoke('generate-xmp-files', data),
