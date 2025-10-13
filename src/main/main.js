@@ -1212,7 +1212,7 @@ ipcMain.handle('save-chernobyl-db-settings', async (event, settings) => {
     
     config.chernobylDB.path = settings.path || '';
     
-    configManager.saveSettings(config);
+    configManager.saveConfig();
     
     logger.info('Chernobyl DB path saved', { 
       hasPath: !!settings.path 
