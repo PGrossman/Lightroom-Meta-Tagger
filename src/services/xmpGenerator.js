@@ -147,6 +147,54 @@ class XMPGenerator {
       // Load personal data for creator/copyright info
       const personalData = await this.loadPersonalData();
 
+      // ✅ GPS PRIORITY LOGIC: Manual > AI Analysis > EXIF
+      let gpsData = null;
+      
+      // Priority 1: Manual GPS from Visual Analysis page (user edited)
+      if (metadata.gps?.latitude) {
+        gpsData = {
+          latitude: parseFloat(metadata.gps.latitude),
+          longitude: parseFloat(metadata.gps.longitude),
+          altitude: metadata.gps.altitude || null,
+          source: metadata.gps.source || 'Manual Entry'
+        };
+        logger.info('📍 Using manual GPS from metadata', gpsData);
+      }
+      // Priority 2: GPS from AI analysis (gpsAnalysis field)
+      else if (metadata.gpsAnalysis?.latitude) {
+        gpsData = {
+          latitude: parseFloat(metadata.gpsAnalysis.latitude),
+          longitude: parseFloat(metadata.gpsAnalysis.longitude),
+          altitude: metadata.gpsAnalysis.altitude || null,
+          source: 'AI Analysis'
+        };
+        logger.info('📍 Using GPS from AI analysis', gpsData);
+      }
+      // Priority 3: GPS from EXIF (parent image)
+      else if (cluster.mainRep?.gps?.latitude) {
+        gpsData = {
+          latitude: parseFloat(cluster.mainRep.gps.latitude),
+          longitude: parseFloat(cluster.mainRep.gps.longitude),
+          altitude: cluster.mainRep.gps.altitude || null,
+          source: 'EXIF Data'
+        };
+        logger.info('📍 Using GPS from EXIF', gpsData);
+      }
+      
+      // Add GPS to metadata object for XMP generation
+      if (gpsData) {
+        metadata.gps = gpsData;
+        logger.info('📍 GPS will be written to all cluster images', {
+          latitude: gpsData.latitude,
+          longitude: gpsData.longitude,
+          altitude: gpsData.altitude,
+          source: gpsData.source,
+          imageCount: filesToProcess.length
+        });
+      } else {
+        logger.debug('No GPS data available for this cluster');
+      }
+
       // Generate XMP for each file
       const results = [];
       
@@ -386,7 +434,7 @@ ${metadata.altText ? `      <Iptc4xmpCore:AltTextAccessibility>
 
   /**
    * Format GPS coordinates for XMP
-   * Converts GPS data to EXIF-compliant XMP tags
+   * Converts GPS data to EXIF-compliant XMP tags with validation
    */
   formatGPSData(gps) {
     if (!gps || (!gps.latitude && gps.latitude !== 0) || (!gps.longitude && gps.longitude !== 0)) {
@@ -395,17 +443,35 @@ ${metadata.altText ? `      <Iptc4xmpCore:AltTextAccessibility>
     
     let xml = '';
     
+    // Convert to proper types and validate
+    const lat = typeof gps.latitude === 'string' ? parseFloat(gps.latitude) : gps.latitude;
+    const lon = typeof gps.longitude === 'string' ? parseFloat(gps.longitude) : gps.longitude;
+    
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lon)) {
+      logger.warn('Invalid GPS coordinates (NaN)', { latitude: gps.latitude, longitude: gps.longitude });
+      return '';
+    }
+    
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      logger.warn('GPS coordinates out of range', { latitude: lat, longitude: lon });
+      return '';
+    }
+    
     // XMP uses decimal degrees format
     // Latitude: positive = North, negative = South
     // Longitude: positive = East, negative = West
-    xml += `      <exif:GPSLatitude>${gps.latitude}</exif:GPSLatitude>\n`;
-    xml += `      <exif:GPSLongitude>${gps.longitude}</exif:GPSLongitude>\n`;
+    xml += `      <exif:GPSLatitude>${lat}</exif:GPSLatitude>\n`;
+    xml += `      <exif:GPSLongitude>${lon}</exif:GPSLongitude>\n`;
     xml += `      <exif:GPSVersionID>2.3.0.0</exif:GPSVersionID>\n`;
     
     // Optional: Altitude (in meters)
     if (gps.altitude !== undefined && gps.altitude !== null) {
-      xml += `      <exif:GPSAltitude>${Math.abs(gps.altitude)}</exif:GPSAltitude>\n`;
-      xml += `      <exif:GPSAltitudeRef>${gps.altitude >= 0 ? '0' : '1'}</exif:GPSAltitudeRef>\n`;
+      const alt = typeof gps.altitude === 'string' ? parseFloat(gps.altitude) : gps.altitude;
+      if (!isNaN(alt)) {
+        xml += `      <exif:GPSAltitude>${Math.abs(alt)}</exif:GPSAltitude>\n`;
+        xml += `      <exif:GPSAltitudeRef>${alt >= 0 ? '0' : '1'}</exif:GPSAltitudeRef>\n`;
+      }
     }
     
     return xml;
