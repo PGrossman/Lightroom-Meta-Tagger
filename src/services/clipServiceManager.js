@@ -27,8 +27,9 @@ class ClipServiceManager {
     const scriptPath = path.join(process.cwd(), 'similarity_service.py');
 
     try {
-      // Spawn Python process
-      this.process = spawn('python3', [scriptPath], {
+      // Spawn Python process with -u flag for unbuffered output
+      // This ensures we get real-time logs from the Python service
+      this.process = spawn('python3', ['-u', scriptPath], {
         cwd: process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
