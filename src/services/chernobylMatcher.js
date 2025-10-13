@@ -70,11 +70,29 @@ class ChernobylMatcher {
     const matches = [];
     const subjectLower = subject.toLowerCase().trim();
     
-    // Extract key words from subject
-    const subjectWords = subjectLower.split(/\s+/).filter(w => w.length >= 3);
+    // Extract key words from subject with improved parsing
+    // Split on whitespace and extract numbers/words from compound terms
+    const rawWords = subjectLower.split(/\s+/);
+    const subjectWords = [];
+    
+    rawWords.forEach(word => {
+      // Extract individual words/numbers from compound terms
+      // e.g., "1-4" -> ["1", "4"], "reactor-4" -> ["reactor", "4"]
+      const parts = word.split(/[-–—/]/); // Split on hyphens, dashes, slashes
+      parts.forEach(part => {
+        const cleaned = part.trim();
+        // Keep words >= 3 chars OR single digits/numbers (for "1", "2", "3", "4")
+        if (cleaned.length >= 3 || /^\d+$/.test(cleaned)) {
+          subjectWords.push(cleaned);
+        }
+      });
+    });
+    
+    // Remove duplicates
+    const uniqueWords = [...new Set(subjectWords)];
     
     console.log(`   Subject (lowercase): "${subjectLower}"`);
-    console.log(`   Subject words: [${subjectWords.join(', ')}]`);
+    console.log(`   Subject words: [${uniqueWords.join(', ')}]`);
     console.log(`   Total database entries: ${this.objects.length}`);
     
     for (const obj of this.objects) {
@@ -103,13 +121,13 @@ class ChernobylMatcher {
       }
       // Word overlap
       else {
-        const matchedWords = subjectWords.filter(word => 
+        const matchedWords = uniqueWords.filter(word => 
           searchableText.includes(word)
         );
         
         if (matchedWords.length > 0) {
-          textScore = Math.min(70, (matchedWords.length / subjectWords.length) * 70);
-          matchType = `${matchedWords.length}/${subjectWords.length} words matched`;
+          textScore = Math.min(70, (matchedWords.length / uniqueWords.length) * 70);
+          matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
           console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')})`);
         }
       }
@@ -140,6 +158,7 @@ class ChernobylMatcher {
       
       // Only include if score is meaningful
       if (totalScore >= 30) {
+        console.log(`   ✅ ADDED to matches: "${title}" (score: ${totalScore})`);
         matches.push({
           objectId: obj['Object ID'],
           title: obj['English Title'],
