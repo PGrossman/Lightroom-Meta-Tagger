@@ -109,8 +109,6 @@ function initializeEventListeners() {
       // Show selected content
       if (tabName === 'ai-generated') {
         document.getElementById('aiGeneratedContent').style.display = 'block';
-      } else if (tabName === 'db-match') {
-        document.getElementById('dbMatchContent').style.display = 'block';
       }
     });
   });
@@ -2617,10 +2615,6 @@ async function batchAnalyzeAllClusters() {
         analyzedClusters.set(i, result.data.metadata);
         console.log(`✅ Analysis complete for: ${clusterName}`);
         
-        // ✅ Log database match if found
-        if (result.data.metadata.databaseMatch?.matched) {
-          console.log(`   🗺️ Database match: ${result.data.metadata.databaseMatch.topMatch.title}`);
-        }
       } else {
         console.error(`❌ Analysis failed for: ${clusterName}`, result.error);
         alert(`Analysis failed for ${clusterName}: ${result.error}`);
