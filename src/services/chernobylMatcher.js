@@ -100,11 +100,15 @@ class ChernobylMatcher {
   }
 
   /**
-   * ✅ ENHANCEMENT: Extract phrases from subject
+   * ✅ ENHANCEMENT: Extract phrases from subject (with generic phrase filtering)
    */
   extractPhrases(text) {
     const phrases = [];
     const words = text.split(/\s+/);
+    
+    // Generic/stop words that make phrases non-meaningful
+    const stopWords = ['in', 'at', 'near', 'of', 'the', 'a', 'an', 'to', 'from', 'for', 'with', 'on', 'by'];
+    const genericWords = ['chernobyl', 'pripyat', 'zone', 'area', 'region', 'building', 'structure'];
     
     // Add full text if 2+ words
     if (words.length >= 2) {
@@ -115,8 +119,21 @@ class ChernobylMatcher {
     for (let i = 0; i < words.length - 1; i++) {
       for (let j = i + 2; j <= words.length; j++) {
         const phrase = words.slice(i, j).join(' ');
-        if (phrase.length >= 5) { // Min 5 chars
-          phrases.push(phrase);
+        
+        if (phrase.length >= 5) {
+          // ✅ FIX: Filter out phrases that are only stop words + generic words
+          const phraseWords = phrase.split(/\s+/);
+          const meaningfulWords = phraseWords.filter(w => 
+            !stopWords.includes(w.toLowerCase()) && 
+            !genericWords.includes(w.toLowerCase())
+          );
+          
+          // Only add if phrase has at least one meaningful word
+          if (meaningfulWords.length > 0) {
+            phrases.push(phrase);
+          } else {
+            this.log(`   ⚠️ Skipping generic phrase: "${phrase}" (no meaningful words)`);
+          }
         }
       }
     }
