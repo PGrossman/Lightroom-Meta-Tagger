@@ -1,6 +1,7 @@
 // src/services/clipServiceManager.js
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 const axios = require('axios');
 const logger = require('../utils/logger');
 
@@ -22,16 +23,32 @@ class ClipServiceManager {
     }
 
     this.isStarting = true;
-    logger.info('Starting CLIP similarity service...');
-
+    
     const scriptPath = path.join(process.cwd(), 'similarity_service.py');
+    
+    // ✅ Use venv Python instead of system Python
+    const venvPython = path.join(process.cwd(), 'venv', 'bin', 'python3');
+    
+    // Check if venv Python exists
+    if (!fs.existsSync(venvPython)) {
+      const error = `Virtual environment not found at: ${venvPython}\nPlease run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`;
+      logger.error(error);
+      this.isStarting = false;
+      throw new Error(error);
+    }
+    
+    logger.info('Starting CLIP similarity service...', { 
+      python: venvPython,
+      script: scriptPath 
+    });
 
     try {
-      // Spawn Python process with -u flag for unbuffered output
+      // Spawn Python process using venv Python with -u flag for unbuffered output
       // This ensures we get real-time logs from the Python service
-      this.process = spawn('python3', ['-u', scriptPath], {
+      this.process = spawn(venvPython, ['-u', scriptPath], {
         cwd: process.cwd(),
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env } // Pass environment variables
       });
 
       // Log stdout
