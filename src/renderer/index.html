@@ -255,11 +255,44 @@
         <!-- Analysis Results (shown for selected cluster) -->
         <div id="aiAnalysisResults" style="display: none;">
           
-          <!-- REMOVED: Big confidence bar section - now using inline badge -->
+          <!-- Tab Buttons -->
+          <div class="analysis-tabs" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0;">
+            <button id="aiGenTab" class="analysis-tab-btn active" data-tab="ai-generated" 
+                    style="padding: 12px 24px; border: none; background: transparent; border-bottom: 3px solid #3498db; color: #3498db; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+              🤖 AI Generated
+            </button>
+            <button id="dbMatchTab" class="analysis-tab-btn" data-tab="db-match" 
+                    style="padding: 12px 24px; border: none; background: transparent; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+              🗺️ Database Match
+              <span id="dbMatchBadge" style="display: none; background: #27ae60; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px;">FOUND</span>
+            </button>
+          </div>
 
-          <!-- Metadata Fields (All Editable) -->
-          <div class="metadata-section">
-            <h3>📝 AI Generated Metadata (Editable)</h3>
+          <!-- AI Generated Content -->
+          <div id="aiGeneratedContent" class="analysis-tab-content active">
+            
+            <!-- Confidence indicator inline with title -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+              <span id="aiConfidenceInline" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 13px; font-weight: 600;">
+                <span>●</span>
+                <span id="aiConfidenceText">Confidence: --</span>
+              </span>
+            </div>
+
+            <!-- Low confidence warning -->
+            <div id="lowConfidenceWarning" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+              <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Low Confidence Analysis</h4>
+              <p id="lowConfidenceMessage" style="margin: 0 0 15px 0; color: #856404; font-size: 14px;"></p>
+              <div style="display: flex; gap: 10px;">
+                <button id="reanalyzeOllamaBtn" class="secondary-button">Re-analyze with Ollama</button>
+                <button id="analyzeGoogleBtn" class="secondary-button">Analyze with Google Vision</button>
+                <button id="acceptManuallyBtn" class="secondary-button">Accept & Edit Manually</button>
+              </div>
+            </div>
+
+            <!-- Metadata Fields (All Editable) -->
+            <div class="metadata-section">
+              <h3>📝 AI Generated Metadata (Editable)</h3>
             
             <!-- Title -->
             <div class="metadata-field">
@@ -362,15 +395,109 @@
             </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="analysis-actions">
-            <button id="regenerateBtn" class="setting-btn">
-              🔄 Regenerate with AI
-            </button>
-            <button id="saveMetadataBtn" class="select-btn">
-              💾 Save Metadata for This Cluster
-            </button>
+            <!-- Action Buttons -->
+            <div class="analysis-actions">
+              <button id="regenerateBtn" class="setting-btn">
+                🔄 Regenerate with AI
+              </button>
+              <button id="saveMetadataBtn" class="select-btn">
+                💾 Save Metadata for This Cluster
+              </button>
+            </div>
+
           </div>
+          <!-- End AI Generated Content -->
+
+          <!-- Database Match Content -->
+          <div id="dbMatchContent" class="analysis-tab-content" style="display: none;">
+            
+            <!-- No match state -->
+            <div id="noDbMatch" style="padding: 40px; text-align: center; color: #95a5a6;">
+              <div style="font-size: 48px; margin-bottom: 15px;">🗺️</div>
+              <h3 style="margin: 0 0 10px 0; color: #7f8c8d;">No Database Match Found</h3>
+              <p style="margin: 0; font-size: 14px;">
+                No matching locations found in the Chernobyl database for this image.
+              </p>
+            </div>
+
+            <!-- Match found state -->
+            <div id="hasDbMatch" style="display: none;">
+              
+              <!-- Top Match Card -->
+              <div class="db-match-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid #27ae60; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+                  <h3 style="color: #27ae60; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 32px;">🎯</span>
+                    <span style="font-size: 20px;">Best Match</span>
+                  </h3>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <span id="matchConfidenceBadge" style="background: #27ae60; color: white; padding: 8px 16px; border-radius: 16px; font-size: 14px; font-weight: 600;">
+                      High Confidence
+                    </span>
+                    <span id="matchScoreBadge" style="background: white; color: #27ae60; padding: 8px 16px; border-radius: 16px; font-size: 14px; font-weight: 600; border: 2px solid #27ae60;">
+                      Score: 95/130
+                    </span>
+                  </div>
+                </div>
+
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                  <div style="display: grid; gap: 15px;">
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;">
+                      <strong style="color: #2c3e50;">Matched Title:</strong>
+                      <span id="matchTitle" style="color: #34495e; font-size: 16px; font-weight: 500;">-</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;">
+                      <strong style="color: #2c3e50;">Match Type:</strong>
+                      <span id="matchType" style="color: #34495e;">-</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;">
+                      <strong style="color: #2c3e50;">Scores:</strong>
+                      <div>
+                        <span id="matchTextScore" style="color: #34495e;">Text: -</span>
+                        <span style="color: #bdc3c7; margin: 0 8px;">|</span>
+                        <span id="matchGPSScore" style="color: #34495e;">GPS: -</span>
+                      </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;" id="matchCategoriesRow">
+                      <strong style="color: #2c3e50;">Categories:</strong>
+                      <span id="matchCategories" style="color: #34495e;">-</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;" id="matchTagsRow">
+                      <strong style="color: #2c3e50;">Tags:</strong>
+                      <span id="matchTags" style="color: #34495e; font-size: 13px;">-</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;" id="matchDistanceRow">
+                      <strong style="color: #2c3e50;">Distance:</strong>
+                      <span id="matchDistance" style="color: #34495e;">-</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;" id="matchURLRow">
+                      <strong style="color: #2c3e50;">WikiMapia:</strong>
+                      <a id="matchURL" href="#" target="_blank" style="color: #3498db; text-decoration: none;">
+                        View on WikiMapia →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Alternative Matches -->
+              <div id="alternativeMatchesSection" style="display: none;">
+                <h4 style="color: #34495e; margin: 20px 0 15px 0;">📋 Alternative Matches</h4>
+                <div id="alternativeMatchesList" style="display: grid; gap: 10px;">
+                  <!-- Alternative matches will be inserted here -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <!-- End Database Match Content -->
 
         </div>
       </div>

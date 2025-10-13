@@ -84,6 +84,40 @@ function initializeEventListeners() {
     });
   });
 
+  // Analysis tab switching (AI Generated vs Database Match)
+  const analysisTabButtons = document.querySelectorAll('.analysis-tab-btn');
+  const analysisTabContents = document.querySelectorAll('.analysis-tab-content');
+
+  analysisTabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabName = button.dataset.tab;
+      
+      // Update button states
+      analysisTabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.borderBottom = '3px solid transparent';
+        btn.style.color = '#666';
+      });
+      
+      // Update content visibility
+      analysisTabContents.forEach(content => {
+        content.style.display = 'none';
+      });
+      
+      // Activate selected tab
+      button.classList.add('active');
+      button.style.borderBottom = '3px solid #3498db';
+      button.style.color = '#3498db';
+      
+      // Show selected content
+      if (tabName === 'ai-generated') {
+        document.getElementById('aiGeneratedContent').style.display = 'block';
+      } else if (tabName === 'db-match') {
+        document.getElementById('dbMatchContent').style.display = 'block';
+      }
+    });
+  });
+
   // Select directory button
   if (selectDirBtn) {
     console.log('DEBUG: Adding click listener to selectDirBtn');
@@ -3180,90 +3214,136 @@ function createKeywordTag(keyword) {
  * Display Chernobyl database match if available
  */
 function displayDatabaseMatch(metadata) {
-  // Remove any existing database match section
-  const existingMatch = document.querySelector('.database-match-section');
-  if (existingMatch) {
-    existingMatch.remove();
-  }
+  console.log('displayDatabaseMatch called', metadata.databaseMatch);
   
-  // Check if we have a database match
-  if (!metadata.databaseMatch?.matched) {
+  const hasMatch = metadata.databaseMatch?.matched;
+  const noMatchDiv = document.getElementById('noDbMatch');
+  const hasMatchDiv = document.getElementById('hasDbMatch');
+  const dbMatchBadge = document.getElementById('dbMatchBadge');
+  
+  if (!hasMatch) {
+    // No match found - show empty state
+    noMatchDiv.style.display = 'block';
+    hasMatchDiv.style.display = 'none';
+    dbMatchBadge.style.display = 'none';
     return;
   }
   
+  // Match found - show match data
+  noMatchDiv.style.display = 'none';
+  hasMatchDiv.style.display = 'block';
+  dbMatchBadge.style.display = 'inline-block';
+  
   const match = metadata.databaseMatch.topMatch;
   
-  // Find the metadata fields container to insert before
-  const metadataFields = document.getElementById('aiAnalysisResults');
-  if (!metadataFields) return;
+  // Update confidence badge
+  const confidenceBadge = document.getElementById('matchConfidenceBadge');
+  confidenceBadge.textContent = match.confidence;
   
-  // Create database match section
-  const dbMatchHTML = `
-    <div class="database-match-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 5px solid #27ae60;">
-      <h3 style="color: #27ae60; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 24px;">🎯</span>
-        <span>Chernobyl Database Match Found</span>
-        <span style="background: #27ae60; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600;">
-          ${match.confidence}
+  // Update color based on confidence
+  if (match.confidence === 'Very High') {
+    confidenceBadge.style.background = '#27ae60';
+  } else if (match.confidence === 'High') {
+    confidenceBadge.style.background = '#2ecc71';
+  } else if (match.confidence === 'Medium') {
+    confidenceBadge.style.background = '#f39c12';
+  } else {
+    confidenceBadge.style.background = '#e67e22';
+  }
+  
+  // Update score badge
+  document.getElementById('matchScoreBadge').textContent = `Score: ${match.totalScore}/130`;
+  
+  // Update match details
+  document.getElementById('matchTitle').textContent = match.title || '-';
+  document.getElementById('matchType').textContent = match.matchType || '-';
+  document.getElementById('matchTextScore').textContent = `Text: ${match.textScore}`;
+  document.getElementById('matchGPSScore').textContent = `GPS: ${match.gpsScore}`;
+  
+  // Categories
+  const categoriesRow = document.getElementById('matchCategoriesRow');
+  if (match.categories) {
+    document.getElementById('matchCategories').textContent = match.categories;
+    categoriesRow.style.display = 'grid';
+  } else {
+    categoriesRow.style.display = 'none';
+  }
+  
+  // Tags
+  const tagsRow = document.getElementById('matchTagsRow');
+  if (match.tags) {
+    document.getElementById('matchTags').textContent = match.tags;
+    tagsRow.style.display = 'grid';
+  } else {
+    tagsRow.style.display = 'none';
+  }
+  
+  // Distance
+  const distanceRow = document.getElementById('matchDistanceRow');
+  if (match.distance !== null && match.distance !== undefined) {
+    document.getElementById('matchDistance').textContent = `${match.distance.toFixed(2)} km from GPS`;
+    distanceRow.style.display = 'grid';
+  } else {
+    distanceRow.style.display = 'none';
+  }
+  
+  // WikiMapia URL
+  const urlRow = document.getElementById('matchURLRow');
+  if (match.url) {
+    const urlLink = document.getElementById('matchURL');
+    urlLink.href = match.url;
+    urlRow.style.display = 'grid';
+  } else {
+    urlRow.style.display = 'none';
+  }
+  
+  // Alternative matches
+  if (metadata.databaseMatch.allMatches && metadata.databaseMatch.allMatches.length > 1) {
+    displayAlternativeMatches(metadata.databaseMatch.allMatches.slice(1, 5)); // Show up to 4 alternatives
+  } else {
+    document.getElementById('alternativeMatchesSection').style.display = 'none';
+  }
+}
+
+/**
+ * Display alternative database matches
+ */
+function displayAlternativeMatches(matches) {
+  const section = document.getElementById('alternativeMatchesSection');
+  const list = document.getElementById('alternativeMatchesList');
+  
+  if (!matches || matches.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  list.innerHTML = '';
+  
+  matches.forEach((match, index) => {
+    const matchCard = document.createElement('div');
+    matchCard.style.cssText = `
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      border-left: 3px solid #95a5a6;
+    `;
+    
+    matchCard.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <strong style="color: #2c3e50;">${match.title}</strong>
+        <span style="background: #95a5a6; color: white; padding: 4px 10px; border-radius: 10px; font-size: 12px;">
+          ${match.totalScore}/130
         </span>
-      </h3>
-      
-      <div style="display: grid; gap: 12px; background: white; padding: 15px; border-radius: 6px;">
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Matched Title:</strong>
-          <span style="color: #34495e;">${match.title}</span>
-        </div>
-        
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Match Score:</strong>
-          <span style="color: #34495e;">
-            ${match.totalScore}/130 
-            <span style="font-size: 12px; color: #7f8c8d;">(Text: ${match.textScore}, GPS: ${match.gpsScore})</span>
-          </span>
-        </div>
-        
-        ${match.matchType ? `
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Match Type:</strong>
-          <span style="color: #34495e;">${match.matchType}</span>
-        </div>
-        ` : ''}
-        
-        ${match.categories ? `
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Categories:</strong>
-          <span style="color: #34495e;">${match.categories}</span>
-        </div>
-        ` : ''}
-        
-        ${match.tags ? `
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Tags:</strong>
-          <span style="color: #34495e; font-size: 13px;">${match.tags}</span>
-        </div>
-        ` : ''}
-        
-        ${match.distance !== null ? `
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">Distance:</strong>
-          <span style="color: #34495e;">${match.distance.toFixed(2)} km from GPS</span>
-        </div>
-        ` : ''}
-        
-        ${match.url ? `
-        <div style="display: flex; gap: 10px;">
-          <strong style="min-width: 120px; color: #2c3e50;">WikiMapia:</strong>
-          <a href="${match.url}" target="_blank" style="color: #3498db; text-decoration: none;">
-            View on WikiMapia →
-          </a>
-        </div>
-        ` : ''}
       </div>
-    </div>
-  `;
-  
-  // Insert at the top of the results section
-  metadataFields.insertAdjacentHTML('afterbegin', dbMatchHTML);
+      <div style="font-size: 13px; color: #6c757d;">
+        ${match.matchType} · Text: ${match.textScore}, GPS: ${match.gpsScore}
+        ${match.distance !== null ? ` · ${match.distance.toFixed(2)} km` : ''}
+      </div>
+    `;
+    
+    list.appendChild(matchCard);
+  });
 }
 
 /**
