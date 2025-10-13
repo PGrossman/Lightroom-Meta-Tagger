@@ -175,6 +175,7 @@ function initializeEventListeners() {
   if (settingsTab) {
     settingsTab.addEventListener('click', () => {
       loadSettings();
+      loadChernobylDBSettings(); // ✅ Load Chernobyl DB settings
     });
     console.log('✅ Settings tab listener attached');
   }
@@ -211,6 +212,52 @@ function initializeEventListeners() {
       }
     });
     console.log('✅ Toggle API key visibility listener attached');
+  }
+
+  // ============================================
+  // Chernobyl Database Settings
+  // ============================================
+
+  const enableChernobylDB = document.getElementById('enableChernobylDB');
+  const chernobylDBConfig = document.getElementById('chernobylDBConfig');
+  const chernobylDBPath = document.getElementById('chernobylDBPath');
+  const selectChernobylDBBtn = document.getElementById('selectChernobylDBBtn');
+  const chernobylDBStatus = document.getElementById('chernobylDBStatus');
+
+  if (enableChernobylDB) {
+    enableChernobylDB.addEventListener('change', async (e) => {
+      if (chernobylDBConfig) {
+        chernobylDBConfig.style.display = e.target.checked ? 'block' : 'none';
+      }
+      await saveChernobylDBSettings();
+    });
+    console.log('✅ Chernobyl DB checkbox listener attached');
+  }
+
+  if (selectChernobylDBBtn) {
+    selectChernobylDBBtn.addEventListener('click', async () => {
+      try {
+        const result = await window.electronAPI.selectChernobylDatabase();
+        
+        if (result.success && result.path) {
+          chernobylDBPath.value = result.path;
+          chernobylDBStatus.textContent = `✅ Loaded: ${result.rowCount} locations`;
+          chernobylDBStatus.style.color = '#27ae60';
+          
+          await saveChernobylDBSettings();
+          
+          console.log('Chernobyl database loaded:', result);
+        } else if (result.error) {
+          chernobylDBStatus.textContent = `❌ Error: ${result.error}`;
+          chernobylDBStatus.style.color = '#e74c3c';
+        }
+      } catch (error) {
+        console.error('Error selecting Chernobyl database:', error);
+        chernobylDBStatus.textContent = `❌ Error: ${error.message}`;
+        chernobylDBStatus.style.color = '#e74c3c';
+      }
+    });
+    console.log('✅ Select Chernobyl DB button listener attached');
   }
 
   // Personal Data tab listener
@@ -3419,6 +3466,68 @@ async function savePersonalData() {
   } catch (error) {
     console.error('❌ Failed to save personal data:', error);
     alert('❌ Error saving personal data: ' + error.message);
+  }
+}
+
+// ============================================
+// Chernobyl Database Helper Functions
+// ============================================
+
+async function loadChernobylDBSettings() {
+  try {
+    const settings = await window.electronAPI.getAllSettings();
+    const chernobylDB = settings.chernobylDB || {};
+    
+    const enableCheckbox = document.getElementById('enableChernobylDB');
+    const configSection = document.getElementById('chernobylDBConfig');
+    const pathInput = document.getElementById('chernobylDBPath');
+    const statusSpan = document.getElementById('chernobylDBStatus');
+    
+    if (enableCheckbox) {
+      enableCheckbox.checked = chernobylDB.enabled || false;
+    }
+    
+    if (configSection) {
+      configSection.style.display = chernobylDB.enabled ? 'block' : 'none';
+    }
+    
+    if (pathInput && chernobylDB.path) {
+      pathInput.value = chernobylDB.path;
+    }
+    
+    if (statusSpan && chernobylDB.path) {
+      statusSpan.textContent = '✅ Database configured';
+      statusSpan.style.color = '#27ae60';
+    }
+    
+    console.log('Chernobyl DB settings loaded:', chernobylDB);
+  } catch (error) {
+    console.error('Failed to load Chernobyl DB settings:', error);
+  }
+}
+
+async function saveChernobylDBSettings() {
+  try {
+    const enableCheckbox = document.getElementById('enableChernobylDB');
+    const pathInput = document.getElementById('chernobylDBPath');
+    
+    const settings = {
+      enabled: enableCheckbox?.checked || false,
+      path: pathInput?.value || ''
+    };
+    
+    const result = await window.electronAPI.saveChernobylDBSettings(settings);
+    
+    if (result.success) {
+      console.log('✅ Chernobyl DB settings saved:', settings);
+    } else {
+      console.error('Failed to save Chernobyl DB settings:', result.error);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error saving Chernobyl DB settings:', error);
+    return { success: false, error: error.message };
   }
 }
 

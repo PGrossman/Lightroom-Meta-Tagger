@@ -2080,3 +2080,118 @@ representatives: 13
 
 
 === MAIN.JS LOADED 2025-10-13T17:07:04.855Z ===
+
+
+=== MAIN.JS LOADED 2025-10-13T17:15:34.025Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:24:23.896Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Model Test Folder/2011 - 11- 02 - Chernobyl/100- Rector 1-4 Exteriors
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T17:24:23.898Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 0
+
+=== SIMILARITY DETECTION SKIPPED ===
+skipReason: Insufficient clusters (0 available, need 2+)
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:24:29.963Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Model Test Folder/2011 - 11- 02 - Chernobyl/100- Rector 1-4 Exteriors
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T17:24:29.973Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 0
+
+=== SIMILARITY DETECTION SKIPPED ===
+skipReason: Insufficient clusters (0 available, need 2+)
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:25:41.641Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Model Test Folder/2011 - 11- 02 - Chernobyl/100- Rector 1-4 Exteriors
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T17:25:41.648Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 0
+
+=== SIMILARITY DETECTION SKIPPED ===
+skipReason: Insufficient clusters (0 available, need 2+)
+
+
+=== MAIN.JS LOADED 2025-10-13T17:28:18.109Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:29:06.772Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T17:29:27.150Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:33:32.834Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Model Test Folder/2011 - 11- 02 - Chernobyl/100- Rector 1-4 Exteriors
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T17:33:32.842Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 0
+
+=== SIMILARITY DETECTION SKIPPED ===
+skipReason: Insufficient clusters (0 available, need 2+)
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T17:33:44.074Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Model Test Folder/2011 - 11- 02 - Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82

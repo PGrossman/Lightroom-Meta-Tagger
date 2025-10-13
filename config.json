@@ -21,6 +21,10 @@
     "allowManualOverride": true,
     "promptStrategy": "balanced"
   },
+  "chernobylDB": {
+    "enabled": false,
+    "path": ""
+  },
   "processing": {
     "batchSize": 10,
     "parallelWorkers": 4,
