@@ -108,6 +108,31 @@ class ConfigManager {
   }
 
   /**
+   * Get Chernobyl database path
+   */
+  getChernobylDBPath() {
+    const chernobylDB = this.get('chernobylDB') || {};
+    return chernobylDB.path || null;
+  }
+
+  /**
+   * Set Chernobyl database path
+   */
+  setChernobylDBPath(csvPath) {
+    const chernobylDB = this.get('chernobylDB') || {};
+    chernobylDB.path = csvPath;
+    this.set('chernobylDB', chernobylDB);
+    logger.info('Chernobyl DB path saved to config', { csvPath });
+  }
+
+  /**
+   * Get Chernobyl DB settings
+   */
+  getChernobylDBSettings() {
+    return this.get('chernobylDB') || { path: '' };
+  }
+
+  /**
    * Get all settings
    */
   getAllSettings() {
@@ -123,7 +148,8 @@ class ConfigManager {
           ...projectConfig,
           databasePath: this.getDatabasePath(),
           lastUsedDirectory: this.getLastUsedDirectory(),
-          timestampThreshold: this.getTimestampThreshold()
+          timestampThreshold: this.getTimestampThreshold(),
+          chernobylDB: this.get('chernobylDB') || projectConfig.chernobylDB || {} // ✅ Include chernobylDB from user config
         };
       }
     } catch (error) {
@@ -136,7 +162,8 @@ class ConfigManager {
       lastUsedDirectory: this.getLastUsedDirectory(),
       timestampThreshold: this.getTimestampThreshold(),
       ollamaEndpoint: this.get('ollamaEndpoint'),
-      ollamaModel: this.get('ollamaModel')
+      ollamaModel: this.get('ollamaModel'),
+      chernobylDB: this.get('chernobylDB') || {} // ✅ Include chernobylDB from user config
     };
   }
 

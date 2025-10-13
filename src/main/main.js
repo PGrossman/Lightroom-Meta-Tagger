@@ -1244,17 +1244,8 @@ ipcMain.handle('select-chernobyl-database', async () => {
 
 ipcMain.handle('save-chernobyl-db-settings', async (event, settings) => {
   try {
-    // ✅ FIXED: Use configManager.set() not saveConfig()
-    const currentChernobylDB = configManager.get('chernobylDB') || {};
-    
-    // Update the chernobylDB object
-    const updatedChernobylDB = {
-      ...currentChernobylDB,
-      path: settings.path || ''
-    };
-    
-    // Save using configManager.set() which auto-saves
-    configManager.set('chernobylDB', updatedChernobylDB);
+    // ✅ Use dedicated setter method (cleaner API)
+    configManager.setChernobylDBPath(settings.path || '');
     
     logger.info('Chernobyl DB path saved', { hasPath: !!settings.path });
     
