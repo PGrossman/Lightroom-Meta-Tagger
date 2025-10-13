@@ -25,14 +25,14 @@
       <!-- Ingest Tab -->
       <div id="ingest-tab" class="tab-panel active">
         
-        <!-- Two-column layout: Status on left | Drag&Drop + Options on right -->
-        <div style="display: grid; grid-template-columns: 380px 1fr; gap: 25px; align-items: start;">
+        <!-- Three equal-width columns -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: stretch;">
           
-          <!-- LEFT COLUMN: Status + Process Button -->
-          <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- COLUMN 1: Status -->
+          <div style="display: flex; flex-direction: column; gap: 15px;">
             
             <!-- Status Panel -->
-            <div class="status-panel" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+            <div class="status-panel" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; flex: 1; display: flex; flex-direction: column;">
               <h2 style="font-size: 18px; margin: 0 0 15px 0; color: #2c3e50;">Status</h2>
               
               <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
@@ -54,7 +54,7 @@
                 </div>
               </div>
               
-              <div class="progress-section" style="margin-top: 15px;">
+              <div class="progress-section" style="margin-top: auto;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057; font-size: 14px;">Progress:</label>
                 <div class="progress-bar" style="width: 100%; height: 24px; background-color: #e9ecef; border-radius: 12px; overflow: hidden; margin-bottom: 8px;">
                   <div class="progress-fill" id="progressFill" style="height: 100%; background: linear-gradient(90deg, #3498db 0%, #2ecc71 100%); width: 0%; transition: width 0.3s ease;"></div>
@@ -69,71 +69,68 @@
             </button>
           </div>
 
-          <!-- RIGHT COLUMN: Drag&Drop (top) + Processing Options (bottom in 2 columns) -->
-          <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- COLUMN 2: Processing Options -->
+          <div style="background: #f8f9fa; border: 2px solid #3498db; border-radius: 8px; padding: 20px; display: flex; flex-direction: column;">
+            <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #2c3e50; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+              <span>⚙️</span>
+              <span>Processing Options</span>
+            </h3>
             
-            <!-- Drag & Drop Area (Top) -->
-            <div id="dropzone" style="background-color: #f8f9fa; border: 2px dashed #cbd5e0; border-radius: 12px; padding: 50px 30px; display: flex; align-items: center; justify-content: center; min-height: 300px; transition: all 0.3s; cursor: pointer;">
-              <div style="text-align: center; pointer-events: none;">
-                <div style="font-size: 72px; margin-bottom: 16px; opacity: 0.6;">📁</div>
-                <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 20px; font-weight: 600;">Drag & drop files here</h3>
-                <p style="margin: 0 0 16px 0; color: #7f8c8d; font-size: 14px;">or</p>
-                <button id="selectDirBtn" style="padding: 11px 28px; font-size: 14px; font-weight: 500; background: white; border: 2px solid #3498db; color: #3498db; border-radius: 7px; cursor: pointer; transition: all 0.3s; pointer-events: all;">
-                  Select Directory
-                </button>
-                <p style="margin: 16px 0 0 0; color: #95a5a6; font-size: 12px;">
-                  Supports: RAW, JPG, PNG, TIFF, PSD
-                </p>
-              </div>
+            <!-- AI Model Dropdown -->
+            <div style="margin-bottom: 18px;">
+              <label for="modelSelect" style="display: block; margin-bottom: 7px; font-weight: 500; color: #2c3e50; font-size: 14px;">
+                🤖 AI Model:
+              </label>
+              <select id="modelSelect" style="width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; transition: border-color 0.2s;">
+                <option value="qwen2.5vl:7b">Qwen 2.5-VL 7B (Faster)</option>
+                <option value="qwen2.5vl:32b">Qwen 2.5-VL 32B (Better Quality)</option>
+              </select>
+              <span style="display: block; margin-top: 5px; font-size: 12px; color: #6c757d;">
+                7B recommended for most uses
+              </span>
             </div>
 
-            <!-- Processing Options (Bottom) - 2 Column Grid -->
-            <div style="background: #f8f9fa; border: 2px solid #3498db; border-radius: 8px; padding: 18px;">
-              <h3 style="margin: 0 0 16px 0; font-size: 15px; color: #2c3e50; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <span>⚙️</span>
-                <span>Processing Options</span>
-              </h3>
-              
-              <!-- 2-Column Grid for Options -->
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
-                
-                <!-- Left Column: AI Model -->
-                <div>
-                  <label for="modelSelect" style="display: block; margin-bottom: 6px; font-weight: 500; color: #2c3e50; font-size: 13px;">
-                    🤖 AI Model:
-                  </label>
-                  <select id="modelSelect" style="width: 100%; padding: 9px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 13px; background: white; cursor: pointer; transition: border-color 0.2s;">
-                    <option value="qwen2.5vl:7b">Qwen 2.5-VL 7B (Faster)</option>
-                    <option value="qwen2.5vl:32b">Qwen 2.5-VL 32B (Better Quality)</option>
-                  </select>
-                </div>
+            <!-- Prompt Strategy Dropdown -->
+            <div style="margin-bottom: 18px;">
+              <label for="promptStrategySelect" style="display: block; margin-bottom: 7px; font-weight: 500; color: #2c3e50; font-size: 14px;">
+                📝 Prompt Strategy:
+              </label>
+              <select id="promptStrategySelect" style="width: 100%; padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; transition: border-color 0.2s;">
+                <option value="balanced">Balanced (GPS Validation)</option>
+                <option value="original">Original (Context First)</option>
+              </select>
+              <span style="display: block; margin-top: 5px; font-size: 12px; color: #6c757d;">
+                Balanced includes GPS analysis
+              </span>
+            </div>
 
-                <!-- Right Column: Prompt Strategy -->
-                <div>
-                  <label for="promptStrategySelect" style="display: block; margin-bottom: 6px; font-weight: 500; color: #2c3e50; font-size: 13px;">
-                    📝 Prompt Strategy:
-                  </label>
-                  <select id="promptStrategySelect" style="width: 100%; padding: 9px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 13px; background: white; cursor: pointer; transition: border-color 0.2s;">
-                    <option value="balanced">Balanced (GPS Validation)</option>
-                    <option value="original">Original (Context First)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Chernobyl Database Checkbox (Full Width Below) -->
-              <div style="border-top: 1px solid #dee2e6; padding-top: 14px; margin-top: 4px;">
-                <label style="display: flex; align-items: start; cursor: pointer; user-select: none;">
-                  <input type="checkbox" id="useChernobylDB" style="margin-right: 10px; margin-top: 3px; width: 17px; height: 17px; cursor: pointer; flex-shrink: 0;" />
-                  <span style="font-size: 13px; color: #2c3e50; line-height: 1.4;">
-                    <strong style="display: block; margin-bottom: 3px; font-size: 14px;">🗺️ Use Chernobyl Database</strong>
-                    <span id="chernobylDBHint" style="display: block; font-size: 12px; color: #6c757d; font-weight: normal;">
-                      Match AI results against Chernobyl database
-                    </span>
+            <!-- Chernobyl Database Checkbox -->
+            <div style="border-top: 1px solid #dee2e6; padding-top: 18px; margin-top: auto;">
+              <label style="display: flex; align-items: start; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="useChernobylDB" style="margin-right: 10px; margin-top: 3px; width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;" />
+                <span style="font-size: 14px; color: #2c3e50; line-height: 1.5;">
+                  <strong style="display: block; margin-bottom: 4px; font-size: 14px;">🗺️ Use Chernobyl Database</strong>
+                  <span id="chernobylDBHint" style="display: block; font-size: 12px; color: #6c757d; font-weight: normal;">
+                    Match AI results against Chernobyl database
                   </span>
-                </label>
-              </div>
+                </span>
+              </label>
             </div>
+          </div>
 
+          <!-- COLUMN 3: Drag & Drop -->
+          <div id="dropzone" style="background-color: #f8f9fa; border: 2px dashed #cbd5e0; border-radius: 12px; padding: 40px 30px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; cursor: pointer;">
+            <div style="text-align: center; pointer-events: none;">
+              <div style="font-size: 80px; margin-bottom: 20px; opacity: 0.6;">📁</div>
+              <h3 style="margin: 0 0 12px 0; color: #2c3e50; font-size: 20px; font-weight: 600;">Drag & drop files here</h3>
+              <p style="margin: 0 0 18px 0; color: #7f8c8d; font-size: 15px;">or</p>
+              <button id="selectDirBtn" style="padding: 12px 28px; font-size: 15px; font-weight: 500; background: white; border: 2px solid #3498db; color: #3498db; border-radius: 8px; cursor: pointer; transition: all 0.3s; pointer-events: all;">
+                Select Directory
+              </button>
+              <p style="margin: 20px 0 0 0; color: #95a5a6; font-size: 13px;">
+                Supports: RAW, JPG, PNG, TIFF, PSD
+              </p>
+            </div>
           </div>
 
         </div>
