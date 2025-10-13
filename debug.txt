@@ -2384,3 +2384,27 @@ clusterCount: 13
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-13T19:48:38.946Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T19:48:45.199Z ===
+scanResults: true
+useChernobylDB: false
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T19:48:46.327Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2

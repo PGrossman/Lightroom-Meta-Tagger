@@ -63,6 +63,8 @@ class ChernobylMatcher {
     if (!this.loaded) await this.loadDatabase();
     
     console.log(`\n🔍 Searching for: "${subject}"`);
+    console.log(`   Subject length: ${subject.length}`);
+    console.log(`   Subject type: ${typeof subject}`);
     if (gps) console.log(`📍 With GPS: ${gps.latitude}, ${gps.longitude}`);
     
     const matches = [];
@@ -71,7 +73,9 @@ class ChernobylMatcher {
     // Extract key words from subject
     const subjectWords = subjectLower.split(/\s+/).filter(w => w.length >= 3);
     
+    console.log(`   Subject (lowercase): "${subjectLower}"`);
     console.log(`   Subject words: [${subjectWords.join(', ')}]`);
+    console.log(`   Total database entries: ${this.objects.length}`);
     
     for (const obj of this.objects) {
       const title = (obj['English Title'] || '').toLowerCase().trim();
@@ -89,11 +93,13 @@ class ChernobylMatcher {
       if (title === subjectLower) {
         textScore = 100;
         matchType = 'Exact title match';
+        console.log(`   ✅ EXACT match: "${title}"`);
       }
       // Contains subject as phrase
       else if (title.includes(subjectLower)) {
         textScore = 80;
         matchType = 'Title contains subject';
+        console.log(`   ✅ CONTAINS match: "${title}"`);
       }
       // Word overlap
       else {
@@ -104,6 +110,7 @@ class ChernobylMatcher {
         if (matchedWords.length > 0) {
           textScore = Math.min(70, (matchedWords.length / subjectWords.length) * 70);
           matchType = `${matchedWords.length}/${subjectWords.length} words matched`;
+          console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')})`);
         }
       }
       
