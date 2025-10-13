@@ -8,10 +8,29 @@ class ChernobylMatcher {
     this.objects = [];
     this.loaded = false;
     
-    console.log(`🗂️  ChernobylMatcher initialized`);
-    if (csvPath) {
-      console.log(`   CSV path: ${this.csvPath}`);
+    // Setup log file in z_Logs and traces folder
+    const logDir = path.join(__dirname, '../../z_Logs and traces');
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
     }
+    this.logFilePath = path.join(logDir, 'chernobyl-matcher.log');
+    
+    // Clear log file on initialization (fresh log for each session)
+    fs.writeFileSync(this.logFilePath, '');
+    
+    this.log('🗂️  ChernobylMatcher initialized');
+    if (csvPath) {
+      this.log(`   CSV path: ${this.csvPath}`);
+    }
+  }
+  
+  /**
+   * Log to both console and file
+   */
+  log(message) {
+    console.log(message);
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(this.logFilePath, `${timestamp} ${message}\n`);
   }
 
   async loadDatabase() {
@@ -21,8 +40,8 @@ class ChernobylMatcher {
       throw new Error('CSV path not configured');
     }
     
-    console.log('📂 Loading Chernobyl object database...');
-    console.log(`   Looking for CSV at: ${this.csvPath}`);
+    this.log('📂 Loading Chernobyl object database...');
+    this.log(`   Looking for CSV at: ${this.csvPath}`);
     
     // Check if file exists
     if (!fs.existsSync(this.csvPath)) {
@@ -41,7 +60,7 @@ class ChernobylMatcher {
               obj['English Title'] && obj['English Title'].trim() !== ''
             );
             this.loaded = true;
-            console.log(`✅ Loaded ${this.objects.length} Chernobyl objects`);
+            this.log(`✅ Loaded ${this.objects.length} Chernobyl objects`);
             resolve();
           },
           error: (error) => {
@@ -62,10 +81,10 @@ class ChernobylMatcher {
   async findMatches(subject, gps = null) {
     if (!this.loaded) await this.loadDatabase();
     
-    console.log(`\n🔍 Searching for: "${subject}"`);
-    console.log(`   Subject length: ${subject.length}`);
-    console.log(`   Subject type: ${typeof subject}`);
-    if (gps) console.log(`📍 With GPS: ${gps.latitude}, ${gps.longitude}`);
+    this.log(`\n🔍 Searching for: "${subject}"`);
+    this.log(`   Subject length: ${subject.length}`);
+    this.log(`   Subject type: ${typeof subject}`);
+    if (gps) this.log(`📍 With GPS: ${gps.latitude}, ${gps.longitude}`);
     
     const matches = [];
     const subjectLower = subject.toLowerCase().trim();
@@ -91,9 +110,9 @@ class ChernobylMatcher {
     // Remove duplicates
     const uniqueWords = [...new Set(subjectWords)];
     
-    console.log(`   Subject (lowercase): "${subjectLower}"`);
-    console.log(`   Subject words: [${uniqueWords.join(', ')}]`);
-    console.log(`   Total database entries: ${this.objects.length}`);
+    this.log(`   Subject (lowercase): "${subjectLower}"`);
+    this.log(`   Subject words: [${uniqueWords.join(', ')}]`);
+    this.log(`   Total database entries: ${this.objects.length}`);
     
     for (const obj of this.objects) {
       const title = (obj['English Title'] || '').toLowerCase().trim();
@@ -111,13 +130,13 @@ class ChernobylMatcher {
       if (title === subjectLower) {
         textScore = 100;
         matchType = 'Exact title match';
-        console.log(`   ✅ EXACT match: "${title}"`);
+        this.log(`   ✅ EXACT match: "${title}"`);
       }
       // Contains subject as phrase
       else if (title.includes(subjectLower)) {
         textScore = 80;
         matchType = 'Title contains subject';
-        console.log(`   ✅ CONTAINS match: "${title}"`);
+        this.log(`   ✅ CONTAINS match: "${title}"`);
       }
       // Word overlap
       else {
@@ -144,23 +163,23 @@ class ChernobylMatcher {
             const originalScore = textScore;
             textScore += 20; // Boost score for important word matches
             matchType = `${matchedWords.length}/${uniqueWords.length} words (significant match)`;
-            console.log(`   🎯 SIGNIFICANT WORD BOOST: "${title}" (${matchedWords.join(', ')}) - Score: ${Math.round(originalScore)} → ${Math.round(textScore)}`);
+            this.log(`   🎯 SIGNIFICANT WORD BOOST: "${title}" (${matchedWords.join(', ')}) - Score: ${Math.round(originalScore)} → ${Math.round(textScore)}`);
           } else {
             matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
-            console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
+            this.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
           }
           
           // Bonus for multiple specific words
           if (matchedWords.length >= 2) {
             textScore += 10;
-            console.log(`   💎 MULTI-WORD BONUS: +10 points (total now: ${Math.round(textScore)})`);
+            this.log(`   💎 MULTI-WORD BONUS: +10 points (total now: ${Math.round(textScore)})`);
           }
           
           // Penalty for generic single words only (not if significant)
           const genericWords = ['chernobyl', 'pripyat', 'building', 'zone', 'area'];
           if (matchedWords.length === 1 && genericWords.includes(matchedWords[0]) && !hasSignificantMatch) {
             textScore = Math.min(textScore, 25); // Cap at 25 for generic-only matches
-            console.log(`   ⚠️ GENERIC WORD PENALTY: Capped at 25 points`);
+            this.log(`   ⚠️ GENERIC WORD PENALTY: Capped at 25 points`);
           }
         }
       }
@@ -192,9 +211,9 @@ class ChernobylMatcher {
       // Debug: Log all potential matches with scores
       if (textScore > 0 || gpsScore > 0) {
         if (totalScore >= 30) {
-          console.log(`   ✅ ADDED to matches: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)})`);
+          this.log(`   ✅ ADDED to matches: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)})`);
         } else {
-          console.log(`   ❌ FILTERED OUT: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)}) - Below threshold`);
+          this.log(`   ❌ FILTERED OUT: "${title}" (total: ${Math.round(totalScore)}, text: ${Math.round(textScore)}, gps: ${Math.round(gpsScore)}) - Below threshold`);
         }
       }
       
@@ -226,9 +245,9 @@ class ChernobylMatcher {
     const topMatches = matches.slice(0, 5);
     
     if (topMatches.length > 0) {
-      console.log(`✅ Found ${topMatches.length} matches (top score: ${topMatches[0].totalScore})`);
+      this.log(`✅ Found ${topMatches.length} matches (top score: ${topMatches[0].totalScore})`);
     } else {
-      console.log(`⚠️  No matches found`);
+      this.log(`⚠️  No matches found`);
     }
     
     return topMatches;

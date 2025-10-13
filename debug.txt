@@ -2493,3 +2493,51 @@ clusterCount: 2
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-13T20:18:43.573Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T20:19:00.352Z ===
+scanResults: true
+useChernobylDB: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T20:19:20.276Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-13T21:36:47.466Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-13T21:37:09.048Z ===
+scanResults: true
+useChernobylDB: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-13T21:37:29.215Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
