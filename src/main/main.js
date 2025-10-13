@@ -33,6 +33,78 @@ const clipServiceManager = new ClipServiceManager();
 // Initialize AI Analysis Service
 let aiAnalysisService = null;
 
+/**
+ * Check Apple Silicon GPU (MPS) status
+ * Verifies if PyTorch with MPS support is available for GPU acceleration
+ */
+async function checkGPUStatus() {
+  try {
+    const { spawn } = require('child_process');
+    const pythonPath = path.join(process.cwd(), 'venv', 'bin', 'python3');
+    
+    // Check if Python exists
+    if (!fs.existsSync(pythonPath)) {
+      logger.info('⚠️  Virtual environment not found - GPU check skipped');
+      logger.info('   Run: ./install_pytorch_mps.sh to enable GPU acceleration');
+      return null;
+    }
+    
+    logger.info('🔍 Checking Apple Silicon GPU (MPS) status...');
+    
+    const proc = spawn(pythonPath, ['-c', `
+import torch
+import json
+try:
+    print(json.dumps({
+        'mps_available': torch.backends.mps.is_available(),
+        'mps_built': torch.backends.mps.is_built(),
+        'cuda_available': torch.cuda.is_available(),
+        'pytorch_version': torch.__version__,
+        'device': 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
+    }))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+    `]);
+    
+    let output = '';
+    let errorOutput = '';
+    
+    proc.stdout.on('data', (data) => { output += data.toString(); });
+    proc.stderr.on('data', (data) => { errorOutput += data.toString(); });
+    
+    await new Promise((resolve) => proc.on('close', resolve));
+    
+    if (output.trim()) {
+      const status = JSON.parse(output.trim());
+      
+      if (status.error) {
+        logger.error('GPU check failed', { error: status.error });
+        return null;
+      }
+      
+      if (status.mps_available) {
+        logger.info('🚀 Apple Silicon GPU (MPS) is ENABLED!');
+        logger.info(`   PyTorch version: ${status.pytorch_version}`);
+        logger.info('   CLIP embeddings will use GPU acceleration (3-6x faster)');
+      } else if (status.cuda_available) {
+        logger.info('🚀 NVIDIA GPU (CUDA) is ENABLED!');
+        logger.info(`   PyTorch version: ${status.pytorch_version}`);
+      } else {
+        logger.warn('⚠️  GPU acceleration not available - using CPU');
+        logger.warn('   For better performance on Apple Silicon:');
+        logger.warn('   Run: ./install_pytorch_mps.sh');
+      }
+      
+      return status;
+    }
+    
+    return null;
+  } catch (error) {
+    logger.error('Failed to check GPU status', { error: error.message });
+    return null;
+  }
+}
+
 async function initializeAIServices() {
   try {
     const config = configManager.getAllSettings();
@@ -1397,6 +1469,13 @@ app.whenReady().then(async () => {
         defaultId: 0
       });
     }
+  }
+  
+  // Check GPU status (Apple Silicon MPS / NVIDIA CUDA)
+  try {
+    await checkGPUStatus();
+  } catch (error) {
+    logger.warn('GPU status check failed', { error: error.message });
   }
   
   // Start CLIP service
