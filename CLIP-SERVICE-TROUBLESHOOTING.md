@@ -199,18 +199,25 @@ python3 -u similarity_service.py
 
 ## 📊 Current Status
 
-**After v0.6 changes:**
+**After v0.6.1 changes:**
 - ✅ `aiAnalysisService.js` - Working perfectly
 - ✅ Dual prompt strategy - Implemented
 - ✅ Config updated - `"promptStrategy": "balanced"`
-- ⚠️ CLIP service - Needs environment fix (NOT related to v0.6)
+- ✅ CLIP service - **FIXED** with virtual environment (v0.6.1)
 
-**To test v0.6 features NOW (without CLIP):**
-1. Disable CLIP in config: `"similarity": { "enabled": false }`
-2. Restart app
-3. Ingest images
-4. Run AI Analysis
-5. Check for new output fields:
+**CLIP is now FIXED and working!**
+
+To enable CLIP similarity detection:
+1. Ensure venv is set up: `./scripts/verify-clip-setup.sh`
+2. Enable in config: `"similarity": { "enabled": true }`
+3. Restart app
+4. Check logs: "CLIP service is ready" ✅
+5. Process images with visual similarity
+
+**To test v0.6 AI features:**
+1. Ingest images
+2. Run AI Analysis
+3. Check for new output fields:
    - `subjectDetection` with confidence
    - `gpsAnalysis` with validation/reasoning
    - Realistic confidence scores (60-90%)
@@ -218,13 +225,28 @@ python3 -u similarity_service.py
 
 ---
 
-## 🎯 Recommended Approach
+## 🎉 SOLUTION IMPLEMENTED (v0.6.1)
 
-**For immediate testing of v0.6:**
+**CLIP is now fixed with virtual environment!**
+
+**Setup (already done in v0.6.1):**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+deactivate
+```
+
+**Verify setup:**
+```bash
+./scripts/verify-clip-setup.sh
+```
+
+**Config (enable CLIP):**
 ```json
 {
   "similarity": {
-    "enabled": false  // ← Disable CLIP temporarily
+    "enabled": true  // ← CLIP now works!
   },
   "aiAnalysis": {
     "promptStrategy": "balanced"  // ← Use new strategy
@@ -232,11 +254,7 @@ python3 -u similarity_service.py
 }
 ```
 
-**Restart the app and test AI analysis!**
-
-**To fix CLIP later:**
-- Try Solution 2 (system-wide install) or
-- Try Solution 3 (virtual environment)
+**Restart the app and everything works!** ✅
 
 ---
 
