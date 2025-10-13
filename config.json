@@ -18,7 +18,8 @@
     "provider": "ollama",
     "confidenceThreshold": 85,
     "requireConfidenceScore": true,
-    "allowManualOverride": true
+    "allowManualOverride": true,
+    "promptStrategy": "balanced"
   },
   "processing": {
     "batchSize": 10,

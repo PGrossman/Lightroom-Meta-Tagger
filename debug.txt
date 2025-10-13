@@ -1893,3 +1893,187 @@ representatives: 13
 
 
 === MAIN.JS LOADED 2025-10-09T23:55:08.639Z ===
+
+
+=== MAIN.JS LOADED 2025-10-10T00:06:54.036Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:08:14.694Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2025 - 10 - 10 Atlanta Air Show
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:08:16.205Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-10T00:18:11.312Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:19:42.557Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2025 - 10 - 10 Atlanta Air Show/Blue Angels
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:19:44.086Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-10T00:24:27.925Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:24:40.497Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2025 - 10 - 10 Atlanta Air Show
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:24:42.031Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-10T00:25:59.535Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:26:19.230Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2025 - 10 - 10 Atlanta Air Show
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:26:20.769Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-10T00:33:30.409Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:34:16.639Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:34:35.277Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-10T00:46:52.303Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:47:02.393Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2025 - 10 - 10 Atlanta Air Show
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:47:03.936Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-10T00:48:26.894Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:48:48.863Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:49:07.654Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-10T00:51:27.253Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-10T00:51:41.223Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-10T00:51:59.976Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13

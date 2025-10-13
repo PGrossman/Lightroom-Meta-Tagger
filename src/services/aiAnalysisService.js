@@ -5,6 +5,7 @@ const logger = require('../utils/logger');
 
 class AIAnalysisService {
   constructor(config) {
+    this.config = config; // Store config for strategy access
     this.ollamaService = new OllamaService(config);
     this.googleVisionService = new GoogleVisionService(config);
     this.confidenceThreshold = config.aiAnalysis?.confidenceThreshold || 85;
@@ -17,14 +18,19 @@ class AIAnalysisService {
   async analyzeWithOllama(imagePath, context) {
     this.logger.info('Analyzing with Ollama', { imagePath });
     
-    const prompt = this.buildPrompt(context);
+    // Use balanced strategy by default (can be configured)
+    const promptStrategy = this.config?.aiAnalysis?.promptStrategy || 'balanced';
+    const prompt = this.buildPrompt(context, promptStrategy);
     
-    // Request confidence score from LLM
-    const enhancedPrompt = `${prompt}
+    // For original strategy, add the enhanced prompt wrapper
+    // For balanced strategy, confidence is already built-in
+    const enhancedPrompt = promptStrategy === 'original' 
+      ? `${prompt}
 
 IMPORTANT: Include a "confidence" field (0-100) indicating how certain you are about this analysis.
 Also include "uncertainFields" array listing any fields you're unsure about.
-If you cannot determine a field with confidence, leave it as an empty string and add it to uncertainFields.`;
+If you cannot determine a field with confidence, leave it as an empty string and add it to uncertainFields.`
+      : prompt; // Balanced strategy already includes confidence requirements
 
     try {
       const result = await this.ollamaService.analyzeImageWithVision(imagePath, enhancedPrompt);
@@ -39,7 +45,8 @@ If you cannot determine a field with confidence, leave it as an empty string and
       
       this.logger.info('Ollama analysis complete', { 
         confidence: result.confidence,
-        uncertainFields: result.uncertainFields 
+        uncertainFields: result.uncertainFields,
+        strategy: promptStrategy 
       });
       
       return result;
@@ -138,8 +145,23 @@ If you cannot determine a field with confidence, leave it as an empty string and
 
   /**
    * Build LLM prompt with context
+   * @param {Object} context - Context object with metadata
+   * @param {String} strategy - 'original' or 'balanced' (default: 'balanced')
+   * @returns {String} - Formatted prompt
    */
-  buildPrompt(context) {
+  buildPrompt(context, strategy = 'balanced') {
+    if (strategy === 'original') {
+      return this.buildPromptOriginal(context);
+    } else {
+      return this.buildPromptBalanced(context);
+    }
+  }
+
+  /**
+   * ORIGINAL PROMPT STRATEGY (context-first, keywords prioritized)
+   * Kept for backward compatibility
+   */
+  buildPromptOriginal(context) {
     let prompt = `You are analyzing a photograph to generate comprehensive metadata for a professional photography catalog.
 
 CONTEXT INFORMATION:`;
@@ -229,6 +251,97 @@ IMPORTANT:
 - Use GPS coordinates to help identify location if provided
 - Incorporate existing keywords naturally if they're relevant and specific enough
 - Always prioritize what is ACTUALLY VISIBLE over abstract concepts`;
+
+    return prompt;
+  }
+
+  /**
+   * BALANCED PROMPT STRATEGY (visual priority + full context)
+   * Best practice from VLM Tester - Provides structured output with confidence scores
+   */
+  buildPromptBalanced(context) {
+    // Build metadata context if available
+    let metadataContext = '';
+    if (context.existingKeywords && context.existingKeywords.length > 0) {
+      metadataContext += `\nFolder keywords: ${context.existingKeywords.join(', ')}`;
+    }
+    if (context.folderName) {
+      metadataContext += `\nFolder name: ${context.folderName}`;
+    }
+    if (context.gps) {
+      metadataContext += `\nGPS: ${context.gps.latitude}, ${context.gps.longitude}`;
+    }
+
+    const prompt = `You are analyzing a photograph to generate comprehensive metadata for a professional photography catalog.
+
+${metadataContext ? `CONTEXT:${metadataContext}\n` : ''}
+ANALYZE THIS IMAGE AND PROVIDE:
+
+1. **Subject Detection**
+   - Identify the primary subject in the image
+   - Provide confidence score (0-100%) for subject identification
+
+2. **Metadata Generation**
+   - Title: Short, descriptive title (10-15 words)
+   - Description: Detailed 2-3 sentence description (150-300 characters)
+   - Keywords: 7-10 specific, technical keywords (avoid generic terms like "blue sky")
+   - Category: Main subject category
+   - Mood: Overall mood/atmosphere of the image
+   - Scene Type: Type of scene (landscape, portrait, architecture, etc.)
+
+3. **Location Information**
+   - City, State/Province, Country
+   - Specific location name (if identifiable)
+${context.gps ? `   - GPS validation: Does the image match GPS coordinates ${context.gps.latitude}, ${context.gps.longitude}? (AGREE/DISAGREE with reasoning)` : `   - GPS prediction: Estimate coordinates based on visual content (if possible)`}
+
+4. **Social Media**
+   - Caption: Engaging 100-200 character caption
+   - Hashtags: 10-15 relevant hashtags
+   - Alt Text: Concise accessibility description
+
+CRITICAL REQUIREMENTS:
+- Subject confidence must be realistic (60-90% typical range, 100% only if absolutely certain)
+- Keywords must be specific technical/historical terms, NOT generic descriptions
+- GPS validation reasoning must reference specific visual elements
+- All fields must be filled with meaningful content
+
+RESPONSE FORMAT (JSON only, no markdown):
+{
+  "subjectDetection": {
+    "subject": "Primary subject description",
+    "confidence": 85
+  },
+  "title": "Descriptive title",
+  "description": "2-3 sentence detailed description",
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7"],
+  "category": "Main category",
+  "mood": "Image mood",
+  "sceneType": "Scene type",
+  "location": {
+    "city": "City name",
+    "state": "State/Province",
+    "country": "Country",
+    "specificLocation": "Specific location name"
+  },
+  ${context.gps ? `"gpsAnalysis": {
+    "validation": "AGREE or DISAGREE",
+    "validationReasoning": "Detailed explanation of why GPS matches or doesn't match visual content",
+    "latitude": ${context.gps.latitude},
+    "longitude": ${context.gps.longitude}
+  },` : `"gpsAnalysis": {
+    "latitude": null,
+    "longitude": null,
+    "predictionConfidence": 0,
+    "predictionReasoning": "Cannot determine location from visual content"
+  },`}
+  "caption": "Social media ready caption (100-200 chars)",
+  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5", "#hashtag6", "#hashtag7", "#hashtag8", "#hashtag9", "#hashtag10"],
+  "altText": "Accessibility description",
+  "confidence": 85,
+  "uncertainFields": []
+}
+
+DO NOT include markdown code blocks, explanations, or any text outside the JSON object.`;
 
     return prompt;
   }
