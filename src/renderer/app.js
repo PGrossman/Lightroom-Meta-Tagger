@@ -51,9 +51,6 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // Check database on startup
   checkDatabaseOnStartup();
-  
-  // Update Chernobyl checkbox state on initial load
-  updateChernobylCheckboxState(); // Async, but we don't need to wait
 });
 
 // Initialize modal listeners AFTER full page load (including modal HTML)
@@ -212,7 +209,6 @@ function initializeEventListeners() {
   if (settingsTab) {
     settingsTab.addEventListener('click', () => {
       loadSettings();
-      loadChernobylDBSettings(); // ✅ Load Chernobyl DB settings
     });
     console.log('✅ Settings tab listener attached');
   }
@@ -249,56 +245,6 @@ function initializeEventListeners() {
       }
     });
     console.log('✅ Toggle API key visibility listener attached');
-  }
-
-  // ============================================
-  // Chernobyl Database Settings (Settings Tab)
-  // ============================================
-
-  const chernobylDBPath = document.getElementById('chernobylDBPath');
-  const selectChernobylDBBtn = document.getElementById('selectChernobylDBBtn');
-  const clearChernobylDBBtn = document.getElementById('clearChernobylDBBtn');
-  const chernobylDBStatus = document.getElementById('chernobylDBStatus');
-
-  if (selectChernobylDBBtn) {
-    selectChernobylDBBtn.addEventListener('click', async () => {
-      try {
-        const result = await window.electronAPI.selectChernobylDatabase();
-        
-        if (result.success && result.path) {
-          chernobylDBPath.value = result.path;
-          chernobylDBStatus.textContent = `✅ Loaded: ${result.rowCount} locations`;
-          chernobylDBStatus.style.color = '#27ae60';
-          
-          await saveChernobylDBPath(result.path);
-          updateChernobylCheckboxState(); // Update Ingest tab checkbox hint
-          
-          console.log('Chernobyl database configured:', result);
-        } else if (result.error) {
-          chernobylDBStatus.textContent = `❌ Error: ${result.error}`;
-          chernobylDBStatus.style.color = '#e74c3c';
-        }
-      } catch (error) {
-        console.error('Error selecting Chernobyl database:', error);
-        chernobylDBStatus.textContent = `❌ Error: ${error.message}`;
-        chernobylDBStatus.style.color = '#e74c3c';
-      }
-    });
-    console.log('✅ Select Chernobyl DB button listener attached');
-  }
-
-  if (clearChernobylDBBtn) {
-    clearChernobylDBBtn.addEventListener('click', async () => {
-      if (confirm('Clear Chernobyl database configuration?')) {
-        chernobylDBPath.value = '';
-        chernobylDBStatus.textContent = 'Not configured';
-        chernobylDBStatus.style.color = '#95a5a6';
-        
-        await saveChernobylDBPath('');
-        updateChernobylCheckboxState(); // Update Ingest tab checkbox hint
-      }
-    });
-    console.log('✅ Clear Chernobyl DB button listener attached');
   }
 
   // Personal Data tab listener
@@ -521,27 +467,21 @@ async function processImages() {
     updateStatus('Processing images...', 'processing');
     showProgress(0);
 
-    // ✅ NEW: Get Chernobyl database checkbox state
-    const useChernobylDB = document.getElementById('useChernobylDB')?.checked || false;
-
     console.log('Starting image processing...', {
       clusters: window.scanResults.clusters?.length,
-      directory: window.selectedDirectory,
-      useChernobylDB: useChernobylDB // ✅ Log it
+      directory: window.selectedDirectory
     });
 
     // Call the backend processing pipeline
     console.log('=== CALLING processImages IPC ===');
     console.log('Arguments:', { 
       scanResults: !!window.scanResults, 
-      dirPath: window.selectedDirectory,
-      useChernobylDB: useChernobylDB 
+      dirPath: window.selectedDirectory
     });
     
     const result = await window.electronAPI.processImages(
       window.scanResults,
-      window.selectedDirectory,
-      useChernobylDB // ✅ Pass checkbox state
+      window.selectedDirectory
     );
     
     console.log('=== processImages IPC COMPLETED ===');
@@ -2625,10 +2565,6 @@ async function batchAnalyzeAllClusters() {
   console.log('🚀 === BATCH ANALYSIS DEBUG ===');
   console.log('Raw allProcessedImages:', allProcessedImages.length);
   
-  // ✅ Get the checkbox state
-  const useChernobylDB = document.getElementById('useChernobylDB')?.checked || false;
-  console.log('Chernobyl DB matching enabled:', useChernobylDB);
-  
   // Log each item with full details
   allProcessedImages.forEach((group, idx) => {
     console.log(`\n[${idx}]:`, {
@@ -2666,9 +2602,6 @@ async function batchAnalyzeAllClusters() {
   for (let i = 0; i < uniqueClusters.length; i++) {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
-    
-    // ✅ Add the flag to the cluster group
-    group.useChernobylDB = useChernobylDB;
     
     try {
       console.log(`🔍 Analyzing [${i + 1}/${uniqueClusters.length}]: ${clusterName}`);
@@ -3174,9 +3107,6 @@ function displayAIAnalysisResults(analysisData) {
   // Populate metadata fields
   populateMetadataFields(analysisData.metadata);
   
-  // ✅ NEW: Display database match if available
-  displayDatabaseMatch(analysisData.metadata);
-  
   // Display static metadata
   displayStaticMetadata(analysisData);
   
@@ -3355,142 +3285,6 @@ function createKeywordTag(keyword) {
   tag.appendChild(remove);
   
   return tag;
-}
-
-/**
- * Display Chernobyl database match if available
- */
-function displayDatabaseMatch(metadata) {
-  console.log('displayDatabaseMatch called', metadata.databaseMatch);
-  
-  const hasMatch = metadata.databaseMatch?.matched;
-  const noMatchDiv = document.getElementById('noDbMatch');
-  const hasMatchDiv = document.getElementById('hasDbMatch');
-  const dbMatchBadge = document.getElementById('dbMatchBadge');
-  
-  if (!hasMatch) {
-    // No match found - show empty state
-    noMatchDiv.style.display = 'block';
-    hasMatchDiv.style.display = 'none';
-    dbMatchBadge.style.display = 'none';
-    return;
-  }
-  
-  // Match found - show match data
-  noMatchDiv.style.display = 'none';
-  hasMatchDiv.style.display = 'block';
-  dbMatchBadge.style.display = 'inline-block';
-  
-  const match = metadata.databaseMatch.topMatch;
-  
-  // Update confidence badge
-  const confidenceBadge = document.getElementById('matchConfidenceBadge');
-  confidenceBadge.textContent = match.confidence;
-  
-  // Update color based on confidence
-  if (match.confidence === 'Very High') {
-    confidenceBadge.style.background = '#27ae60';
-  } else if (match.confidence === 'High') {
-    confidenceBadge.style.background = '#2ecc71';
-  } else if (match.confidence === 'Medium') {
-    confidenceBadge.style.background = '#f39c12';
-  } else {
-    confidenceBadge.style.background = '#e67e22';
-  }
-  
-  // Update score badge
-  document.getElementById('matchScoreBadge').textContent = `Score: ${match.totalScore}/130`;
-  
-  // Update match details
-  document.getElementById('matchTitle').textContent = match.title || '-';
-  document.getElementById('matchType').textContent = match.matchType || '-';
-  document.getElementById('matchTextScore').textContent = `Text: ${match.textScore}`;
-  document.getElementById('matchGPSScore').textContent = `GPS: ${match.gpsScore}`;
-  
-  // Categories
-  const categoriesRow = document.getElementById('matchCategoriesRow');
-  if (match.categories) {
-    document.getElementById('matchCategories').textContent = match.categories;
-    categoriesRow.style.display = 'grid';
-  } else {
-    categoriesRow.style.display = 'none';
-  }
-  
-  // Tags
-  const tagsRow = document.getElementById('matchTagsRow');
-  if (match.tags) {
-    document.getElementById('matchTags').textContent = match.tags;
-    tagsRow.style.display = 'grid';
-  } else {
-    tagsRow.style.display = 'none';
-  }
-  
-  // Distance
-  const distanceRow = document.getElementById('matchDistanceRow');
-  if (match.distance !== null && match.distance !== undefined) {
-    document.getElementById('matchDistance').textContent = `${match.distance.toFixed(2)} km from GPS`;
-    distanceRow.style.display = 'grid';
-  } else {
-    distanceRow.style.display = 'none';
-  }
-  
-  // WikiMapia URL
-  const urlRow = document.getElementById('matchURLRow');
-  if (match.url) {
-    const urlLink = document.getElementById('matchURL');
-    urlLink.href = match.url;
-    urlRow.style.display = 'grid';
-  } else {
-    urlRow.style.display = 'none';
-  }
-  
-  // Alternative matches
-  if (metadata.databaseMatch.allMatches && metadata.databaseMatch.allMatches.length > 1) {
-    displayAlternativeMatches(metadata.databaseMatch.allMatches.slice(1, 5)); // Show up to 4 alternatives
-  } else {
-    document.getElementById('alternativeMatchesSection').style.display = 'none';
-  }
-}
-
-/**
- * Display alternative database matches
- */
-function displayAlternativeMatches(matches) {
-  const section = document.getElementById('alternativeMatchesSection');
-  const list = document.getElementById('alternativeMatchesList');
-  
-  if (!matches || matches.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
-  
-  section.style.display = 'block';
-  list.innerHTML = '';
-  
-  matches.forEach((match, index) => {
-    const matchCard = document.createElement('div');
-    matchCard.style.cssText = `
-      background: #f8f9fa;
-      padding: 15px;
-      border-radius: 8px;
-      border-left: 3px solid #95a5a6;
-    `;
-    
-    matchCard.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <strong style="color: #2c3e50;">${match.title}</strong>
-        <span style="background: #95a5a6; color: white; padding: 4px 10px; border-radius: 10px; font-size: 12px;">
-          ${match.totalScore}/130
-        </span>
-      </div>
-      <div style="font-size: 13px; color: #6c757d;">
-        ${match.matchType} · Text: ${match.textScore}, GPS: ${match.gpsScore}
-        ${match.distance !== null ? ` · ${match.distance.toFixed(2)} km` : ''}
-      </div>
-    `;
-    
-    list.appendChild(matchCard);
-  });
 }
 
 /**
@@ -3814,88 +3608,6 @@ async function savePersonalData() {
   } catch (error) {
     console.error('❌ Failed to save personal data:', error);
     alert('❌ Error saving personal data: ' + error.message);
-  }
-}
-
-// ============================================
-// Chernobyl Database Helper Functions
-// ============================================
-
-async function loadChernobylDBSettings() {
-  try {
-    const settings = await window.electronAPI.getAllSettings();
-    const chernobylDB = settings.chernobylDB || {};
-    
-    const pathInput = document.getElementById('chernobylDBPath');
-    const statusSpan = document.getElementById('chernobylDBStatus');
-    
-    if (pathInput && chernobylDB.path) {
-      pathInput.value = chernobylDB.path;
-    }
-    
-    if (statusSpan) {
-      if (chernobylDB.path) {
-        statusSpan.textContent = '✅ Database configured';
-        statusSpan.style.color = '#27ae60';
-      } else {
-        statusSpan.textContent = 'Not configured';
-        statusSpan.style.color = '#95a5a6';
-      }
-    }
-    
-    updateChernobylCheckboxState();
-    
-    console.log('Chernobyl DB settings loaded:', chernobylDB);
-  } catch (error) {
-    console.error('Failed to load Chernobyl DB settings:', error);
-  }
-}
-
-async function saveChernobylDBPath(path) {
-  try {
-    const result = await window.electronAPI.saveChernobylDBSettings({ path });
-    
-    if (result.success) {
-      console.log('✅ Chernobyl DB path saved:', path);
-    } else {
-      console.error('Failed to save Chernobyl DB path:', result.error);
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error saving Chernobyl DB path:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-async function updateChernobylCheckboxState() {
-  const checkbox = document.getElementById('useChernobylDB');
-  const hint = document.getElementById('chernobylDBHint');
-  
-  if (checkbox && hint) {
-    try {
-      // ✅ Check the actual saved config, not the DOM input field
-      const settings = await window.electronAPI.getAllSettings();
-      const isConfigured = settings.chernobylDB?.path && settings.chernobylDB.path.trim() !== '';
-      
-      checkbox.disabled = !isConfigured;
-      
-      if (isConfigured) {
-        hint.textContent = 'Match AI results against Chernobyl database';
-        hint.style.color = '#27ae60';
-        checkbox.checked = false; // Default unchecked, user decides per run
-      } else {
-        hint.textContent = 'Not configured - Set up in Settings tab';
-        hint.style.color = '#e74c3c';
-        checkbox.checked = false;
-        checkbox.disabled = true;
-      }
-    } catch (error) {
-      console.error('Failed to check Chernobyl DB config:', error);
-      hint.textContent = 'Error checking configuration';
-      hint.style.color = '#e74c3c';
-      checkbox.disabled = true;
-    }
   }
 }
 

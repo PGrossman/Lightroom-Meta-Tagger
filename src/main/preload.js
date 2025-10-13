@@ -10,8 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('scan-directory-with-clustering', dirPath, threshold),
   
   // Processing (Phase 2)
-  processImages: (scanResults, dirPath, useChernobylDB) => 
-    ipcRenderer.invoke('process-images', scanResults, dirPath, useChernobylDB),
+  processImages: (scanResults, dirPath) => 
+    ipcRenderer.invoke('process-images', scanResults, dirPath),
   
   // Database
   getDatabasePath: () => ipcRenderer.invoke('get-database-path'),

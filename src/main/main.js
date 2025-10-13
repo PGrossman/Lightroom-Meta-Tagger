@@ -235,14 +235,13 @@ ipcMain.handle('scan-directory-with-clustering', async (event, dirPath, timestam
 
 // Process Images IPC Handler - Phase 2 Processing Pipeline
 console.log('=== REGISTERING process-images IPC HANDLER ===');
-ipcMain.handle('process-images', async (event, scanResults, dirPath, useChernobylDB) => {
+ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
   try {
     // === CRITICAL DEBUG - RUN THIS FIRST ===
     console.log('=== PROCESS-IMAGES HANDLER STARTED ===');
     console.log('Arguments received:', { 
       scanResults: !!scanResults, 
-      dirPath,
-      useChernobylDB // ✅ Now we have the checkbox state!
+      dirPath
     });
     console.log('configManager exists:', typeof configManager);
     console.log('configManager.getAllSettings exists:', typeof configManager.getAllSettings);
@@ -250,7 +249,6 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath, useChernoby
     // Write to debug file
     fs.appendFileSync('debug.txt', `\n\n=== PROCESS-IMAGES CALLED ${new Date().toISOString()} ===\n`);
     fs.appendFileSync('debug.txt', `scanResults: ${!!scanResults}\n`);
-    fs.appendFileSync('debug.txt', `useChernobylDB: ${useChernobylDB}\n`);
     fs.appendFileSync('debug.txt', `dirPath: ${dirPath}\n`);
     
     const testConfig = configManager.getAllSettings();
