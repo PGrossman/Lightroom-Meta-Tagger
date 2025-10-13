@@ -126,9 +126,42 @@ class ChernobylMatcher {
         );
         
         if (matchedWords.length > 0) {
+          // Base score calculation
           textScore = Math.min(70, (matchedWords.length / uniqueWords.length) * 70);
-          matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
-          console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
+          
+          // ✅ Bonus for matching significant/rare words (not generic)
+          const significantWords = [
+            'prometheus', 'statue', 'monument', 'cinema', 'palace', 'theater', 
+            'hospital', 'school', 'kindergarten', 'hotel', 'restaurant',
+            'museum', 'memorial', 'stadium', 'pool', 'gym', 'church',
+            'reactor', 'turbine', 'cooling', 'sarcophagus', 'shelter',
+            'bridge', 'tower', 'antenna', 'radar', 'duga'
+          ];
+          
+          const hasSignificantMatch = matchedWords.some(w => significantWords.includes(w));
+          
+          if (hasSignificantMatch) {
+            const originalScore = textScore;
+            textScore += 20; // Boost score for important word matches
+            matchType = `${matchedWords.length}/${uniqueWords.length} words (significant match)`;
+            console.log(`   🎯 SIGNIFICANT WORD BOOST: "${title}" (${matchedWords.join(', ')}) - Score: ${Math.round(originalScore)} → ${Math.round(textScore)}`);
+          } else {
+            matchType = `${matchedWords.length}/${uniqueWords.length} words matched`;
+            console.log(`   ⚠️ WORD match: "${title}" (${matchedWords.join(', ')}) - textScore: ${Math.round(textScore)}`);
+          }
+          
+          // Bonus for multiple specific words
+          if (matchedWords.length >= 2) {
+            textScore += 10;
+            console.log(`   💎 MULTI-WORD BONUS: +10 points (total now: ${Math.round(textScore)})`);
+          }
+          
+          // Penalty for generic single words only (not if significant)
+          const genericWords = ['chernobyl', 'pripyat', 'building', 'zone', 'area'];
+          if (matchedWords.length === 1 && genericWords.includes(matchedWords[0]) && !hasSignificantMatch) {
+            textScore = Math.min(textScore, 25); // Cap at 25 for generic-only matches
+            console.log(`   ⚠️ GENERIC WORD PENALTY: Capped at 25 points`);
+          }
         }
       }
       
