@@ -1492,14 +1492,15 @@ async function createResultsTableRowFromGroup(group) {
     similarCell.textContent = '—';
   }
 
-  // Column 3: Keywords (editable with delete buttons)
+  // Column 3: Keywords (editable with delete buttons + add new)
   const keywordsCell = document.createElement('td');
   keywordsCell.className = 'keywords-cell';
-  
-  if (cluster.keywords && cluster.keywords.length > 0) {
-    const keywordsList = document.createElement('div');
-    keywordsList.className = 'keywords-list';
 
+  const keywordsList = document.createElement('div');
+  keywordsList.className = 'keywords-list';
+
+  // Display existing keywords
+  if (cluster.keywords && cluster.keywords.length > 0) {
     cluster.keywords.forEach(keyword => {
       const keywordItem = document.createElement('div');
       keywordItem.className = 'keyword-item';
@@ -1547,11 +1548,59 @@ async function createResultsTableRowFromGroup(group) {
       keywordItem.appendChild(keywordText);
       keywordsList.appendChild(keywordItem);
     });
-
-    keywordsCell.appendChild(keywordsList);
-  } else {
-    keywordsCell.textContent = '—';
   }
+
+  // ✅ NEW: Add keyword input + button
+  const addKeywordContainer = document.createElement('div');
+  addKeywordContainer.style.display = 'flex';
+  addKeywordContainer.style.gap = '4px';
+  addKeywordContainer.style.marginTop = '6px';
+
+  const addKeywordInput = document.createElement('input');
+  addKeywordInput.type = 'text';
+  addKeywordInput.placeholder = 'Add keyword...';
+  addKeywordInput.style.flex = '1';
+  addKeywordInput.style.padding = '4px 8px';
+  addKeywordInput.style.border = '1px solid #dee2e6';
+  addKeywordInput.style.borderRadius = '3px';
+  addKeywordInput.style.fontSize = '12px';
+
+  const addKeywordBtn = document.createElement('button');
+  addKeywordBtn.textContent = '+';
+  addKeywordBtn.title = 'Add keyword';
+  addKeywordBtn.style.padding = '4px 10px';
+  addKeywordBtn.style.backgroundColor = '#28a745';
+  addKeywordBtn.style.color = 'white';
+  addKeywordBtn.style.border = 'none';
+  addKeywordBtn.style.borderRadius = '3px';
+  addKeywordBtn.style.cursor = 'pointer';
+  addKeywordBtn.style.fontSize = '14px';
+  addKeywordBtn.style.fontWeight = 'bold';
+
+  addKeywordBtn.onclick = (e) => {
+    e.stopPropagation();
+    const newKeyword = addKeywordInput.value.trim();
+    if (newKeyword) {
+      addKeywordToCluster(group.mainRep.representativePath, newKeyword, keywordsList, addKeywordInput);
+    }
+  };
+
+  // Also allow Enter key to add keyword
+  addKeywordInput.onkeypress = (e) => {
+    if (e.key === 'Enter') {
+      e.stopPropagation();
+      const newKeyword = addKeywordInput.value.trim();
+      if (newKeyword) {
+        addKeywordToCluster(group.mainRep.representativePath, newKeyword, keywordsList, addKeywordInput);
+      }
+    }
+  };
+
+  addKeywordContainer.appendChild(addKeywordInput);
+  addKeywordContainer.appendChild(addKeywordBtn);
+
+  keywordsCell.appendChild(keywordsList);
+  keywordsCell.appendChild(addKeywordContainer);
 
   // Column 4: GPS Coordinates
   const gpsCell = document.createElement('td');
@@ -1693,6 +1742,104 @@ function removeKeyword(clusterPath, keyword, keywordElement) {
     console.log('✅ Keyword removed successfully');
   } else {
     console.error('❌ Could not find cluster to remove keyword from');
+  }
+}
+
+/**
+ * Add a keyword to a cluster
+ */
+function addKeywordToCluster(clusterPath, keyword, keywordsList, inputElement) {
+  console.log('➕ Adding keyword:', { cluster: clusterPath, keyword });
+  
+  // Find the cluster in allProcessedImages
+  const group = allProcessedImages.find(g => 
+    g.mainRep && g.mainRep.representativePath === clusterPath
+  );
+  
+  if (group && group.mainRep) {
+    // Initialize keywords array if it doesn't exist
+    if (!group.mainRep.keywords) {
+      group.mainRep.keywords = [];
+    }
+    
+    // Check if keyword already exists
+    if (group.mainRep.keywords.includes(keyword)) {
+      alert('Keyword already exists!');
+      inputElement.value = '';
+      return;
+    }
+    
+    // Add keyword to array
+    group.mainRep.keywords.push(keyword);
+    
+    // Also update in window.processedClusters if it exists
+    if (window.processedClusters) {
+      const windowCluster = window.processedClusters.find(c => 
+        c.representativePath === clusterPath
+      );
+      if (windowCluster) {
+        if (!windowCluster.keywords) {
+          windowCluster.keywords = [];
+        }
+        if (!windowCluster.keywords.includes(keyword)) {
+          windowCluster.keywords.push(keyword);
+        }
+      }
+    }
+    
+    // Add to DOM (before the add input container)
+    const keywordItem = document.createElement('div');
+    keywordItem.className = 'keyword-item';
+    
+    // Delete button (X)
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'keyword-delete-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.title = 'Remove keyword';
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeKeyword(clusterPath, keyword, keywordItem);
+    };
+    
+    // Editable keyword text
+    const keywordText = document.createElement('span');
+    keywordText.className = 'keyword-text';
+    keywordText.contentEditable = true;
+    keywordText.textContent = keyword;
+    keywordText.spellcheck = false;
+    keywordText.onclick = (e) => {
+      e.stopPropagation();
+      keywordText.focus();
+    };
+    keywordText.onblur = () => {
+      const newKeyword = keywordText.textContent.trim();
+      if (newKeyword && newKeyword !== keyword) {
+        updateKeyword(clusterPath, keyword, newKeyword);
+      } else if (!newKeyword) {
+        keywordText.textContent = keyword;
+      }
+    };
+    keywordText.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        keywordText.blur();
+      }
+      if (e.key === 'Escape') {
+        keywordText.textContent = keyword;
+        keywordText.blur();
+      }
+    };
+    
+    keywordItem.appendChild(deleteBtn);
+    keywordItem.appendChild(keywordText);
+    keywordsList.appendChild(keywordItem);
+    
+    // Clear input
+    inputElement.value = '';
+    
+    console.log('✅ Keyword added successfully');
+  } else {
+    console.error('❌ Could not find cluster to add keyword to');
   }
 }
 
