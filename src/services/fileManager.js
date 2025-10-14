@@ -499,24 +499,26 @@ class FileManager {
     
     // Cluster RED files by pattern
     const redClusters = this.clusterREDFiles(redFiles);
+    logger.info('RED clustering complete', { clusters: redClusters.length });
     
-    // ✅ FIX: Properly instantiate ClusteringService with dependencies
-    const ClusteringService = require('./clusteringService');
+    // Import clustering services for Canon files
     const ExifExtractor = require('./exifExtractor');
+    const ClusteringService = require('./clusteringService');
+    
     const exifExtractor = new ExifExtractor();
-    const clusterer = new ClusteringService(exifExtractor);
+    const clusteringService = new ClusteringService(exifExtractor);
     
-    // Cluster Canon files by timestamp
-    const canonClusters = clusterer.clusterByTimestamp(canonFiles, timestampThreshold);
+    // ✅ FIX: Cluster Canon files by timestamp (pass paths only, and await)
+    const canonClusters = await clusteringService.clusterByTimestamp(
+      canonFiles.map(f => f.path),  // Map to .path to get strings
+      timestampThreshold
+    );
+    logger.info('Canon clustering complete', { clusters: canonClusters.length });
     
-    // Format Canon clusters with derivatives
-    const formattedCanonClusters = canonClusters.map(cluster => {
-      const clusterDerivatives = scanResults.derivatives.get(cluster.representative) || [];
-      return {
-        ...clusterer.formatClusterForDisplay(cluster, 0),
-        derivatives: clusterDerivatives
-      };
-    });
+    // Format Canon clusters for display
+    const formattedCanonClusters = canonClusters.map((cluster, index) => 
+      clusteringService.formatClusterForDisplay(cluster, index)
+    );
     
     // Format RED clusters with derivatives  
     const formattedREDClusters = redClusters.map(cluster => {
@@ -530,11 +532,17 @@ class FileManager {
     // Combine all clusters
     const allClusters = [...formattedREDClusters, ...formattedCanonClusters];
     
+    // Calculate combined statistics
+    const totalImages = allClusters.reduce((sum, c) => sum + c.imageCount, 0);
     const clusterStats = {
       totalClusters: allClusters.length,
-      totalImages: allClusters.reduce((sum, c) => sum + c.imageCount, 0),
-      averageClusterSize: allClusters.length > 0 ? 
-        allClusters.reduce((sum, c) => sum + c.imageCount, 0) / allClusters.length : 0
+      totalImages: totalImages,
+      redClusters: redClusters.length,
+      canonClusters: formattedCanonClusters.length,
+      bracketedClusters: allClusters.filter(c => c.isBracketed).length,
+      singletonClusters: allClusters.filter(c => !c.isBracketed).length,
+      averageClusterSize: allClusters.length > 0 ?
+        totalImages / allClusters.length : 0
     };
     
     logger.info('Combined clustering complete', clusterStats);
