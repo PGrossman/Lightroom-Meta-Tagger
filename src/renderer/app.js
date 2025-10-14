@@ -3071,20 +3071,38 @@ async function generateAllXMPFiles() {
 
 /**
  * Helper: Get all image paths affected by a cluster
+ * ✅ FIXED: Now includes derivatives (TIF, PSD)
  */
 function getAllAffectedPaths(group) {
   const paths = [group.mainRep.representativePath];
+  
+  // Main rep's bracketed images
   if (group.mainRep.imagePaths) {
     paths.push(...group.mainRep.imagePaths.filter(p => p !== group.mainRep.representativePath));
   }
+  
+  // ✅ FIX: Add main rep's derivatives
+  if (group.mainRep.derivatives) {
+    paths.push(...group.mainRep.derivatives);
+  }
+  
+  // Similar representatives and their files
   if (group.similarReps) {
     group.similarReps.forEach(sim => {
       paths.push(sim.cluster.representativePath);
+      
+      // Similar rep's bracketed images
       if (sim.cluster.imagePaths) {
         paths.push(...sim.cluster.imagePaths);
       }
+      
+      // ✅ FIX: Add similar rep's derivatives
+      if (sim.cluster.derivatives) {
+        paths.push(...sim.cluster.derivatives);
+      }
     });
   }
+  
   return [...new Set(paths)];
 }
 
