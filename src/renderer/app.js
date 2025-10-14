@@ -494,6 +494,23 @@ async function processImages() {
       window.processedClusters = result.processedClusters;
       window.similarityResults = result.similarityResults || [];
       
+      // ============================================================================
+      // 🔍 CRITICAL DIAGNOSTIC - Check if derivatives made it into window.processedClusters
+      // ============================================================================
+      console.log('\n🔍 ========== PROCESSED CLUSTERS DERIVATIVE CHECK ==========');
+      let totalDerivsInProcessed = 0;
+      window.processedClusters.forEach((c, idx) => {
+        const derivCount = c.derivatives?.length || 0;
+        totalDerivsInProcessed += derivCount;
+        if (derivCount > 0) {
+          console.log(`[${idx}] ${c.representativeFilename}: ${derivCount} derivatives`);
+          c.derivatives.forEach(d => console.log(`   - ${d.split('/').pop()}`));
+        }
+      });
+      console.log(`📊 TOTAL DERIVATIVES IN window.processedClusters: ${totalDerivsInProcessed}/33`);
+      console.log('🔍 ==========================================\n');
+      // ============================================================================
+      
       // 🔍 DEBUG: Log similarity data stored in window
       console.log('🔍 ===== SIMILARITY DATA STORED IN WINDOW =====');
       console.log(`📊 window.similarityResults length: ${window.similarityResults?.length || 0}`);
