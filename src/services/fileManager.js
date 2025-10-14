@@ -35,8 +35,7 @@ class FileManager {
    * Extract base filename from any image
    * Works with multiple camera formats:
    *   - Canon: _GP_0215, _MG_9194, IMG_1234, DSC_0001
-   *   - RED Bracketed: A006_C001_0315GH_S000.0000127
-   *   - RED Merged: A006_C001_0315GH.0000127 (no _S### sequence)
+   *   - RED: A006_C001_0315GH_S000.0000127 OR A006_C001_0315GH.0000127 (merged)
    * 
    * Examples:
    *   Canon:
@@ -44,22 +43,18 @@ class FileManager {
    *     _GP_0215_adj.tif → _GP_0215
    *     _GP_0215_adj-Edit-2.tif → _GP_0215
    *   
-   *   RED Bracketed:
+   *   RED:
    *     A006_C001_0315GH_S000.0000127.tif → A006_C001_0315GH_S000.0000127
+   *     A006_C001_0315GH.0000127.tif → A006_C001_0315GH.0000127 (merged)
    *     A006_C001_0315GH_S000.0000127-Edit.tif → A006_C001_0315GH_S000.0000127
-   *   
-   *   RED Merged:
-   *     A006_C001_0315GH.0000127.tif → A006_C001_0315GH.0000127
-   *     A006_C001_0315GH.0000127-Edit.tif → A006_C001_0315GH.0000127
    */
   getBaseFilename(filename) {
     // Remove extension first
     const nameWithoutExt = path.parse(filename).name;
     
-    // Pattern 1: RED camera files (X###_X###_XXXXXX_... OR X###_X###_XXXXXX....)
-    // Format: Camera_Magazine_Hash_Additional (e.g., A006_C001_0315GH_S000.0000127 or A006_C001_0315GH.0000127)
-    // Updated to make _S### optional for merged files
-    const redPattern = /^([A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(?:_S\d{3})?\.[A-Z0-9.]+)/i;
+    // Pattern 1: RED camera files (X###_X###_XXXXXX_... with OPTIONAL _S###)
+    // Format: Camera_Magazine_Hash_[Optional S###]_Frame (e.g., A006_C001_0315GH_S000.0000127 OR A006_C001_0315GH.0000127)
+    const redPattern = /^([A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(?:_S\d{3})?\.\d+)/i;
     const redMatch = nameWithoutExt.match(redPattern);
     
     if (redMatch) {
@@ -85,8 +80,7 @@ class FileManager {
    * Check if file is a base RAW image
    * Supports:
    *   - Standard RAW formats (CR2, CR3, NEF, ARW, etc.)
-   *   - RED camera TIF files (identified by naming pattern)
-   *   - RED merged TIF files (without _S### sequence)
+   *   - RED camera TIF files (with or without _S### sequence)
    */
   isBaseImage(filename) {
     const ext = path.extname(filename).toUpperCase();
@@ -94,7 +88,7 @@ class FileManager {
     // Additional check: TIF/TIFF files are only base if they match RED pattern
     if (ext === '.TIF' || ext === '.TIFF') {
       const nameWithoutExt = path.parse(filename).name;
-      // Updated: _S### sequence is now optional to support merged files
+      // ✅ FIX: Make _S### optional to support merged RED files
       const redPattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(_S\d{3})?\.\d+$/i;
       return redPattern.test(nameWithoutExt);
     }
@@ -118,17 +112,18 @@ class FileManager {
     // If it's a TIF/TIFF, check if it's a RED base file
     if (ext === '.tif' || ext === '.tiff') {
       const nameWithoutExt = path.parse(filename).name;
-      const redBasePattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}_S\d{3}\.\d+$/i;
+      // ✅ FIX: Updated pattern to handle both bracketed and merged RED files
+      const redBasePattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(_S\d{3})?\.\d+$/i;
       
-      // If it matches the EXACT RED base pattern (with S### and frame number), it's NOT a derivative
+      // If it matches the EXACT RED base pattern (with optional S###), it's NOT a derivative
       if (redBasePattern.test(nameWithoutExt)) {
         return false;
       }
       
       // If it has "-Edit" or "-Pano" or other suffixes, it IS a derivative
       // Examples: A006_C001_0315GH_S000.0000127-Edit.tif = derivative
+      //           A006_C001_0315GH.0000127-Edit.tif = derivative
       //           _GP_4599-Pano-Edit-Edit-Edit.tif = derivative
-      //           _GP_4599-Pano-Edit.tif = derivative
       return true;
     }
     
@@ -159,7 +154,7 @@ class FileManager {
       if (file === basePath) continue;
       
       // Only check potential derivatives
-      if (!this.isDerivative(file)) continue;
+      if (!this.isDerivative(path.basename(file))) continue;
       
       // Check if in same directory (or handle subdirectories if needed)
       if (path.dirname(file) !== baseDir) continue;
@@ -232,7 +227,8 @@ class FileManager {
         totalFiles: 0,
         baseImagesFound: 0,
         derivativesFound: 0,
-        skippedFiles: 0
+        skippedFiles: 0,
+        orphansPromoted: 0
       }
     };
 
@@ -281,7 +277,7 @@ class FileManager {
         else tifUnknownCount++;
       }
       
-      if (this.isBaseImage(file)) {
+      if (this.isBaseImage(filename)) {
         results.baseImages.push(file);
         results.stats.baseImagesFound++;
       }
@@ -318,6 +314,36 @@ class FileManager {
       }
     }
 
+    // ✅ NEW STEP 4: Promote orphaned derivatives to base images
+    const allDerivativeFiles = new Set();
+    for (const derivs of results.derivatives.values()) {
+      derivs.forEach(d => allDerivativeFiles.add(d));
+    }
+    
+    // Find potential derivatives that weren't attached to any base
+    const orphanedDerivatives = [];
+    for (const file of allFiles) {
+      const filename = path.basename(file);
+      if (this.isDerivative(filename) && !allDerivativeFiles.has(file)) {
+        orphanedDerivatives.push(file);
+      }
+    }
+    
+    if (orphanedDerivatives.length > 0) {
+      logger.info('🔄 Promoting orphaned derivatives to base images', {
+        count: orphanedDerivatives.length,
+        files: orphanedDerivatives.map(f => path.basename(f))
+      });
+      
+      // Promote orphans to base images
+      orphanedDerivatives.forEach(orphan => {
+        results.baseImages.push(orphan);
+        results.derivatives.set(orphan, []); // No derivatives for orphans
+        results.stats.baseImagesFound++;
+        results.stats.orphansPromoted++;
+      });
+    }
+
     const duration = Date.now() - startTime;
     results.stats.scanDuration = duration;
     
@@ -325,6 +351,7 @@ class FileManager {
       duration: `${duration}ms`,
       baseImages: results.stats.baseImagesFound,
       derivatives: results.stats.derivativesFound,
+      orphansPromoted: results.stats.orphansPromoted,
       totalFiles: results.stats.totalFiles
     });
 
@@ -339,6 +366,7 @@ class FileManager {
       totalFiles: scanResults.stats.totalFiles,
       totalBaseImages: scanResults.stats.baseImagesFound,
       totalDerivatives: scanResults.stats.derivativesFound,
+      orphansPromoted: scanResults.stats.orphansPromoted || 0,
       imagesWithDerivatives: 0,
       standaloneImages: 0,
       scanDuration: scanResults.stats.scanDuration
@@ -357,32 +385,29 @@ class FileManager {
 
   /**
    * Check if filename matches RED camera pattern
-   * Pattern: A006_C001_0315GH_S000.0000127.tif
-   */
-  /**
-   * Check if filename matches RED camera pattern
-   * Supports both:
-   *   - Bracketed: A006_C001_0315GH_S000.0000127.tif
-   *   - Merged: A006_C001_0315GH.0000127.tif (no _S### sequence)
+   * ✅ FIX: Supports both bracketed and merged files
+   * Pattern: A006_C001_0315GH_S000.0000127.tif OR A006_C001_0315GH.0000127.tif
    */
   isREDFile(filename) {
-    // Pattern with optional _S### sequence to support merged files
+    // Make _S### optional with (_S\d{3})?
     return /^A\d{3}_C\d{3}_[A-Z0-9]+(_S\d{3})?\.\d+\.tiff?$/i.test(filename);
   }
 
   /**
    * Parse RED camera filename into components
+   * ✅ FIX: Handles both bracketed and merged files
    * Returns: { camera, mag, jobCode, sequence, frame, baseIdentifier }
    */
   parseREDFilename(filename) {
-    const match = filename.match(/^(A\d{3})_(C\d{3})_([A-Z0-9]+)_(S\d{3})\.(\d+)\.tiff?$/i);
+    // Make sequence group optional: (?:_(S\d{3}))?
+    const match = filename.match(/^(A\d{3})_(C\d{3})_([A-Z0-9]+)(?:_(S\d{3}))?\.(\d+)\.tiff?$/i);
     if (!match) return null;
     
     return {
       camera: match[1],        // A006
       mag: match[2],           // C001
       jobCode: match[3],       // 0315GH
-      sequence: match[4],      // S000, S001, S002
+      sequence: match[4] || 'MERGED',  // S000 or 'MERGED' if not present
       frame: match[5],         // 0000127
       baseIdentifier: `${match[1]}_${match[2]}_${match[3]}_${match[5]}` // A006_C001_0315GH_0000127
     };
@@ -392,6 +417,7 @@ class FileManager {
    * Cluster RED files by naming pattern
    * Groups by camera + mag + jobCode + frame
    * Different S### numbers with same frame = bracketed shots
+   * Merged files (no S###) = part of the bracketed cluster
    */
   clusterREDFiles(redFiles) {
     const clusters = new Map();
@@ -409,7 +435,7 @@ class FileManager {
     }
     
     return Array.from(clusters.values()).map(files => {
-      // Sort by sequence number (S000, S001, S002)
+      // Sort by sequence number (S000, S001, S002, or MERGED)
       files.sort((a, b) => {
         const seqA = this.parseREDFilename(path.basename(a.path)).sequence;
         const seqB = this.parseREDFilename(path.basename(b.path)).sequence;
@@ -471,42 +497,40 @@ class FileManager {
       canonFiles: canonFiles.length 
     });
     
-    // Cluster RED files by naming pattern
+    // Cluster RED files by pattern
     const redClusters = this.clusterREDFiles(redFiles);
-    logger.info('RED clustering complete', { clusters: redClusters.length });
     
-    // Import clustering services for Canon files
-    const ExifExtractor = require('./exifExtractor');
-    const ClusteringService = require('./clusteringService');
+    // Cluster Canon files by timestamp
+    const clusteringService = require('./clusteringService');
+    const clusterer = new clusteringService();
+    const canonClusters = clusterer.clusterByTimestamp(canonFiles, timestampThreshold);
     
-    const exifExtractor = new ExifExtractor();
-    const clusteringService = new ClusteringService(exifExtractor);
+    // Format Canon clusters with derivatives
+    const formattedCanonClusters = canonClusters.map(cluster => {
+      const clusterDerivatives = scanResults.derivatives.get(cluster.representative) || [];
+      return {
+        ...clusterer.formatClusterForDisplay(cluster, 0),
+        derivatives: clusterDerivatives
+      };
+    });
     
-    // Cluster Canon files by timestamp (pass paths only)
-    const canonClusters = await clusteringService.clusterByTimestamp(
-      canonFiles.map(f => f.path),
-      timestampThreshold
-    );
-    logger.info('Canon clustering complete', { clusters: canonClusters.length });
+    // Format RED clusters with derivatives  
+    const formattedREDClusters = redClusters.map(cluster => {
+      const clusterDerivatives = scanResults.derivatives.get(cluster.representative) || [];
+      return {
+        ...cluster,
+        derivatives: clusterDerivatives
+      };
+    });
     
-    // Format Canon clusters for display
-    const formattedCanonClusters = canonClusters.map((cluster, index) => 
-      clusteringService.formatClusterForDisplay(cluster, index)
-    );
+    // Combine all clusters
+    const allClusters = [...formattedREDClusters, ...formattedCanonClusters];
     
-    // Combine both cluster types
-    const allClusters = [...redClusters, ...formattedCanonClusters];
-    
-    // Calculate combined statistics
-    const totalImages = allClusters.reduce((sum, c) => sum + c.imageCount, 0);
     const clusterStats = {
       totalClusters: allClusters.length,
-      totalImages: totalImages,
-      redClusters: redClusters.length,
-      canonClusters: formattedCanonClusters.length,
-      bracketedClusters: allClusters.filter(c => c.isBracketed).length,
-      singletonClusters: allClusters.filter(c => !c.isBracketed).length,
-      averageClusterSize: allClusters.length > 0 ? totalImages / allClusters.length : 0
+      totalImages: allClusters.reduce((sum, c) => sum + c.imageCount, 0),
+      averageClusterSize: allClusters.length > 0 ? 
+        allClusters.reduce((sum, c) => sum + c.imageCount, 0) / allClusters.length : 0
     };
     
     logger.info('Combined clustering complete', clusterStats);
@@ -518,6 +542,7 @@ class FileManager {
       summary: {
         totalBaseImages: scanResults.stats.baseImagesFound,
         totalDerivatives: scanResults.stats.derivativesFound,
+        orphansPromoted: scanResults.stats.orphansPromoted,
         totalClusters: allClusters.length,
         redClusters: redClusters.length,
         canonClusters: formattedCanonClusters.length,
