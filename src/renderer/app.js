@@ -1779,6 +1779,7 @@ function updateKeyword(clusterPath, oldKeyword, newKeyword) {
 
 /**
  * Update GPS coordinates for a cluster
+ * ✅ FIXED: Now saves to window.processedClusters AND finds the index in allProcessedImages
  */
 function updateGPS(clusterPath, gpsString) {
   // Parse GPS string (format: "lat, lon")
@@ -1802,18 +1803,38 @@ function updateGPS(clusterPath, gpsString) {
     return false;
   }
   
-  // Find and update the cluster
+  const gpsData = { 
+    latitude, 
+    longitude, 
+    source: 'Manual Entry' 
+  };
+  
+  // Find and update the cluster in window.processedClusters
   const cluster = window.processedClusters.find(c => c.mainRep && c.mainRep.representativePath === clusterPath);
   
   if (cluster && cluster.mainRep) {
-    cluster.mainRep.gps = { latitude, longitude };
-    console.log('GPS updated:', { 
+    cluster.mainRep.gps = gpsData;
+    console.log('✅ GPS updated in processedClusters:', { 
       cluster: cluster.mainRep.representativeFilename, 
-      gps: cluster.mainRep.gps 
+      gps: gpsData 
     });
+    
+    // ✅ CRITICAL FIX: Also find this cluster in allProcessedImages and save index to preAnalysisGPS
+    const groupIndex = allProcessedImages.findIndex(g => 
+      g.mainRep && g.mainRep.representativePath === clusterPath
+    );
+    
+    if (groupIndex !== -1) {
+      preAnalysisGPS.set(groupIndex, gpsData);
+      console.log(`✅ GPS saved to preAnalysisGPS Map for cluster index ${groupIndex}:`, gpsData);
+    } else {
+      console.warn(`⚠️ Could not find cluster in allProcessedImages for path: ${clusterPath}`);
+    }
+    
     return true;
   }
   
+  console.error('❌ Cluster not found in processedClusters:', clusterPath);
   return false;
 }
 
