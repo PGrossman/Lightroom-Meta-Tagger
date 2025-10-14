@@ -2705,6 +2705,48 @@ async function batchAnalyzeAllClusters() {
   analyzedClusters.clear();
   allClustersForAnalysis = uniqueClusters;
   
+  // ============================================================================
+  // 🔍 DIAGNOSTIC: Check if derivatives exist in cluster data
+  // ============================================================================
+  console.log('\n🔍 ========== DERIVATIVE DIAGNOSTIC ==========');
+  console.log(`Total clusters: ${allClustersForAnalysis.length}`);
+  
+  allClustersForAnalysis.forEach((group, idx) => {
+    console.log(`\n📦 Cluster ${idx + 1}: ${group.mainRep?.representativeFilename}`);
+    console.log('   Structure check:');
+    console.log('   - Has mainRep?', !!group.mainRep);
+    console.log('   - Has imagePaths?', !!group.mainRep?.imagePaths);
+    console.log('   - imagePaths count:', group.mainRep?.imagePaths?.length || 0);
+    console.log('   - Has derivatives?', !!group.mainRep?.derivatives);
+    console.log('   - Derivatives count:', group.mainRep?.derivatives?.length || 0);
+    
+    if (group.mainRep?.derivatives && group.mainRep.derivatives.length > 0) {
+      console.log('   ✅ DERIVATIVES FOUND:');
+      group.mainRep.derivatives.forEach(d => {
+        console.log('      -', d.split('/').pop());
+      });
+    } else {
+      console.log('   ❌ NO DERIVATIVES in mainRep');
+    }
+    
+    // Check similar reps too
+    if (group.similarReps && group.similarReps.length > 0) {
+      console.log(`   Similar reps: ${group.similarReps.length}`);
+      group.similarReps.forEach((sim, simIdx) => {
+        console.log(`   - Similar ${simIdx + 1}: ${sim.cluster?.representativeFilename}`);
+        console.log(`     Derivatives: ${sim.cluster?.derivatives?.length || 0}`);
+        if (sim.cluster?.derivatives && sim.cluster.derivatives.length > 0) {
+          sim.cluster.derivatives.forEach(d => {
+            console.log('        -', d.split('/').pop());
+          });
+        }
+      });
+    }
+  });
+  
+  console.log('\n🔍 ========== END DIAGNOSTIC ==========\n');
+  // ============================================================================
+  
   for (let i = 0; i < uniqueClusters.length; i++) {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
