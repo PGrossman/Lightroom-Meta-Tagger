@@ -1201,6 +1201,34 @@ async function loadProcessedResults() {
 
     // Build similarity groups if we have similarity results
     if (window.similarityResults && window.similarityResults.length > 0) {
+      // ============================================================================
+      // 🔍 COMPREHENSIVE DIAGNOSTIC - Check window.processedClusters
+      // ============================================================================
+      console.log('\n🔍 ========== WINDOW.PROCESSEDCLUSTERS DIAGNOSTIC ==========');
+      console.log(`Total clusters in window.processedClusters: ${window.processedClusters.length}`);
+      
+      let totalDerivativesFound = 0;
+      window.processedClusters.forEach((cluster, idx) => {
+        const derivCount = cluster.derivatives?.length || 0;
+        totalDerivativesFound += derivCount;
+        
+        console.log(`\n[${idx}] ${cluster.representativeFilename || cluster.representative}`);
+        console.log(`    representativePath: ${cluster.representativePath}`);
+        console.log(`    Has derivatives array: ${!!cluster.derivatives}`);
+        console.log(`    Derivatives count: ${derivCount}`);
+        
+        if (derivCount > 0) {
+          console.log(`    Derivatives:`);
+          cluster.derivatives.forEach(d => {
+            console.log(`      - ${d.split('/').pop()}`);
+          });
+        }
+      });
+      
+      console.log(`\n📊 TOTAL DERIVATIVES IN WINDOW.PROCESSEDCLUSTERS: ${totalDerivativesFound}`);
+      console.log('🔍 ========== END DIAGNOSTIC ==========\n');
+      // ============================================================================
+      
       console.log('Building similarity groups...');
       const groups = buildSimilarityGroups(window.processedClusters, window.similarityResults);
       
