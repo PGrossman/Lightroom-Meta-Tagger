@@ -150,7 +150,17 @@ class XMPGenerator {
       // ✅ GPS PRIORITY LOGIC: Manual > AI Analysis > EXIF
       let gpsData = null;
       
-      // Priority 1: Manual GPS from Visual Analysis page (user edited)
+      console.log('🔍 ========== GPS PRIORITY CHECK ==========');
+      console.log('🔍 Input metadata:', JSON.stringify({
+        hasGPS: !!metadata.gps,
+        gps: metadata.gps,
+        hasGpsAnalysis: !!metadata.gpsAnalysis,
+        gpsAnalysis: metadata.gpsAnalysis,
+        hasManualGPS: !!metadata.manualGPS,
+        manualGPS: metadata.manualGPS
+      }, null, 2));
+      
+      // Priority 1: Manual GPS from metadata.gps OR metadata.manualGPS
       if (metadata.gps?.latitude) {
         gpsData = {
           latitude: parseFloat(metadata.gps.latitude),
@@ -158,7 +168,18 @@ class XMPGenerator {
           altitude: metadata.gps.altitude || null,
           source: metadata.gps.source || 'Manual Entry'
         };
-        logger.info('📍 Using manual GPS from metadata', gpsData);
+        console.log('✅ Using GPS from metadata.gps:', gpsData);
+        logger.info('📍 Using GPS from metadata.gps', gpsData);
+      }
+      else if (metadata.manualGPS?.latitude) {
+        gpsData = {
+          latitude: parseFloat(metadata.manualGPS.latitude),
+          longitude: parseFloat(metadata.manualGPS.longitude),
+          altitude: metadata.manualGPS.altitude || null,
+          source: 'Manual Entry'
+        };
+        console.log('✅ Using GPS from metadata.manualGPS:', gpsData);
+        logger.info('📍 Using GPS from metadata.manualGPS', gpsData);
       }
       // Priority 2: GPS from AI analysis (gpsAnalysis field)
       else if (metadata.gpsAnalysis?.latitude) {
@@ -168,6 +189,7 @@ class XMPGenerator {
           altitude: metadata.gpsAnalysis.altitude || null,
           source: 'AI Analysis'
         };
+        console.log('✅ Using GPS from AI analysis:', gpsData);
         logger.info('📍 Using GPS from AI analysis', gpsData);
       }
       // Priority 3: GPS from EXIF (parent image)
@@ -178,12 +200,15 @@ class XMPGenerator {
           altitude: cluster.mainRep.gps.altitude || null,
           source: 'EXIF Data'
         };
+        console.log('✅ Using GPS from EXIF:', gpsData);
         logger.info('📍 Using GPS from EXIF', gpsData);
       }
       
       // Add GPS to metadata object for XMP generation
       if (gpsData) {
         metadata.gps = gpsData;
+        console.log('✅ GPS will be written to all cluster images:', gpsData);
+        console.log('✅ Image count:', filesToProcess.length);
         logger.info('📍 GPS will be written to all cluster images', {
           latitude: gpsData.latitude,
           longitude: gpsData.longitude,
@@ -192,8 +217,11 @@ class XMPGenerator {
           imageCount: filesToProcess.length
         });
       } else {
+        console.log('⚠️ No GPS data available for this cluster');
         logger.debug('No GPS data available for this cluster');
       }
+      
+      console.log('🔍 ========== END GPS PRIORITY CHECK ==========\n');
 
       // Generate XMP for each file
       const results = [];
@@ -334,6 +362,22 @@ class XMPGenerator {
   async buildXMPContent(imagePath, metadata, personalData) {
     const timestamp = new Date().toISOString();
 
+    // 🔍 DIAGNOSTIC: Log metadata object
+    console.log('🔍 buildXMPContent called');
+    console.log('🔍 Metadata object:', JSON.stringify({
+      title: metadata.title,
+      hasGPS: !!metadata.gps,
+      gps: metadata.gps,
+      hasGpsAnalysis: !!metadata.gpsAnalysis,
+      gpsAnalysis: metadata.gpsAnalysis
+    }, null, 2));
+    logger.info('buildXMPContent metadata', {
+      title: metadata.title,
+      hasGPS: !!metadata.gps,
+      gpsLatitude: metadata.gps?.latitude,
+      gpsLongitude: metadata.gps?.longitude
+    });
+
     // Use personal data if provided, otherwise use metadata
     const creator = personalData?.creatorName || metadata.creator || '';
     const copyright = personalData?.copyrightNotice || metadata.copyright || '';
@@ -437,7 +481,13 @@ ${metadata.altText ? `      <Iptc4xmpCore:AltTextAccessibility>
    * Converts GPS data to EXIF-compliant XMP tags with validation
    */
   formatGPSData(gps) {
+    // 🔍 DIAGNOSTIC: Log what we received
+    console.log('🔍 formatGPSData called with:', JSON.stringify(gps, null, 2));
+    logger.info('formatGPSData input', { gps });
+    
     if (!gps || (!gps.latitude && gps.latitude !== 0) || (!gps.longitude && gps.longitude !== 0)) {
+      console.log('❌ GPS validation failed: missing latitude or longitude');
+      logger.warn('GPS validation failed: missing coordinates', { gps });
       return '';
     }
     
@@ -447,23 +497,30 @@ ${metadata.altText ? `      <Iptc4xmpCore:AltTextAccessibility>
     const lat = typeof gps.latitude === 'string' ? parseFloat(gps.latitude) : gps.latitude;
     const lon = typeof gps.longitude === 'string' ? parseFloat(gps.longitude) : gps.longitude;
     
+    console.log('🔍 Parsed coordinates:', { lat, lon });
+    
     // Validate coordinates
     if (isNaN(lat) || isNaN(lon)) {
+      console.log('❌ GPS coordinates are NaN:', { lat, lon, originalLat: gps.latitude, originalLon: gps.longitude });
       logger.warn('Invalid GPS coordinates (NaN)', { latitude: gps.latitude, longitude: gps.longitude });
       return '';
     }
     
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      console.log('❌ GPS coordinates out of range:', { lat, lon });
       logger.warn('GPS coordinates out of range', { latitude: lat, longitude: lon });
       return '';
     }
     
+    console.log('✅ GPS coordinates validated successfully:', { lat, lon });
+    
     // XMP uses decimal degrees format
-    // Latitude: positive = North, negative = South
-    // Longitude: positive = East, negative = West
     xml += `      <exif:GPSLatitude>${lat}</exif:GPSLatitude>\n`;
     xml += `      <exif:GPSLongitude>${lon}</exif:GPSLongitude>\n`;
     xml += `      <exif:GPSVersionID>2.3.0.0</exif:GPSVersionID>\n`;
+    
+    console.log('✅ GPS XML generated successfully');
+    logger.info('GPS XML generated', { lat, lon });
     
     // Optional: Altitude (in meters)
     if (gps.altitude !== undefined && gps.altitude !== null) {
