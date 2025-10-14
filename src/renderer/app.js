@@ -495,19 +495,27 @@ async function processImages() {
       window.similarityResults = result.similarityResults || [];
       
       // ============================================================================
-      // 🔍 CRITICAL DIAGNOSTIC - Check if derivatives made it into window.processedClusters
+      // 🔍 STEP 1: AFTER BACKEND PROCESSING - Track derivatives from backend
       // ============================================================================
-      console.log('\n🔍 ========== PROCESSED CLUSTERS DERIVATIVE CHECK ==========');
-      let totalDerivsInProcessed = 0;
+      console.log('\n🔍 ========== STEP 1: AFTER BACKEND PROCESSING ==========');
+      console.log(`window.processedClusters count: ${window.processedClusters.length}`);
+      let step1Derivs = 0;
+      let step1Files = 0;
       window.processedClusters.forEach((c, idx) => {
         const derivCount = c.derivatives?.length || 0;
-        totalDerivsInProcessed += derivCount;
+        const imageCount = c.imagePaths?.length || 0;
+        step1Derivs += derivCount;
+        step1Files += imageCount;
+        console.log(`[${idx}] ${c.representativeFilename}`);
+        console.log(`     imagePaths: ${imageCount}, derivatives: ${derivCount}`);
         if (derivCount > 0) {
-          console.log(`[${idx}] ${c.representativeFilename}: ${derivCount} derivatives`);
-          c.derivatives.forEach(d => console.log(`   - ${d.split('/').pop()}`));
+          c.derivatives.forEach(d => console.log(`       - ${d.split('/').pop()}`));
         }
       });
-      console.log(`📊 TOTAL DERIVATIVES IN window.processedClusters: ${totalDerivsInProcessed}/33`);
+      console.log(`📊 Total after backend: ${window.processedClusters.length} reps + ${step1Files} images + ${step1Derivs} derivatives`);
+      console.log(`📊 GRAND TOTAL: ${window.processedClusters.length + step1Files + step1Derivs} files`);
+      console.log(`📊 EXPECTED: 78 files`);
+      console.log(`📊 DIFFERENCE: ${78 - (window.processedClusters.length + step1Files + step1Derivs)} files ${78 - (window.processedClusters.length + step1Files + step1Derivs) > 0 ? 'MISSING' : 'EXTRA'}`);
       console.log('🔍 ==========================================\n');
       // ============================================================================
       
@@ -1183,12 +1191,42 @@ function buildSimilarityGroups(clusters, similarityResults) {
   // Sort groups by connection count (most connected first)
   similarityGroups.sort((a, b) => b.connectionCount - a.connectionCount);
   
-  console.log('✅ Similarity groups built successfully');
-  console.log('🔍 DEBUG: Final group count:', similarityGroups.length);
-  console.log('🔍 DEBUG: Final groups:');
-  similarityGroups.forEach((g, idx) => {
-    console.log(`  ${idx}: ${g.mainRep.representativeFilename} + ${g.similarReps.length} similar`);
+  // ============================================================================
+  // 🔍 STEP 2: AFTER buildSimilarityGroups - Track derivatives after grouping
+  // ============================================================================
+  console.log('\n🔍 ========== STEP 2: AFTER buildSimilarityGroups ==========');
+  let step2Derivs = 0;
+  let step2Files = 0;
+  let step2Reps = 0;
+  similarityGroups.forEach((group, idx) => {
+    const mainDerivs = group.mainRep.derivatives?.length || 0;
+    const mainImages = group.mainRep.imagePaths?.length || 0;
+    step2Derivs += mainDerivs;
+    step2Files += mainImages;
+    step2Reps += 1; // main rep
+    
+    console.log(`[${idx}] ${group.mainRep.representativeFilename}`);
+    console.log(`     Main: imagePaths=${mainImages}, derivatives=${mainDerivs}`);
+    
+    if (group.similarReps) {
+      group.similarReps.forEach((sim, simIdx) => {
+        const simDerivs = sim.cluster.derivatives?.length || 0;
+        const simImages = sim.cluster.imagePaths?.length || 0;
+        step2Derivs += simDerivs;
+        step2Files += simImages;
+        step2Reps += 1;
+        console.log(`     Similar ${simIdx + 1}: imagePaths=${simImages}, derivatives=${simDerivs}`);
+      });
+    }
   });
+  console.log(`📊 Total after grouping: ${step2Reps} reps + ${step2Files} images + ${step2Derivs} derivatives`);
+  console.log(`📊 GRAND TOTAL: ${step2Reps + step2Files + step2Derivs} files`);
+  console.log(`📊 EXPECTED: 78 files`);
+  console.log(`📊 DIFFERENCE: ${78 - (step2Reps + step2Files + step2Derivs)} files ${78 - (step2Reps + step2Files + step2Derivs) > 0 ? 'MISSING' : 'EXTRA'}`);
+  console.log('🔍 ==========================================\n');
+  // ============================================================================
+  
+  console.log('✅ Similarity groups built successfully');
   
   return similarityGroups;
 }
@@ -2780,6 +2818,37 @@ async function batchAnalyzeAllClusters() {
   allClustersForAnalysis = uniqueClusters;
   
   // ============================================================================
+  // 🔍 STEP 3: BEFORE AI ANALYSIS - Track derivatives before analysis
+  // ============================================================================
+  console.log('\n🔍 ========== STEP 3: BEFORE AI ANALYSIS ==========');
+  let step3Derivs = 0;
+  let step3Files = 0;
+  let step3Reps = 0;
+  allClustersForAnalysis.forEach((group, idx) => {
+    const mainDerivs = group.mainRep?.derivatives?.length || 0;
+    const mainImages = group.mainRep?.imagePaths?.length || 0;
+    step3Derivs += mainDerivs;
+    step3Files += mainImages;
+    step3Reps += 1;
+    
+    if (group.similarReps) {
+      group.similarReps.forEach(sim => {
+        const simDerivs = sim.cluster?.derivatives?.length || 0;
+        const simImages = sim.cluster?.imagePaths?.length || 0;
+        step3Derivs += simDerivs;
+        step3Files += simImages;
+        step3Reps += 1;
+      });
+    }
+  });
+  console.log(`📊 Total before analysis: ${step3Reps} reps + ${step3Files} images + ${step3Derivs} derivatives`);
+  console.log(`📊 GRAND TOTAL: ${step3Reps + step3Files + step3Derivs} files`);
+  console.log(`📊 EXPECTED: 78 files`);
+  console.log(`📊 DIFFERENCE: ${78 - (step3Reps + step3Files + step3Derivs)} files ${78 - (step3Reps + step3Files + step3Derivs) > 0 ? 'MISSING' : 'EXTRA'}`);
+  console.log('🔍 ==========================================\n');
+  // ============================================================================
+  
+  // ============================================================================
   // 🔍 DIAGNOSTIC: Check if derivatives exist in cluster data
   // ============================================================================
   console.log('\n🔍 ========== DERIVATIVE DIAGNOSTIC ==========');
@@ -3219,7 +3288,20 @@ function getAllAffectedPaths(group) {
     });
   }
   
-  return [...new Set(paths)];
+  const uniquePaths = [...new Set(paths)];
+  
+  // ============================================================================
+  // 🔍 STEP 4: getAllAffectedPaths RESULT - Final path collection
+  // ============================================================================
+  console.log('\n🔍 ========== STEP 4: getAllAffectedPaths RESULT ==========');
+  console.log(`📊 Total paths collected: ${uniquePaths.length}`);
+  console.log(`📊 EXPECTED: 78 files`);
+  console.log(`📊 DIFFERENCE: ${78 - uniquePaths.length} files ${78 - uniquePaths.length > 0 ? 'MISSING' : 'EXTRA'}`);
+  console.log('Files collected:', uniquePaths.map(p => p.split('/').pop()));
+  console.log('🔍 ==========================================\n');
+  // ============================================================================
+  
+  return uniquePaths;
 }
 
 /**
@@ -3727,7 +3809,7 @@ function showGPSEditForm(currentGPS, source) {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <strong style="color: #856404;">📍 Edit GPS Coordinates</strong>
         <span style="font-size: 11px; color: #856404;">Will apply to ALL cluster images</span>
-      </div>
+        </div>
       
       <div style="display: grid; gap: 10px;">
         <div>
