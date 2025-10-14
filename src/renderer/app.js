@@ -1003,21 +1003,33 @@ function showGPSDialogForCluster(clusterPath, existingGPS = null) {
 
 /**
  * Save GPS to a cluster
+ * ✅ FIXED: Now saves to BOTH allClusters AND preAnalysisGPS Map
  */
 function saveGPSToCluster(clusterPath, latitude, longitude) {
   console.log('💾 Saving GPS to cluster:', { clusterPath, latitude, longitude });
+  
+  // Create GPS object
+  const gpsData = {
+    latitude: latitude,
+    longitude: longitude,
+    source: 'Manual Entry'
+  };
   
   // Find cluster in allClusters (Visual Analysis page)
   const cluster = allClusters.find(c => c.representative === clusterPath);
   
   if (cluster) {
-    cluster.gps = {
-      latitude: latitude,
-      longitude: longitude,
-      source: 'Manual Entry'
-    };
-    
+    // Save to cluster
+    cluster.gps = gpsData;
     console.log('✅ GPS saved to cluster:', cluster.representative.split('/').pop());
+    
+    // ✅ FIX: ALSO save to preAnalysisGPS Map
+    const clusterIndex = allClusters.indexOf(cluster);
+    if (clusterIndex !== -1) {
+      preAnalysisGPS.set(clusterIndex, gpsData);
+      console.log(`✅ GPS saved to preAnalysisGPS Map for cluster index ${clusterIndex}:`, gpsData);
+    }
+    
     updateStatus('✅ GPS coordinates saved!', 'complete');
   } else {
     console.error('❌ Cluster not found:', clusterPath);
