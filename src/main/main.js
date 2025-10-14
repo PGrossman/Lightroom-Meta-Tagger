@@ -872,11 +872,24 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
     // Check if derivative exists in scan
     let gp831Deriv = null;
     if (scanResults.derivatives) {
-      for (const [base, derivs] of scanResults.derivatives.entries()) {
-        const found = derivs.find(d => path.basename(d).includes('_GP_0831'));
-        if (found) {
-          gp831Deriv = { base, derivative: found };
-          break;
+      // FIX: Check if derivatives is a Map or plain object
+      if (scanResults.derivatives instanceof Map) {
+        // It's a Map - use .entries()
+        for (const [base, derivs] of scanResults.derivatives.entries()) {
+          const found = derivs.find(d => path.basename(d).includes('_GP_0831'));
+          if (found) {
+            gp831Deriv = { base, derivative: found };
+            break;
+          }
+        }
+      } else {
+        // It's a plain object - use Object.entries()
+        for (const [base, derivs] of Object.entries(scanResults.derivatives)) {
+          const found = derivs.find(d => path.basename(d).includes('_GP_0831'));
+          if (found) {
+            gp831Deriv = { base, derivative: found };
+            break;
+          }
         }
       }
     }
@@ -891,6 +904,12 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
     console.log('\n📋 All derivatives found in scan:');
     if (scanResults.derivatives instanceof Map) {
       for (const [base, derivs] of scanResults.derivatives.entries()) {
+        console.log(`  ${path.basename(base)}: ${derivs.length} derivative(s)`);
+        derivs.forEach(d => console.log(`    - ${path.basename(d)}`));
+      }
+    } else if (scanResults.derivatives) {
+      // Plain object
+      for (const [base, derivs] of Object.entries(scanResults.derivatives)) {
         console.log(`  ${path.basename(base)}: ${derivs.length} derivative(s)`);
         derivs.forEach(d => console.log(`    - ${path.basename(d)}`));
       }
