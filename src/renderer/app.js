@@ -1529,6 +1529,8 @@ async function createResultsTableRowFromGroup(group) {
     gpsDisplay.className = 'gps-display';
     gpsDisplay.textContent = `${gpsValue.latitude}, ${gpsValue.longitude}`;
     gpsDisplay.title = 'Click to edit GPS coordinates';
+    // Store cluster path for later forced-save
+    gpsDisplay.dataset.clusterPath = group.mainRep.representativePath;
     gpsCell.appendChild(gpsDisplay);
     
     // Make editable
@@ -1558,6 +1560,8 @@ async function createResultsTableRowFromGroup(group) {
     gpsInput.className = 'gps-input gps-input-empty';
     gpsInput.value = 'no gps';
     gpsInput.title = 'Click to enter GPS coordinates (latitude, longitude)';
+    // Store cluster path for later forced-save
+    gpsInput.dataset.clusterPath = group.mainRep.representativePath;
     
     // Clear text on focus
     gpsInput.onfocus = () => {
@@ -1576,6 +1580,7 @@ async function createResultsTableRowFromGroup(group) {
         const gpsDisplay = document.createElement('div');
         gpsDisplay.className = 'gps-display';
         gpsDisplay.textContent = trimmed;
+        gpsDisplay.dataset.clusterPath = group.mainRep.representativePath;
         gpsDisplay.contentEditable = true;
         gpsDisplay.spellcheck = false;
         gpsDisplay.onclick = (e) => {
