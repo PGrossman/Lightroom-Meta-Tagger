@@ -815,6 +815,34 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
       percent: 100 
     });
 
+    // ============================================================================
+    // 🔍 BACKEND DIAGNOSTIC - Check scanResults.derivatives Map
+    // ============================================================================
+    console.log('\n🔍 ========== BACKEND: scanResults.derivatives CHECK ==========');
+    console.log('scanResults.derivatives type:', scanResults.derivatives instanceof Map ? 'Map' : typeof scanResults.derivatives);
+
+    if (scanResults.derivatives instanceof Map) {
+      console.log('Map size:', scanResults.derivatives.size);
+      console.log('Map keys:');
+      for (const [key, value] of scanResults.derivatives.entries()) {
+        console.log(`  "${key}": ${value.length} derivatives`);
+        value.forEach(d => console.log(`    - ${path.basename(d)}`));
+      }
+    } else if (scanResults.derivatives) {
+      console.log('Object keys:', Object.keys(scanResults.derivatives));
+      Object.entries(scanResults.derivatives).forEach(([key, value]) => {
+        console.log(`  "${key}": ${value.length} derivatives`);
+      });
+    }
+
+    console.log('\nCluster representatives:');
+    scanResults.clusters.forEach((cluster, idx) => {
+      console.log(`  [${idx}] "${cluster.representative}"`);
+    });
+
+    console.log('🔍 ==========================================\n');
+    // ============================================================================
+
     // Build cluster results for UI
     const processedClusters = scanResults.clusters.map(cluster => {
       const repResult = imageResults.find(r => r.path === cluster.representative);
