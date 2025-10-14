@@ -1257,6 +1257,40 @@ async function loadProcessedResults() {
     // Build similarity groups if we have similarity results
     if (window.similarityResults && window.similarityResults.length > 0) {
       // ============================================================================
+      // 🔍 PRE-GROUPING DIAGNOSTIC - Check which clusters are standalone
+      // ============================================================================
+      console.log('\n🔍 ========== PRE-GROUPING CHECK ==========');
+      console.log(`  window.processedClusters: ${window.processedClusters.length} clusters`);
+      console.log(`  window.similarityResults: ${window.similarityResults.length} pairs`);
+      
+      // Extract unique cluster names from similarity pairs
+      const clustersInSimilarity = new Set();
+      window.similarityResults.forEach(pair => {
+        // Try different possible property names for similarity pair structure
+        const rep1 = pair.rep1 || pair.image1 || pair.path1;
+        const rep2 = pair.rep2 || pair.image2 || pair.path2;
+        if (rep1) clustersInSimilarity.add(rep1);
+        if (rep2) clustersInSimilarity.add(rep2);
+      });
+      
+      console.log(`  Clusters appearing in similarity results: ${clustersInSimilarity.size}`);
+      console.log(`  Standalone clusters (no matches): ${window.processedClusters.length - clustersInSimilarity.size}`);
+      
+      // List standalone clusters
+      const standaloneClusters = window.processedClusters.filter(c => 
+        !clustersInSimilarity.has(c.representativePath) && 
+        !clustersInSimilarity.has(c.representativeFilename)
+      );
+      if (standaloneClusters.length > 0) {
+        console.log('\n  📦 Standalone clusters that will be MISSED by buildSimilarityGroups:');
+        standaloneClusters.forEach(c => {
+          console.log(`     - ${c.representativeFilename} (${c.imageCount} images, ${c.derivatives?.length || 0} derivatives)`);
+        });
+      }
+      console.log('🔍 ==========================================\n');
+      // ============================================================================
+      
+      // ============================================================================
       // 🔍 COMPREHENSIVE DIAGNOSTIC - Check window.processedClusters
       // ============================================================================
       console.log('\n🔍 ========== WINDOW.PROCESSEDCLUSTERS DIAGNOSTIC ==========');
