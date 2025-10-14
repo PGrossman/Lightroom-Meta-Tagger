@@ -2551,6 +2551,7 @@ let currentAnalysisData = null; // Store current analysis for editing
 let allClustersForAnalysis = [];
 let analyzedClusters = new Map(); // clusterIndex → metadata
 let currentClusterIndex = null;
+let preAnalysisGPS = new Map(); // clusterIndex → GPS data (for GPS added BEFORE AI analysis)
 
 // ============================================
 // Cluster Management for AI Analysis
@@ -2627,6 +2628,28 @@ async function batchAnalyzeAllClusters() {
   }
   
   console.log('✅ Batch analysis complete!');
+  
+  // ✅ MERGE PRE-ANALYSIS GPS into analyzed clusters
+  console.log('🔄 Merging pre-analysis GPS into analyzed clusters...');
+  console.log('📍 Pre-analysis GPS storage:', Array.from(preAnalysisGPS.entries()));
+  
+  preAnalysisGPS.forEach((gpsData, clusterIndex) => {
+    if (analyzedClusters.has(clusterIndex)) {
+      const metadata = analyzedClusters.get(clusterIndex);
+      
+      // Only merge if no post-analysis GPS was added
+      if (!metadata.manualGPS) {
+        metadata.manualGPS = gpsData;
+        analyzedClusters.set(clusterIndex, metadata);
+        console.log(`✅ Merged pre-analysis GPS into cluster ${clusterIndex}:`, gpsData);
+      } else {
+        console.log(`⚠️ Cluster ${clusterIndex} already has post-analysis GPS, skipping merge`);
+      }
+    } else {
+      console.warn(`⚠️ GPS exists for cluster ${clusterIndex} but cluster not analyzed`);
+    }
+  });
+  
   updateStatus('All clusters analyzed!', 'complete');
   showProgress(100);
   
@@ -3276,6 +3299,13 @@ function displayGPSSection(gpsData, source) {
     return;
   }
   
+  // ✅ If no GPS passed in, check if we have pre-analysis GPS for current cluster
+  if (!gpsData && currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex)) {
+    gpsData = preAnalysisGPS.get(currentClusterIndex);
+    source = 'Manual Entry (Pre-Analysis)';
+    console.log('📍 Found pre-analysis GPS for current cluster:', gpsData);
+  }
+  
   if (!gpsData || (!gpsData.latitude && gpsData.latitude !== 0)) {
     // No GPS - show "Add GPS" button in a subtle style
     gpsSection.innerHTML = `
@@ -3460,33 +3490,53 @@ function showGPSEditForm(currentGPS, source) {
       return;
     }
     
-    // ✅ CRITICAL: Save GPS to currentAnalysisData.metadata
+    const gpsData = {
+      latitude: lat,
+      longitude: lon,
+      altitude: alt,
+      source: 'Manual Entry'
+    };
+    
+    // ✅ TWO SCENARIOS:
+    // 1. AFTER AI analysis (currentAnalysisData exists) - save to metadata
+    // 2. BEFORE AI analysis (on Visual Analysis page) - save to preAnalysisGPS Map
+    
     if (currentAnalysisData && currentAnalysisData.metadata) {
-      currentAnalysisData.metadata.manualGPS = {
-        latitude: lat,
-        longitude: lon,
-        altitude: alt,
-        source: 'Manual Entry'
-      };
-      
-      console.log('✅ GPS saved to currentAnalysisData.metadata.manualGPS:', currentAnalysisData.metadata.manualGPS);
+      // Scenario 1: AFTER AI analysis - save to currentAnalysisData
+      currentAnalysisData.metadata.manualGPS = gpsData;
+      console.log('✅ GPS saved to currentAnalysisData.metadata.manualGPS (post-AI):', gpsData);
       
       // Redisplay GPS section
-      displayGPSSection(currentAnalysisData.metadata.manualGPS, 'Manual Entry');
+      displayGPSSection(gpsData, 'Manual Entry');
       
       // Show success message
       updateStatus('GPS coordinates updated - will apply to all cluster images on XMP generation', 'complete');
       
-      // ✅ ALSO: Log the entire currentAnalysisData to verify
+      // Log verification
       console.log('📍 Current analysis data after GPS save:', JSON.stringify({
         hasMetadata: !!currentAnalysisData.metadata,
         hasManualGPS: !!currentAnalysisData.metadata?.manualGPS,
         manualGPS: currentAnalysisData.metadata?.manualGPS,
         title: currentAnalysisData.metadata?.title
       }, null, 2));
-    } else {
-      console.error('❌ Cannot save GPS: currentAnalysisData or metadata is null');
-      alert('Error: Unable to save GPS data');
+    } 
+    else {
+      // Scenario 2: BEFORE AI analysis - save to preAnalysisGPS Map
+      // Use currentClusterIndex if we're viewing a cluster
+      
+      if (currentClusterIndex !== null) {
+        preAnalysisGPS.set(currentClusterIndex, gpsData);
+        console.log(`✅ GPS saved to preAnalysisGPS Map (pre-AI) for cluster ${currentClusterIndex}:`, gpsData);
+        
+        // Redisplay GPS section
+        displayGPSSection(gpsData, 'Manual Entry (Pre-Analysis)');
+        
+        // Show success message
+        updateStatus(`GPS saved for cluster ${currentClusterIndex}. Will be preserved when running AI analysis.`, 'complete');
+      } else {
+        console.error('❌ Cannot save GPS: No current cluster index');
+        alert('Error: Unable to determine which cluster to save GPS to');
+      }
     }
   });
   
@@ -3625,18 +3675,21 @@ function collectMetadataFromForm() {
     provider: currentAnalysisData?.metadata?.provider || 'ollama'
   };
   
-  // ✅ GPS COLLECTION - PRIORITY: manualGPS > gpsAnalysis > EXIF
-  console.log('🔍 Checking GPS priority...');
+  // ✅ GPS COLLECTION - Check MULTIPLE sources
+  // Priority: Manual (post-AI) > Pre-Analysis > AI Analysis > EXIF
+  console.log('🔍 Checking GPS from multiple sources...');
   
+  // Priority 1: Manual GPS from currentAnalysisData (post-AI)
   if (currentAnalysisData?.metadata?.manualGPS?.latitude) {
-    metadata.gps = {
-      latitude: currentAnalysisData.metadata.manualGPS.latitude,
-      longitude: currentAnalysisData.metadata.manualGPS.longitude,
-      altitude: currentAnalysisData.metadata.manualGPS.altitude || null,
-      source: 'Manual Entry'
-    };
-    console.log('✅ Using manual GPS:', metadata.gps);
-  } 
+    metadata.gps = currentAnalysisData.metadata.manualGPS;
+    console.log('✅ Using manual GPS from currentAnalysisData:', metadata.gps);
+  }
+  // Priority 2: Pre-analysis GPS from Map
+  else if (currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex)) {
+    metadata.gps = preAnalysisGPS.get(currentClusterIndex);
+    console.log('✅ Using pre-analysis GPS from Map:', metadata.gps);
+  }
+  // Priority 3: AI Analysis GPS
   else if (currentAnalysisData?.metadata?.gpsAnalysis?.latitude) {
     metadata.gps = {
       latitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.latitude),
@@ -3645,17 +3698,14 @@ function collectMetadataFromForm() {
       source: 'AI Analysis'
     };
     console.log('✅ Using AI Analysis GPS:', metadata.gps);
-  } 
+  }
+  // Priority 4: EXIF GPS
   else if (currentAnalysisData?.cluster?.mainRep?.gps?.latitude) {
-    metadata.gps = {
-      latitude: currentAnalysisData.cluster.mainRep.gps.latitude,
-      longitude: currentAnalysisData.cluster.mainRep.gps.longitude,
-      altitude: currentAnalysisData.cluster.mainRep.gps.altitude || null,
-      source: 'EXIF Data'
-    };
+    metadata.gps = currentAnalysisData.cluster.mainRep.gps;
     console.log('✅ Using EXIF GPS:', metadata.gps);
-  } else {
-    console.log('⚠️ No GPS data found in any source');
+  }
+  else {
+    console.log('⚠️ No GPS found in any source');
   }
   
   // ✅ Collect keywords from .keyword-tag elements in AI Analysis tab
