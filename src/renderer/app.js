@@ -703,6 +703,10 @@ function renderPage() {
   console.log('=== END RENDERING ===');
   
   updatePaginationInfo();
+  
+  // Attach GPS button listeners
+  attachGPSButtonListeners();
+  console.log('✅ GPS button listeners attached');
 }
 
 // Update pagination display
@@ -845,21 +849,39 @@ function createClusterTableRow(cluster, allResults) {
     childCell.textContent = '—';
   }
   
-  // GPS Data column
+  // GPS Data column - ALWAYS SHOW with Add/Edit capability
   const gpsCell = document.createElement('td');
-  const gpsSpan = document.createElement('span');
-  gpsSpan.className = 'gps-status';
+  gpsCell.style.verticalAlign = 'middle';
+  gpsCell.style.padding = '12px';
   
-  // Check if GPS data exists (will be populated when backend GPS extraction is implemented)
-  if (cluster.hasGPS) {
-    gpsSpan.textContent = '✓ GPS Available';
-    gpsSpan.style.color = '#10b981'; // Green
+  // Check if cluster has GPS (from EXIF or manual entry)
+  const clusterGPS = cluster.gps;
+  
+  if (clusterGPS?.latitude) {
+    // HAS GPS - Show with edit button
+    gpsCell.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex: 1;">
+          <div style="font-size: 11px; color: #6c757d; margin-bottom: 2px;">LAT/LON</div>
+          <div style="font-family: monospace; font-size: 13px; color: #2c3e50;">
+            ${clusterGPS.latitude.toFixed(6)}, ${clusterGPS.longitude.toFixed(6)}
+          </div>
+        </div>
+        <button class="edit-gps-btn" data-cluster-path="${cluster.representative}" 
+                style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+          ✏️ Edit
+        </button>
+      </div>
+    `;
   } else {
-    gpsSpan.textContent = '— No GPS';
-    gpsSpan.style.color = '#6c757d'; // Gray
+    // NO GPS - Show Add button
+    gpsCell.innerHTML = `
+      <button class="add-gps-btn" data-cluster-path="${cluster.representative}"
+              style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%;">
+        📍 Add GPS
+      </button>
+    `;
   }
-  
-  gpsCell.appendChild(gpsSpan);
   
   // Status column
   const statusCell = document.createElement('td');
@@ -875,6 +897,207 @@ function createClusterTableRow(cluster, allResults) {
   row.appendChild(statusCell);
   
   return row;
+}
+
+/**
+ * Show GPS dialog for adding/editing GPS on Visual Analysis page
+ */
+function showGPSDialogForCluster(clusterPath, existingGPS = null) {
+  console.log('📍 Opening GPS dialog for cluster:', clusterPath);
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+  
+  // Create dialog
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  
+  dialog.innerHTML = `
+    <h3 style="margin: 0 0 20px 0;">📍 ${existingGPS ? 'Edit' : 'Add'} GPS Coordinates</h3>
+    
+    <div style="margin-bottom: 16px;">
+      <label style="display: block; margin-bottom: 6px; font-weight: 600;">Latitude:</label>
+      <input type="number" id="gpsLatDialog" step="0.000001" placeholder="51.389167"
+             value="${existingGPS?.latitude || ''}"
+             style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 4px; font-family: monospace;">
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; margin-bottom: 6px; font-weight: 600;">Longitude:</label>
+      <input type="number" id="gpsLonDialog" step="0.000001" placeholder="30.099444"
+             value="${existingGPS?.longitude || ''}"
+             style="width: 100%; padding: 10px; border: 2px solid #dee2e6; border-radius: 4px; font-family: monospace;">
+    </div>
+    
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button id="cancelGPSDialog" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Cancel
+      </button>
+      <button id="saveGPSDialog" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        💾 Save
+      </button>
+    </div>
+  `;
+  
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  
+  // Focus first input
+  setTimeout(() => document.getElementById('gpsLatDialog').focus(), 100);
+  
+  // Cancel button
+  document.getElementById('cancelGPSDialog').addEventListener('click', () => {
+    overlay.remove();
+  });
+  
+  // Save button
+  document.getElementById('saveGPSDialog').addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('gpsLatDialog').value);
+    const lon = parseFloat(document.getElementById('gpsLonDialog').value);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      alert('Please enter valid coordinates');
+      return;
+    }
+    
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      alert('Coordinates out of range!\nLat: -90 to 90\nLon: -180 to 180');
+      return;
+    }
+    
+    // Save GPS to cluster
+    saveGPSToCluster(clusterPath, lat, lon);
+    
+    // Close dialog
+    overlay.remove();
+    
+    // Refresh the table to show updated GPS
+    refreshClusterTableRow(clusterPath);
+  });
+  
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+/**
+ * Save GPS to a cluster
+ */
+function saveGPSToCluster(clusterPath, latitude, longitude) {
+  console.log('💾 Saving GPS to cluster:', { clusterPath, latitude, longitude });
+  
+  // Find cluster in allClusters (Visual Analysis page)
+  const cluster = allClusters.find(c => c.representative === clusterPath);
+  
+  if (cluster) {
+    cluster.gps = {
+      latitude: latitude,
+      longitude: longitude,
+      source: 'Manual Entry'
+    };
+    
+    console.log('✅ GPS saved to cluster:', cluster.representative.split('/').pop());
+    updateStatus('✅ GPS coordinates saved!', 'complete');
+  } else {
+    console.error('❌ Cluster not found:', clusterPath);
+    alert('❌ Error: Could not save GPS');
+  }
+}
+
+/**
+ * Refresh a single cluster row to show updated GPS
+ */
+function refreshClusterTableRow(clusterPath) {
+  // Find the cluster
+  const cluster = allClusters.find(c => c.representative === clusterPath);
+  if (!cluster) return;
+  
+  // Find the cluster index (accounting for pagination)
+  const clusterIndex = allClusters.indexOf(cluster);
+  const pageIndex = clusterIndex % rowsPerPage;
+  
+  // Get the row in the current page
+  const row = resultsTableBody.children[pageIndex];
+  if (!row) return;
+  
+  // Find GPS cell (3rd column, index 2)
+  const gpsCell = row.children[2];
+  if (!gpsCell) return;
+  
+  // Update GPS cell
+  const gps = cluster.gps;
+  gpsCell.style.verticalAlign = 'middle';
+  gpsCell.style.padding = '12px';
+  
+  if (gps?.latitude) {
+    gpsCell.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex: 1;">
+          <div style="font-size: 11px; color: #6c757d; margin-bottom: 2px;">LAT/LON</div>
+          <div style="font-family: monospace; font-size: 13px; color: #2c3e50;">
+            ${gps.latitude.toFixed(6)}, ${gps.longitude.toFixed(6)}
+          </div>
+        </div>
+        <button class="edit-gps-btn" data-cluster-path="${clusterPath}" 
+                style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+          ✏️ Edit
+        </button>
+      </div>
+    `;
+    
+    // Re-attach event listener
+    attachGPSButtonListeners();
+  }
+}
+
+/**
+ * Attach event listeners to GPS buttons
+ */
+function attachGPSButtonListeners() {
+  // Add GPS buttons
+  document.querySelectorAll('.add-gps-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const clusterPath = btn.getAttribute('data-cluster-path');
+      showGPSDialogForCluster(clusterPath, null);
+    });
+  });
+  
+  // Edit GPS buttons
+  document.querySelectorAll('.edit-gps-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const clusterPath = btn.getAttribute('data-cluster-path');
+      
+      // Find cluster to get existing GPS
+      const cluster = allClusters.find(c => c.representative === clusterPath);
+      
+      if (cluster?.gps) {
+        showGPSDialogForCluster(clusterPath, cluster.gps);
+      }
+    });
+  });
 }
 
 // ============================================
@@ -2561,7 +2784,7 @@ let preAnalysisGPS = new Map(); // clusterIndex → GPS data (for GPS added BEFO
  * Batch analyze all clusters with AI
  */
 async function batchAnalyzeAllClusters() {
-  console.log('🚀 === BATCH ANALYSIS DEBUG ===');
+  console.log('🚀 === BATCH ANALYSIS WITH GPS ===');
   console.log('Raw allProcessedImages:', allProcessedImages.length);
   
   // Log each item with full details
@@ -2585,6 +2808,11 @@ async function batchAnalyzeAllClusters() {
     if (!seenPaths.has(repPath)) {
       seenPaths.add(repPath);
       uniqueClusters.push(group);
+      
+      // ✅ LOG GPS STATUS
+      if (group.mainRep?.gps?.latitude) {
+        console.log(`📍 ${group.mainRep.representativeFilename} HAS GPS:`, group.mainRep.gps);
+      }
       console.log(`✅ Will analyze: ${group.mainRep?.representativeFilename}`);
     } else {
       console.log(`❌ Skip duplicate: ${group.mainRep?.representativeFilename}`);
@@ -2602,6 +2830,9 @@ async function batchAnalyzeAllClusters() {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
     
+    // ✅ CRITICAL: Store GPS BEFORE analysis
+    const manualGPS = group.mainRep?.gps;
+    
     try {
       console.log(`🔍 Analyzing [${i + 1}/${uniqueClusters.length}]: ${clusterName}`);
       
@@ -2612,6 +2843,16 @@ async function batchAnalyzeAllClusters() {
       const result = await window.electronAPI.analyzeClusterWithAI(group);
       
       if (result.success) {
+        // ✅ CRITICAL: Restore GPS AFTER analysis
+        if (manualGPS?.latitude) {
+          result.data.metadata.manualGPS = {
+            latitude: manualGPS.latitude,
+            longitude: manualGPS.longitude,
+            source: 'Manual Entry'
+          };
+          console.log(`✅ GPS PRESERVED for ${clusterName}:`, result.data.metadata.manualGPS);
+        }
+        
         // Store metadata in the Map
         analyzedClusters.set(i, result.data.metadata);
         console.log(`✅ Analysis complete for: ${clusterName}`);
