@@ -1784,9 +1784,13 @@ function updateKeyword(clusterPath, oldKeyword, newKeyword) {
 
 /**
  * Update GPS coordinates for a cluster
- * ✅ FIXED: Now saves to window.processedClusters AND finds the index in allProcessedImages
+ * ✅ FIXED: Handles BOTH window.processedClusters (flat array) AND allProcessedImages (nested) structures
  */
 function updateGPS(clusterPath, gpsString) {
+  console.log('💾 === UPDATE GPS CALLED ===');
+  console.log('   Path:', clusterPath);
+  console.log('   GPS String:', gpsString);
+  
   // Parse GPS string (format: "lat, lon")
   const parts = gpsString.split(',').map(s => s.trim());
   
@@ -1814,33 +1818,55 @@ function updateGPS(clusterPath, gpsString) {
     source: 'Manual Entry' 
   };
   
-  // Find and update the cluster in window.processedClusters
-  const cluster = window.processedClusters.find(c => c.mainRep && c.mainRep.representativePath === clusterPath);
+  let saved = false;
   
-  if (cluster && cluster.mainRep) {
-    cluster.mainRep.gps = gpsData;
-    console.log('✅ GPS updated in processedClusters:', { 
-      cluster: cluster.mainRep.representativeFilename, 
-      gps: gpsData 
-    });
+  // ✅ FIX 1: Save to window.processedClusters (flat array - NO mainRep!)
+  if (window.processedClusters) {
+    console.log('   🔍 Searching window.processedClusters (count:', window.processedClusters.length, ')');
     
-    // ✅ CRITICAL FIX: Also find this cluster in allProcessedImages and save index to preAnalysisGPS
-    const groupIndex = allProcessedImages.findIndex(g => 
-      g.mainRep && g.mainRep.representativePath === clusterPath
+    const cluster = window.processedClusters.find(c => 
+      c.representativePath === clusterPath || 
+      c.representative === clusterPath
     );
     
-    if (groupIndex !== -1) {
-      preAnalysisGPS.set(groupIndex, gpsData);
-      console.log(`✅ GPS saved to preAnalysisGPS Map for cluster index ${groupIndex}:`, gpsData);
+    if (cluster) {
+      cluster.gps = gpsData;
+      saved = true;
+      console.log('   ✅ GPS saved to window.processedClusters');
+      console.log('      Cluster:', cluster.representativeFilename || cluster.representative);
+      console.log('      GPS:', gpsData);
     } else {
-      console.warn(`⚠️ Could not find cluster in allProcessedImages for path: ${clusterPath}`);
+      console.log('   ⚠️  Cluster NOT found in window.processedClusters');
+      console.log('      Looking for path:', clusterPath);
     }
-    
-    return true;
   }
   
-  console.error('❌ Cluster not found in processedClusters:', clusterPath);
-  return false;
+  // ✅ FIX 2: ALSO save to allProcessedImages (similarity groups - HAS mainRep)
+  if (allProcessedImages) {
+    console.log('   🔍 Searching allProcessedImages (count:', allProcessedImages.length, ')');
+    
+    const group = allProcessedImages.find(g => 
+      g.mainRep?.representativePath === clusterPath
+    );
+    
+    if (group) {
+      group.mainRep.gps = gpsData;
+      saved = true;
+      console.log('   ✅ GPS saved to allProcessedImages');
+      console.log('      Group:', group.mainRep.representativeFilename);
+      console.log('      GPS:', gpsData);
+    } else {
+      console.log('   ⚠️  Group NOT found in allProcessedImages');
+    }
+  }
+  
+  if (saved) {
+    console.log('   ✅ GPS UPDATE COMPLETE');
+    return true;
+  } else {
+    console.error('   ❌ GPS NOT SAVED - Cluster not found in any array!');
+    return false;
+  }
 }
 
 // Create a table row for a processed cluster (OLD - kept for compatibility)
@@ -2581,10 +2607,12 @@ async function batchAnalyzeAllClusters() {
     // First, check what GPS exists in processedClusters
     console.log('\n   Scanning window.processedClusters for GPS:');
     window.processedClusters.forEach((cluster, idx) => {
-      if (cluster.gps?.latitude || cluster.mainRep?.gps?.latitude) {
-        const gps = cluster.gps || cluster.mainRep?.gps;
+      // ✅ FIX: window.processedClusters uses .gps directly (NO mainRep!)
+      if (cluster.gps?.latitude) {
         gpsFoundCount++;
-        console.log(`   [${idx}] ✅ GPS FOUND: ${cluster.representativeFilename || cluster.representative} → ${gps.latitude}, ${gps.longitude}`);
+        const filename = cluster.representativeFilename || (cluster.representative ? cluster.representative.split('/').pop() : 'Unknown');
+        console.log(`   [${idx}] ✅ GPS FOUND: ${filename}`);
+        console.log(`                GPS: ${cluster.gps.latitude}, ${cluster.gps.longitude}`);
       }
     });
     
@@ -2601,29 +2629,23 @@ async function batchAnalyzeAllClusters() {
     allProcessedImages.forEach((group, groupIndex) => {
       const repPath = group.mainRep?.representativePath;
       
-      // Find matching cluster using multiple matching strategies
-      let processedCluster = window.processedClusters.find(c => 
+      // ✅ FIX: Match using representativePath OR representative (NO mainRep in processedClusters!)
+      const processedCluster = window.processedClusters.find(c => 
         c.representativePath === repPath || 
-        c.representative === repPath ||
-        c.mainRep?.representativePath === repPath
+        c.representative === repPath
       );
       
-      if (processedCluster) {
-        // Check for GPS in multiple locations
-        const gps = processedCluster.gps || processedCluster.mainRep?.gps;
-        
-        if (gps?.latitude) {
-          // Sync GPS to group
-          group.mainRep.gps = {
-            latitude: gps.latitude,
-            longitude: gps.longitude,
-            altitude: gps.altitude || null,
-            source: gps.source || 'Manual Entry'
-          };
-          gpsSyncedCount++;
-          console.log(`   [${groupIndex}] ✅ SYNCED: ${group.mainRep.representativeFilename}`);
-          console.log(`                    GPS: ${gps.latitude}, ${gps.longitude}`);
-        }
+      if (processedCluster && processedCluster.gps?.latitude) {
+        // Sync GPS to group
+        group.mainRep.gps = {
+          latitude: processedCluster.gps.latitude,
+          longitude: processedCluster.gps.longitude,
+          altitude: processedCluster.gps.altitude || null,
+          source: processedCluster.gps.source || 'Manual Entry'
+        };
+        gpsSyncedCount++;
+        console.log(`   [${groupIndex}] ✅ SYNCED: ${group.mainRep.representativeFilename}`);
+        console.log(`                    GPS: ${processedCluster.gps.latitude}, ${processedCluster.gps.longitude}`);
       }
     });
     
