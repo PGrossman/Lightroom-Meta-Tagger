@@ -3264,81 +3264,129 @@ function populateMetadataFields(metadata) {
 
 /**
  * Display GPS section with edit capability
+ * Now with prominent visual design to make GPS coordinates obvious
  */
 function displayGPSSection(gpsData, source) {
+  console.log('🔍 displayGPSSection called:', { hasGPS: !!gpsData, source });
+  
   const gpsSection = document.getElementById('gpsDisplaySection');
   
+  if (!gpsSection) {
+    console.warn('⚠️ GPS display section not found in DOM');
+    return;
+  }
+  
   if (!gpsData || (!gpsData.latitude && gpsData.latitude !== 0)) {
-    // No GPS - show "Add GPS" button
+    // No GPS - show "Add GPS" button in a subtle style
     gpsSection.innerHTML = `
-      <button id="addGPSBtn" class="secondary-button" style="margin-top: 10px;">
-        📍 Add GPS Coordinates
-      </button>
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 2px dashed #dee2e6; margin-top: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: #6c757d;">📍 GPS Coordinates</strong>
+          <button id="addGPSBtn" class="secondary-button" style="padding: 6px 14px; font-size: 13px;">
+            ➕ Add GPS
+          </button>
+        </div>
+        <p style="color: #6c757d; margin: 10px 0 0 0; font-size: 13px;">
+          No GPS coordinates available. Add coordinates that will be written to all images in this cluster.
+        </p>
+      </div>
     `;
     gpsSection.style.display = 'block';
     
     // Add event listener
-    document.getElementById('addGPSBtn').addEventListener('click', () => {
-      showGPSEditForm(null, 'Manual Entry');
-    });
+    const addBtn = document.getElementById('addGPSBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        showGPSEditForm(null, 'Manual Entry');
+      });
+    }
+    
+    console.log('⚠️ No GPS data to display');
     return;
   }
   
-  // Has GPS - show display with edit capability
+  // Has GPS - display it prominently with gradient background
   gpsSection.innerHTML = `
-    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <strong style="color: #2c3e50;">📍 GPS Coordinates</strong>
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); margin-top: 15px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <div>
-          <span style="font-size: 11px; color: #6c757d; background: #e9ecef; padding: 3px 8px; border-radius: 10px; margin-right: 8px;">
-            ${source}
+          <strong style="font-size: 16px;">📍 GPS Coordinates</strong>
+          <span style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: 600;">
+            ${source || 'Unknown Source'}
           </span>
-          <button id="editGPSBtn" class="secondary-button" style="padding: 4px 12px; font-size: 13px;">
-            Edit
-          </button>
+        </div>
+        <button id="editGPSBtn" style="background: white; color: #667eea; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ✏️ Edit
+        </button>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+          <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; letter-spacing: 0.5px;">LATITUDE</div>
+          <div style="font-size: 18px; font-weight: 700; font-family: monospace;">${gpsData.latitude.toFixed(6)}°</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+          <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; letter-spacing: 0.5px;">LONGITUDE</div>
+          <div style="font-size: 18px; font-weight: 700; font-family: monospace;">${gpsData.longitude.toFixed(6)}°</div>
         </div>
       </div>
       
-      <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;">
-        <span style="color: #6c757d;">Latitude:</span>
-        <span style="color: #2c3e50; font-family: monospace;">${gpsData.latitude}</span>
-        
-        <span style="color: #6c757d;">Longitude:</span>
-        <span style="color: #2c3e50; font-family: monospace;">${gpsData.longitude}</span>
-        
-        ${gpsData.altitude ? `
-          <span style="color: #6c757d;">Altitude:</span>
-          <span style="color: #2c3e50; font-family: monospace;">${gpsData.altitude}m</span>
-        ` : ''}
+      ${gpsData.altitude ? `
+      <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; letter-spacing: 0.5px;">ALTITUDE</div>
+        <div style="font-size: 16px; font-weight: 700; font-family: monospace;">${gpsData.altitude.toFixed(1)} meters</div>
+      </div>
+      ` : ''}
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+        <a href="https://www.google.com/maps?q=${gpsData.latitude},${gpsData.longitude}" 
+           target="_blank" 
+           style="flex: 1; background: rgba(255,255,255,0.2); padding: 10px; border-radius: 6px; text-align: center; text-decoration: none; color: white; font-size: 13px; font-weight: 600; transition: all 0.2s;"
+           onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+           onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          🗺️ View on Map
+        </a>
+        <button id="copyGPSBtn" style="flex: 1; background: rgba(255,255,255,0.2); border: none; padding: 10px; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          📋 Copy Coordinates
+        </button>
       </div>
       
-      <button id="copyGPSBtn" class="secondary-button" style="width: 100%; margin-top: 10px; font-size: 13px;">
-        📋 Copy Coordinates
-      </button>
+      <div style="background: rgba(255,255,255,0.15); padding: 10px; border-radius: 6px; font-size: 12px; text-align: center;">
+        ℹ️ These coordinates will be written to <strong>all ${currentAnalysisData?.imageCount || 0} images</strong> in this cluster
+      </div>
     </div>
   `;
   gpsSection.style.display = 'block';
   
   // Add event listeners
-  document.getElementById('editGPSBtn').addEventListener('click', () => {
-    showGPSEditForm(gpsData, source);
-  });
-  
-  document.getElementById('copyGPSBtn').addEventListener('click', () => {
-    const text = `${gpsData.latitude}, ${gpsData.longitude}`;
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.getElementById('copyGPSBtn');
-      const originalText = btn.textContent;
-      btn.textContent = '✅ Copied!';
-      btn.style.background = '#27ae60';
-      btn.style.color = 'white';
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.style.background = '';
-        btn.style.color = '';
-      }, 2000);
+  const editBtn = document.getElementById('editGPSBtn');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      showGPSEditForm(gpsData, source);
     });
-  });
+  }
+  
+  const copyBtn = document.getElementById('copyGPSBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const text = `${gpsData.latitude}, ${gpsData.longitude}`;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = '✅ Copied!';
+        copyBtn.style.background = 'rgba(40, 167, 69, 0.3)';
+        setTimeout(() => {
+          copyBtn.textContent = '📋 Copy Coordinates';
+          copyBtn.style.background = 'rgba(255,255,255,0.2)';
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy coordinates');
+      });
+    });
+  }
+  
+  console.log('✅ GPS displayed prominently:', { lat: gpsData.latitude, lon: gpsData.longitude });
 }
 
 /**
