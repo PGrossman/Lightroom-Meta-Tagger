@@ -3074,7 +3074,22 @@ async function analyzeClusterWithAI(clusterGroup) {
     updateStatus('Analyzing with AI...', 'processing');
     showProgress(0);
     
-    // Call backend AI analysis
+    // Ensure currentClusterIndex is set for GPS priority lookups
+    const groupIndex = allProcessedImages.findIndex(g => g.mainRep?.representativePath === clusterGroup.mainRep?.representativePath);
+    if (groupIndex !== -1) {
+      currentClusterIndex = groupIndex;
+    }
+
+    // Merge pre-analysis GPS into the group before sending to backend
+    if (groupIndex !== -1 && preAnalysisGPS.has(groupIndex)) {
+      const gpsData = preAnalysisGPS.get(groupIndex);
+      if (!clusterGroup.mainRep.gps) {
+        clusterGroup.mainRep.gps = gpsData;
+        console.log('✅ Injected pre-analysis GPS into clusterGroup before AI call:', gpsData);
+      }
+    }
+
+    // Call backend AI analysis with GPS in payload if present
     const result = await window.electronAPI.analyzeClusterWithAI(clusterGroup);
     
     showProgress(100);
@@ -3084,6 +3099,15 @@ async function analyzeClusterWithAI(clusterGroup) {
       
       // Store analysis data globally
       currentAnalysisData = result.data;
+
+      // Also merge pre-analysis GPS into analysis result for display priority
+      if (groupIndex !== -1 && preAnalysisGPS.has(groupIndex)) {
+        const gpsData = preAnalysisGPS.get(groupIndex);
+        if (!currentAnalysisData.metadata.manualGPS && gpsData?.latitude) {
+          currentAnalysisData.metadata.manualGPS = gpsData;
+          console.log('✅ Merged pre-analysis GPS into analysis metadata for display:', gpsData);
+        }
+      }
       
       // Display results in AI Analysis tab
       displayAIAnalysisResults(result.data);
