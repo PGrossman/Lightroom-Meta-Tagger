@@ -500,9 +500,13 @@ class FileManager {
     // Cluster RED files by pattern
     const redClusters = this.clusterREDFiles(redFiles);
     
+    // ✅ FIX: Properly instantiate ClusteringService with dependencies
+    const ClusteringService = require('./clusteringService');
+    const ExifExtractor = require('./exifExtractor');
+    const exifExtractor = new ExifExtractor();
+    const clusterer = new ClusteringService(exifExtractor);
+    
     // Cluster Canon files by timestamp
-    const clusteringService = require('./clusteringService');
-    const clusterer = new clusteringService();
     const canonClusters = clusterer.clusterByTimestamp(canonFiles, timestampThreshold);
     
     // Format Canon clusters with derivatives
