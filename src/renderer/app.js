@@ -3377,15 +3377,31 @@ function populateMetadataFields(metadata) {
   }
   
   // GPS coordinates - Check multiple sources with priority:
-  // 1. Manual GPS (user edited)
-  // 2. GPS Analysis from AI
-  // 3. EXIF GPS from parent
+  // 1. Manual GPS (user edited on AI Analysis page)
+  // 2. GPS from Visual Analysis page (pre-analysis)
+  // 3. GPS from cluster mainRep (saved during visual analysis)
+  // 4. GPS Analysis from AI
+  // 5. EXIF GPS from parent
   let gpsData = null;
   let gpsSource = '';
+  
+  console.log('🔍 Checking GPS sources for cluster', currentClusterIndex);
+  console.log('   metadata.manualGPS:', metadata.manualGPS);
+  console.log('   currentClusterIndex:', currentClusterIndex);
+  console.log('   Has preAnalysisGPS:', currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex));
   
   if (metadata.manualGPS?.latitude) {
     gpsData = metadata.manualGPS;
     gpsSource = 'Manual Entry';
+    console.log('   ✅ Using metadata.manualGPS');
+  } else if (currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex)) {
+    gpsData = preAnalysisGPS.get(currentClusterIndex);
+    gpsSource = 'Manual Entry (Pre-Analysis)';
+    console.log('   ✅ Using preAnalysisGPS Map');
+  } else if (currentClusterIndex !== null && allClustersForAnalysis[currentClusterIndex]?.mainRep?.gps) {
+    gpsData = allClustersForAnalysis[currentClusterIndex].mainRep.gps;
+    gpsSource = 'Manual Entry (Visual Analysis)';
+    console.log('   ✅ Using allClustersForAnalysis[currentClusterIndex].mainRep.gps');
   } else if (metadata.gpsAnalysis?.latitude) {
     gpsData = {
       latitude: parseFloat(metadata.gpsAnalysis.latitude),
@@ -3393,11 +3409,14 @@ function populateMetadataFields(metadata) {
       altitude: metadata.gpsAnalysis.altitude || null
     };
     gpsSource = 'AI Analysis';
+    console.log('   ✅ Using metadata.gpsAnalysis');
   } else if (currentAnalysisData?.cluster?.mainRep?.gps) {
     gpsData = currentAnalysisData.cluster.mainRep.gps;
     gpsSource = 'EXIF Data';
+    console.log('   ✅ Using currentAnalysisData.cluster.mainRep.gps');
   }
   
+  console.log('   📍 Final GPS for display:', gpsData);
   displayGPSSection(gpsData, gpsSource);
   
   // Hashtags
