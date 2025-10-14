@@ -2794,16 +2794,43 @@ let preAnalysisGPS = new Map(); // clusterIndex → GPS data (for GPS added BEFO
 
 /**
  * Batch analyze all clusters with AI
+ * ✅ FIXED: Syncs GPS from window.processedClusters to allProcessedImages BEFORE analysis
  */
 async function batchAnalyzeAllClusters() {
-  console.log('🚀 === BATCH ANALYSIS WITH GPS ===');
+  console.log('🚀 === BATCH ANALYSIS WITH GPS SYNC ===');
   console.log('Raw allProcessedImages:', allProcessedImages.length);
   
-  // Log each item with full details
+  // ✅ CRITICAL FIX: Sync GPS from window.processedClusters to allProcessedImages
+  console.log('🔄 Syncing GPS from processedClusters to allProcessedImages...');
+  
+  if (window.processedClusters && allProcessedImages) {
+    allProcessedImages.forEach((group, groupIndex) => {
+      const repPath = group.mainRep?.representativePath;
+      
+      // Find matching cluster in window.processedClusters
+      const processedCluster = window.processedClusters.find(c => 
+        (c.representativePath === repPath || c.representative === repPath)
+      );
+      
+      if (processedCluster && processedCluster.gps?.latitude) {
+        // Sync GPS from processedClusters to allProcessedImages
+        group.mainRep.gps = {
+          latitude: processedCluster.gps.latitude,
+          longitude: processedCluster.gps.longitude,
+          altitude: processedCluster.gps.altitude || null,
+          source: processedCluster.gps.source || 'Manual Entry'
+        };
+        console.log(`✅ GPS synced to group ${groupIndex} (${group.mainRep.representativeFilename}):`, group.mainRep.gps);
+      }
+    });
+  }
+  
+  // Log each item with GPS status
   allProcessedImages.forEach((group, idx) => {
     console.log(`\n[${idx}]:`, {
       mainRep: group.mainRep?.representativeFilename,
-      mainRepPath: group.mainRep?.representativePath,
+      hasGPS: !!group.mainRep?.gps?.latitude,
+      gps: group.mainRep?.gps,
       hasSimilarReps: !!group.similarReps,
       similarCount: group.similarReps?.length || 0
     });
@@ -2811,7 +2838,7 @@ async function batchAnalyzeAllClusters() {
   
   console.log('\n🚀 Starting batch AI analysis...');
   
-  // ✅ FIX: Deduplicate FIRST before analyzing
+  // Deduplicate FIRST before analyzing
   const uniqueClusters = [];
   const seenPaths = new Set();
   
@@ -2821,11 +2848,12 @@ async function batchAnalyzeAllClusters() {
       seenPaths.add(repPath);
       uniqueClusters.push(group);
       
-      // ✅ LOG GPS STATUS
+      // Log GPS status
       if (group.mainRep?.gps?.latitude) {
         console.log(`📍 ${group.mainRep.representativeFilename} HAS GPS:`, group.mainRep.gps);
+      } else {
+        console.log(`⚪ ${group.mainRep.representativeFilename} NO GPS`);
       }
-      console.log(`✅ Will analyze: ${group.mainRep?.representativeFilename}`);
     } else {
       console.log(`❌ Skip duplicate: ${group.mainRep?.representativeFilename}`);
     }
@@ -2842,29 +2870,21 @@ async function batchAnalyzeAllClusters() {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
     
-    // ✅ CRITICAL: Store GPS BEFORE analysis
-    const manualGPS = group.mainRep?.gps;
-    
     try {
       console.log(`🔍 Analyzing [${i + 1}/${uniqueClusters.length}]: ${clusterName}`);
+      
+      // Log GPS being sent to AI
+      if (group.mainRep?.gps?.latitude) {
+        console.log(`📍 Sending GPS to AI:`, group.mainRep.gps);
+      }
       
       updateStatus(`Analyzing cluster ${i + 1} of ${uniqueClusters.length}: ${clusterName}...`, 'processing');
       showProgress(Math.round(((i + 1) / uniqueClusters.length) * 100));
       
-      // Call backend AI analysis
+      // Call backend AI analysis - GPS is in group.mainRep.gps
       const result = await window.electronAPI.analyzeClusterWithAI(group);
       
       if (result.success) {
-        // ✅ CRITICAL: Restore GPS AFTER analysis
-        if (manualGPS?.latitude) {
-          result.data.metadata.manualGPS = {
-            latitude: manualGPS.latitude,
-            longitude: manualGPS.longitude,
-            source: 'Manual Entry'
-          };
-          console.log(`✅ GPS PRESERVED for ${clusterName}:`, result.data.metadata.manualGPS);
-        }
-        
         // Store metadata in the Map
         analyzedClusters.set(i, result.data.metadata);
         console.log(`✅ Analysis complete for: ${clusterName}`);
