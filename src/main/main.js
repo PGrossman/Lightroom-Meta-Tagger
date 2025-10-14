@@ -848,14 +848,29 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
       const repResult = imageResults.find(r => r.path === cluster.representative);
       const clusterKW = clusterKeywords.get(cluster.representative) || { all: [] };
       
-      // ✅ ADD: Get derivatives for this cluster's representative (handle both Map and object)
+      // ✅ FIX: Get derivatives from ALL images in the cluster, not just representative
+      // Problem: Derivatives are keyed by base image, but representative can be any bracketed image
+      // Solution: Check all images in cluster.imagePaths for derivatives
       let derivatives = [];
       if (scanResults.derivatives) {
-        if (scanResults.derivatives instanceof Map) {
-          derivatives = scanResults.derivatives.get(cluster.representative) || [];
-        } else {
-          derivatives = scanResults.derivatives[cluster.representative] || [];
-        }
+        // Check all images in the cluster for derivatives
+        const allClusterImages = cluster.imagePaths || [cluster.representative];
+        
+        allClusterImages.forEach(imagePath => {
+          let imageDerivatives = [];
+          if (scanResults.derivatives instanceof Map) {
+            imageDerivatives = scanResults.derivatives.get(imagePath) || [];
+          } else {
+            imageDerivatives = scanResults.derivatives[imagePath] || [];
+          }
+          
+          // Add to derivatives array (avoid duplicates)
+          imageDerivatives.forEach(deriv => {
+            if (!derivatives.includes(deriv)) {
+              derivatives.push(deriv);
+            }
+          });
+        });
       }
       
       return {
@@ -864,7 +879,7 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
         representativeFilename: path.basename(cluster.representative),
         imageCount: cluster.imageCount,
         imagePaths: cluster.imagePaths,
-        derivatives: derivatives,  // ✅ ADD: Derivatives array for XMP generation
+        derivatives: derivatives,  // ✅ Now includes ALL derivatives from all cluster images
         isBracketed: cluster.isBracketed,
         keywords: clusterKW.all, // ✅ CORRECT - uses cluster-specific keywords
         timestamp: repResult?.timestamp,
