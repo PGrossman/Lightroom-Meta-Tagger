@@ -2560,51 +2560,87 @@ let preAnalysisGPS = new Map(); // clusterIndex → GPS data (for GPS added BEFO
 
 /**
  * Batch analyze all clusters with AI
- * ✅ FIXED: Syncs GPS from window.processedClusters to allProcessedImages BEFORE analysis
+ * ✅ COMPLETE GPS FIX with full debug logging
  */
 async function batchAnalyzeAllClusters() {
-  console.log('🚀 === BATCH ANALYSIS WITH GPS SYNC ===');
-  console.log('Raw allProcessedImages:', allProcessedImages.length);
+  console.log('\n\n🚀 ========================================');
+  console.log('    BATCH ANALYSIS WITH GPS SYNC');
+  console.log('========================================\n');
   
-  // ✅ CRITICAL FIX: Sync GPS from window.processedClusters to allProcessedImages
-  console.log('🔄 Syncing GPS from processedClusters to allProcessedImages...');
+  // STEP 1: Log initial state
+  console.log('📊 STEP 1: Initial State');
+  console.log(`   - allProcessedImages count: ${allProcessedImages.length}`);
+  console.log(`   - window.processedClusters count: ${window.processedClusters?.length || 0}`);
+  
+  // STEP 2: Sync GPS from window.processedClusters to allProcessedImages
+  console.log('\n🔄 STEP 2: GPS Sync Process');
+  let gpsFoundCount = 0;
+  let gpsSyncedCount = 0;
   
   if (window.processedClusters && allProcessedImages) {
+    // First, check what GPS exists in processedClusters
+    console.log('\n   Scanning window.processedClusters for GPS:');
+    window.processedClusters.forEach((cluster, idx) => {
+      if (cluster.gps?.latitude || cluster.mainRep?.gps?.latitude) {
+        const gps = cluster.gps || cluster.mainRep?.gps;
+        gpsFoundCount++;
+        console.log(`   [${idx}] ✅ GPS FOUND: ${cluster.representativeFilename || cluster.representative} → ${gps.latitude}, ${gps.longitude}`);
+      }
+    });
+    
+    console.log(`\n   📍 Total GPS coordinates found: ${gpsFoundCount}`);
+    
+    if (gpsFoundCount === 0) {
+      console.warn('\n   ⚠️  WARNING: NO GPS found in processedClusters!');
+      console.log('   This means GPS was NOT saved when you edited it.');
+      console.log('   Check the updateGPS() function.');
+    }
+    
+    // Now sync to allProcessedImages
+    console.log('\n   Syncing to allProcessedImages:');
     allProcessedImages.forEach((group, groupIndex) => {
       const repPath = group.mainRep?.representativePath;
       
-      // Find matching cluster in window.processedClusters
-      const processedCluster = window.processedClusters.find(c => 
-        (c.representativePath === repPath || c.representative === repPath)
+      // Find matching cluster using multiple matching strategies
+      let processedCluster = window.processedClusters.find(c => 
+        c.representativePath === repPath || 
+        c.representative === repPath ||
+        c.mainRep?.representativePath === repPath
       );
       
-      if (processedCluster && processedCluster.gps?.latitude) {
-        // Sync GPS from processedClusters to allProcessedImages
-        group.mainRep.gps = {
-          latitude: processedCluster.gps.latitude,
-          longitude: processedCluster.gps.longitude,
-          altitude: processedCluster.gps.altitude || null,
-          source: processedCluster.gps.source || 'Manual Entry'
-        };
-        console.log(`✅ GPS synced to group ${groupIndex} (${group.mainRep.representativeFilename}):`, group.mainRep.gps);
+      if (processedCluster) {
+        // Check for GPS in multiple locations
+        const gps = processedCluster.gps || processedCluster.mainRep?.gps;
+        
+        if (gps?.latitude) {
+          // Sync GPS to group
+          group.mainRep.gps = {
+            latitude: gps.latitude,
+            longitude: gps.longitude,
+            altitude: gps.altitude || null,
+            source: gps.source || 'Manual Entry'
+          };
+          gpsSyncedCount++;
+          console.log(`   [${groupIndex}] ✅ SYNCED: ${group.mainRep.representativeFilename}`);
+          console.log(`                    GPS: ${gps.latitude}, ${gps.longitude}`);
+        }
       }
     });
+    
+    console.log(`\n   📍 GPS coordinates synced: ${gpsSyncedCount}/${gpsFoundCount}`);
+    
+    if (gpsSyncedCount < gpsFoundCount) {
+      console.warn(`\n   ⚠️  WARNING: ${gpsFoundCount - gpsSyncedCount} GPS coordinates could not be synced!`);
+      console.log('   Path matching may have failed.');
+    }
+  } else {
+    console.error('\n   ❌ ERROR: Missing data structures');
+    console.log(`   - window.processedClusters exists: ${!!window.processedClusters}`);
+    console.log(`   - allProcessedImages exists: ${!!allProcessedImages}`);
   }
   
-  // Log each item with GPS status
-  allProcessedImages.forEach((group, idx) => {
-    console.log(`\n[${idx}]:`, {
-      mainRep: group.mainRep?.representativeFilename,
-      hasGPS: !!group.mainRep?.gps?.latitude,
-      gps: group.mainRep?.gps,
-      hasSimilarReps: !!group.similarReps,
-      similarCount: group.similarReps?.length || 0
-    });
-  });
-  
-  console.log('\n🚀 Starting batch AI analysis...');
-  
-  // Deduplicate FIRST before analyzing
+  // STEP 3: Deduplicate and prepare for analysis
+  console.log('\n📋 STEP 3: Deduplication');
   const uniqueClusters = [];
   const seenPaths = new Set();
   
@@ -2613,86 +2649,88 @@ async function batchAnalyzeAllClusters() {
     if (!seenPaths.has(repPath)) {
       seenPaths.add(repPath);
       uniqueClusters.push(group);
-      
-      // Log GPS status
-      if (group.mainRep?.gps?.latitude) {
-        console.log(`📍 ${group.mainRep.representativeFilename} HAS GPS:`, group.mainRep.gps);
-      } else {
-        console.log(`⚪ ${group.mainRep.representativeFilename} NO GPS`);
-      }
-    } else {
-      console.log(`❌ Skip duplicate: ${group.mainRep?.representativeFilename}`);
     }
   });
   
-  console.log(`📊 Analyzing ${uniqueClusters.length} unique clusters (removed ${allProcessedImages.length - uniqueClusters.length} duplicates)`);
+  console.log(`   - Unique clusters: ${uniqueClusters.length}`);
+  console.log(`   - Duplicates removed: ${allProcessedImages.length - uniqueClusters.length}`);
   
-  // Clear previous analysis
+  // STEP 4: Log GPS status for each cluster
+  console.log('\n📍 STEP 4: Final GPS Status Before Analysis');
+  let clustersWithGPS = 0;
+  uniqueClusters.forEach((group, idx) => {
+    const hasGPS = !!group.mainRep?.gps?.latitude;
+    if (hasGPS) {
+      clustersWithGPS++;
+      console.log(`   [${idx}] ✅ ${group.mainRep.representativeFilename}`);
+      console.log(`            GPS: ${group.mainRep.gps.latitude}, ${group.mainRep.gps.longitude}`);
+    } else {
+      console.log(`   [${idx}] ⚪ ${group.mainRep.representativeFilename} - NO GPS`);
+    }
+  });
+  
+  console.log(`\n   📍 Clusters with GPS: ${clustersWithGPS}/${uniqueClusters.length}`);
+  
+  if (clustersWithGPS === 0 && gpsFoundCount > 0) {
+    console.error('\n   🔴 CRITICAL ERROR: GPS was found but not in any clusters!');
+    console.log('   This indicates the sync failed completely.');
+  }
+  
+  // STEP 5: Run AI Analysis
+  console.log('\n\n🤖 STEP 5: Starting AI Analysis');
+  console.log('========================================\n');
+  
   analyzedClusters.clear();
   allClustersForAnalysis = uniqueClusters;
   
-  // Analyze each cluster
   for (let i = 0; i < uniqueClusters.length; i++) {
     const group = uniqueClusters[i];
     const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
     
     try {
-      console.log(`🔍 Analyzing [${i + 1}/${uniqueClusters.length}]: ${clusterName}`);
+      console.log(`\n[${i + 1}/${uniqueClusters.length}] Analyzing: ${clusterName}`);
       
-      // Log GPS being sent to AI
+      // Log GPS being sent
       if (group.mainRep?.gps?.latitude) {
-        console.log(`📍 Sending GPS to AI:`, group.mainRep.gps);
+        console.log(`   📍 GPS will be sent to AI:`);
+        console.log(`      Lat: ${group.mainRep.gps.latitude}`);
+        console.log(`      Lon: ${group.mainRep.gps.longitude}`);
+      } else {
+        console.log(`   ⚪ No GPS for this cluster`);
       }
       
       updateStatus(`Analyzing cluster ${i + 1} of ${uniqueClusters.length}: ${clusterName}...`, 'processing');
       showProgress(Math.round(((i + 1) / uniqueClusters.length) * 100));
       
-      // Call backend AI analysis - GPS is in group.mainRep.gps
+      // Call backend - GPS is in group.mainRep.gps
       const result = await window.electronAPI.analyzeClusterWithAI(group);
       
       if (result.success) {
-        // Store metadata in the Map
         analyzedClusters.set(i, result.data.metadata);
-        console.log(`✅ Analysis complete for: ${clusterName}`);
+        console.log(`   ✅ Analysis complete`);
         
+        // Log if GPS came back in metadata
+        if (result.data.metadata.gpsAnalysis?.latitude) {
+          console.log(`   📍 AI returned GPS: ${result.data.metadata.gpsAnalysis.latitude}, ${result.data.metadata.gpsAnalysis.longitude}`);
+        }
       } else {
-        console.error(`❌ Analysis failed for: ${clusterName}`, result.error);
+        console.error(`   ❌ Analysis failed: ${result.error}`);
         alert(`Analysis failed for ${clusterName}: ${result.error}`);
       }
       
     } catch (error) {
-      console.error(`❌ Error analyzing ${clusterName}:`, error);
+      console.error(`   ❌ Error: ${error.message}`);
       alert(`Error analyzing ${clusterName}: ${error.message}`);
     }
   }
   
-  console.log('✅ Batch analysis complete!');
-  
-  // ✅ MERGE PRE-ANALYSIS GPS into analyzed clusters
-  console.log('🔄 Merging pre-analysis GPS into analyzed clusters...');
-  console.log('📍 Pre-analysis GPS storage:', Array.from(preAnalysisGPS.entries()));
-  
-  preAnalysisGPS.forEach((gpsData, clusterIndex) => {
-    if (analyzedClusters.has(clusterIndex)) {
-      const metadata = analyzedClusters.get(clusterIndex);
-      
-      // Only merge if no post-analysis GPS was added
-      if (!metadata.manualGPS) {
-        metadata.manualGPS = gpsData;
-        analyzedClusters.set(clusterIndex, metadata);
-        console.log(`✅ Merged pre-analysis GPS into cluster ${clusterIndex}:`, gpsData);
-      } else {
-        console.log(`⚠️ Cluster ${clusterIndex} already has post-analysis GPS, skipping merge`);
-      }
-    } else {
-      console.warn(`⚠️ GPS exists for cluster ${clusterIndex} but cluster not analyzed`);
-    }
-  });
+  console.log('\n\n✅ ========================================');
+  console.log('    BATCH ANALYSIS COMPLETE');
+  console.log('========================================\n');
   
   updateStatus('All clusters analyzed!', 'complete');
   showProgress(100);
   
-  // Load the cluster grid to display results
   loadClustersForAnalysis();
 }
 
@@ -4026,6 +4064,80 @@ async function savePersonalData() {
     alert('❌ Error saving personal data: ' + error.message);
   }
 }
+
+// ============================================
+// GPS DIAGNOSTIC FUNCTION
+// ============================================
+
+window.debugGPS = function() {
+  console.log('\n\n🔍 GPS DIAGNOSTIC REPORT');
+  console.log('========================\n');
+  
+  console.log('1. window.processedClusters:');
+  if (window.processedClusters) {
+    let count = 0;
+    window.processedClusters.forEach((c, i) => {
+      const gps = c.gps || c.mainRep?.gps;
+      if (gps?.latitude) {
+        count++;
+        console.log(`   [${i}] ✅ ${c.representativeFilename || c.representative}: ${gps.latitude}, ${gps.longitude}`);
+      }
+    });
+    if (count === 0) {
+      console.log('   ⚪ No GPS coordinates found');
+    }
+  } else {
+    console.log('   ❌ Not initialized');
+  }
+  
+  console.log('\n2. allProcessedImages:');
+  if (allProcessedImages) {
+    let count = 0;
+    allProcessedImages.forEach((g, i) => {
+      const gps = g.mainRep?.gps;
+      if (gps?.latitude) {
+        count++;
+        console.log(`   [${i}] ✅ ${g.mainRep.representativeFilename}: ${gps.latitude}, ${gps.longitude}`);
+      }
+    });
+    if (count === 0) {
+      console.log('   ⚪ No GPS coordinates found');
+    }
+  } else {
+    console.log('   ❌ Not initialized');
+  }
+  
+  console.log('\n3. analyzedClusters:');
+  if (analyzedClusters && analyzedClusters.size > 0) {
+    let count = 0;
+    analyzedClusters.forEach((metadata, i) => {
+      if (metadata.gpsAnalysis?.latitude) {
+        count++;
+        console.log(`   [${i}] ✅ GPS from AI: ${metadata.gpsAnalysis.latitude}, ${metadata.gpsAnalysis.longitude}`);
+      }
+      if (metadata.manualGPS?.latitude) {
+        count++;
+        console.log(`   [${i}] ✅ Manual GPS: ${metadata.manualGPS.latitude}, ${metadata.manualGPS.longitude}`);
+      }
+    });
+    if (count === 0) {
+      console.log('   ⚪ No GPS coordinates found');
+    }
+  } else {
+    console.log('   ⚪ No analyzed clusters yet');
+  }
+  
+  console.log('\n4. preAnalysisGPS Map:');
+  if (preAnalysisGPS && preAnalysisGPS.size > 0) {
+    preAnalysisGPS.forEach((gps, idx) => {
+      console.log(`   [${idx}] ✅ ${gps.latitude}, ${gps.longitude}`);
+    });
+  } else {
+    console.log('   ⚪ No pre-analysis GPS stored');
+  }
+  
+  console.log('\n========================\n');
+};
 
 // ============================================
 // Application Ready
