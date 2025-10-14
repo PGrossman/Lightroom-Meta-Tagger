@@ -1109,23 +1109,52 @@ function buildSimilarityGroups(clusters, similarityResults) {
         };
       });
     
-    // ✅ FIX: Ensure derivatives are preserved in the group structure
-    const group = {
-      mainRep: {
-        ...mainRep,
-        derivatives: mainRep.derivatives || []  // Preserve derivatives from processedClusters
-      },
-      similarReps: similarReps.map(sim => ({
+    // ✅ CRITICAL FIX: Get derivatives from window.processedClusters (source of truth)
+    console.log(`🔍 Looking up derivatives for group: ${mainRep.representativeFilename}`);
+    
+    const mainRepWithDerivatives = window.processedClusters.find(c => 
+      c.representativePath === mainRep.representativePath
+    );
+    
+    if (mainRepWithDerivatives?.derivatives) {
+      console.log(`   ✅ Found ${mainRepWithDerivatives.derivatives.length} derivatives for main rep`);
+    } else {
+      console.log(`   ⚠️ No derivatives found for main rep in window.processedClusters`);
+    }
+    
+    const similarRepsWithDerivatives = similarReps.map(sim => {
+      const sourceCluster = window.processedClusters.find(c =>
+        c.representativePath === sim.cluster.representativePath
+      );
+      
+      if (sourceCluster?.derivatives && sourceCluster.derivatives.length > 0) {
+        console.log(`   ✅ Found ${sourceCluster.derivatives.length} derivatives for similar: ${sim.cluster.representativeFilename}`);
+      }
+      
+      return {
         ...sim,
         cluster: {
           ...sim.cluster,
-          derivatives: sim.cluster.derivatives || []  // Preserve derivatives from each similar cluster
+          derivatives: sourceCluster?.derivatives || []
         }
-      })),
-      allClusters: groupClusters.map(c => ({
-        ...c,
-        derivatives: c.derivatives || []  // Preserve derivatives in allClusters too
-      })),
+      };
+    });
+    
+    const group = {
+      mainRep: {
+        ...mainRep,
+        derivatives: mainRepWithDerivatives?.derivatives || []
+      },
+      similarReps: similarRepsWithDerivatives,
+      allClusters: groupClusters.map(c => {
+        const sourceCluster = window.processedClusters.find(pc =>
+          pc.representativePath === c.representativePath
+        );
+        return {
+          ...c,
+          derivatives: sourceCluster?.derivatives || []
+        };
+      }),
       connectionCount: maxConnections
     };
     
