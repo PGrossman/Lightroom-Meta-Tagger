@@ -3230,18 +3230,17 @@ function updateGenerateAllButtonState() {
 /**
  * Generate XMP for all analyzed clusters
  */
+/**
+ * Generate XMP for all analyzed clusters
+ * Updated version: removes popups, tracks total XMP files, updates button state
+ */
 async function generateAllXMPFiles() {
   if (analyzedClusters.size === 0) {
     alert('No clusters have been analyzed yet.');
     return;
   }
   
-  const confirmed = confirm(
-    `Generate XMP files for ${analyzedClusters.size} cluster(s)?\n\n` +
-    `This will create XMP sidecar files for all analyzed images.`
-  );
-  
-  if (!confirmed) return;
+  // ❌ REMOVED: Confirmation dialog popup
   
   const btn = document.getElementById('generateAllXMPBtn');
   const status = document.getElementById('xmpGenerationStatus');
@@ -3251,6 +3250,7 @@ async function generateAllXMPFiles() {
   
   let successCount = 0;
   let failCount = 0;
+  let totalXMPsCreated = 0; // ✅ NEW: Track total XMP files, not clusters
   
   for (const [clusterIndex, metadata] of analyzedClusters.entries()) {
     const group = allClustersForAnalysis[clusterIndex];
@@ -3266,6 +3266,7 @@ async function generateAllXMPFiles() {
       
       if (result.success) {
         successCount++;
+        totalXMPsCreated += result.filesProcessed || 0; // ✅ NEW: Add actual file count
       } else {
         failCount++;
       }
@@ -3276,16 +3277,17 @@ async function generateAllXMPFiles() {
     }
   }
   
-  btn.disabled = false;
-  btn.textContent = '✅ Generate XMP Files for All Clusters';
+  // ✅ NEW: Change button to grey "XMPs Created" state and keep disabled
+  btn.style.background = '#6c757d'; // Grey background
+  btn.style.cursor = 'not-allowed';
+  btn.textContent = 'XMPs Created';
+  // Keep btn.disabled = true (don't re-enable)
   
-  alert(
-    `XMP Generation Complete!\n\n` +
-    `✅ Success: ${successCount} cluster(s)\n` +
-    `❌ Failed: ${failCount} cluster(s)`
-  );
+  // ❌ REMOVED: Alert popup showing success/failed counts
   
-  status.textContent = `Last generation: ${successCount} succeeded, ${failCount} failed`;
+  // ✅ NEW: Update status to show total XMP files created
+  status.textContent = `${totalXMPsCreated} XMP files created`;
+  status.style.color = '#28a745';
 }
 
 /**
