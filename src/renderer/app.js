@@ -3412,7 +3412,7 @@ function showGPSEditForm(currentGPS, source) {
       return;
     }
     
-    // Save GPS to current metadata
+    // ✅ CRITICAL: Save GPS to currentAnalysisData.metadata
     if (currentAnalysisData && currentAnalysisData.metadata) {
       currentAnalysisData.metadata.manualGPS = {
         latitude: lat,
@@ -3421,13 +3421,24 @@ function showGPSEditForm(currentGPS, source) {
         source: 'Manual Entry'
       };
       
-      console.log('✅ GPS coordinates updated for cluster:', currentAnalysisData.metadata.manualGPS);
+      console.log('✅ GPS saved to currentAnalysisData.metadata.manualGPS:', currentAnalysisData.metadata.manualGPS);
       
       // Redisplay GPS section
       displayGPSSection(currentAnalysisData.metadata.manualGPS, 'Manual Entry');
       
       // Show success message
       updateStatus('GPS coordinates updated - will apply to all cluster images on XMP generation', 'complete');
+      
+      // ✅ ALSO: Log the entire currentAnalysisData to verify
+      console.log('📍 Current analysis data after GPS save:', JSON.stringify({
+        hasMetadata: !!currentAnalysisData.metadata,
+        hasManualGPS: !!currentAnalysisData.metadata?.manualGPS,
+        manualGPS: currentAnalysisData.metadata?.manualGPS,
+        title: currentAnalysisData.metadata?.title
+      }, null, 2));
+    } else {
+      console.error('❌ Cannot save GPS: currentAnalysisData or metadata is null');
+      alert('Error: Unable to save GPS data');
     }
   });
   
@@ -3520,6 +3531,20 @@ function addKeyword() {
  * Collect edited metadata from form
  */
 function collectMetadataFromForm() {
+  console.log('🔍 ========== COLLECTING METADATA FROM FORM ==========');
+  console.log('🔍 currentAnalysisData:', currentAnalysisData ? 'EXISTS' : 'NULL');
+  
+  if (currentAnalysisData) {
+    console.log('🔍 currentAnalysisData.metadata:', JSON.stringify({
+      hasManualGPS: !!currentAnalysisData.metadata?.manualGPS,
+      manualGPS: currentAnalysisData.metadata?.manualGPS,
+      hasGpsAnalysis: !!currentAnalysisData.metadata?.gpsAnalysis,
+      gpsAnalysis: currentAnalysisData.metadata?.gpsAnalysis,
+      hasClusterGPS: !!currentAnalysisData.cluster?.mainRep?.gps,
+      clusterGPS: currentAnalysisData.cluster?.mainRep?.gps
+    }, null, 2));
+  }
+  
   // Collect all field values
   const metadata = {
     title: document.getElementById('metaTitle')?.value || '',
@@ -3552,7 +3577,9 @@ function collectMetadataFromForm() {
     provider: currentAnalysisData?.metadata?.provider || 'ollama'
   };
   
-  // ✅ Collect GPS data if present (priority: manualGPS > gpsAnalysis > EXIF)
+  // ✅ GPS COLLECTION - PRIORITY: manualGPS > gpsAnalysis > EXIF
+  console.log('🔍 Checking GPS priority...');
+  
   if (currentAnalysisData?.metadata?.manualGPS?.latitude) {
     metadata.gps = {
       latitude: currentAnalysisData.metadata.manualGPS.latitude,
@@ -3560,20 +3587,27 @@ function collectMetadataFromForm() {
       altitude: currentAnalysisData.metadata.manualGPS.altitude || null,
       source: 'Manual Entry'
     };
-  } else if (currentAnalysisData?.metadata?.gpsAnalysis?.latitude) {
+    console.log('✅ Using manual GPS:', metadata.gps);
+  } 
+  else if (currentAnalysisData?.metadata?.gpsAnalysis?.latitude) {
     metadata.gps = {
       latitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.latitude),
       longitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.longitude),
       altitude: currentAnalysisData.metadata.gpsAnalysis.altitude || null,
       source: 'AI Analysis'
     };
-  } else if (currentAnalysisData?.cluster?.mainRep?.gps) {
+    console.log('✅ Using AI Analysis GPS:', metadata.gps);
+  } 
+  else if (currentAnalysisData?.cluster?.mainRep?.gps?.latitude) {
     metadata.gps = {
       latitude: currentAnalysisData.cluster.mainRep.gps.latitude,
       longitude: currentAnalysisData.cluster.mainRep.gps.longitude,
       altitude: currentAnalysisData.cluster.mainRep.gps.altitude || null,
       source: 'EXIF Data'
     };
+    console.log('✅ Using EXIF GPS:', metadata.gps);
+  } else {
+    console.log('⚠️ No GPS data found in any source');
   }
   
   // ✅ Collect keywords from .keyword-tag elements in AI Analysis tab
@@ -3589,10 +3623,16 @@ function collectMetadataFromForm() {
   const hashtagsText = document.getElementById('metaHashtags')?.value || '';
   metadata.hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
   
-  console.log('📦 Collected metadata:', metadata);
-  if (metadata.gps) {
-    console.log('📍 GPS will be written to all cluster images:', metadata.gps);
-  }
+  console.log('📦 Final collected metadata:', JSON.stringify({
+    title: metadata.title,
+    hasGPS: !!metadata.gps,
+    gps: metadata.gps,
+    keywordsCount: metadata.keywords.length,
+    hashtagsCount: metadata.hashtags.length
+  }, null, 2));
+  
+  console.log('🔍 ========== END COLLECTING METADATA ==========\n');
+  
   return metadata;
 }
 
