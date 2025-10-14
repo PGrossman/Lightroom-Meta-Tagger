@@ -35,7 +35,8 @@ class FileManager {
    * Extract base filename from any image
    * Works with multiple camera formats:
    *   - Canon: _GP_0215, _MG_9194, IMG_1234, DSC_0001
-   *   - RED: A006_C001_0315GH_S000.0000127
+   *   - RED Bracketed: A006_C001_0315GH_S000.0000127
+   *   - RED Merged: A006_C001_0315GH.0000127 (no _S### sequence)
    * 
    * Examples:
    *   Canon:
@@ -43,17 +44,22 @@ class FileManager {
    *     _GP_0215_adj.tif → _GP_0215
    *     _GP_0215_adj-Edit-2.tif → _GP_0215
    *   
-   *   RED:
+   *   RED Bracketed:
    *     A006_C001_0315GH_S000.0000127.tif → A006_C001_0315GH_S000.0000127
    *     A006_C001_0315GH_S000.0000127-Edit.tif → A006_C001_0315GH_S000.0000127
+   *   
+   *   RED Merged:
+   *     A006_C001_0315GH.0000127.tif → A006_C001_0315GH.0000127
+   *     A006_C001_0315GH.0000127-Edit.tif → A006_C001_0315GH.0000127
    */
   getBaseFilename(filename) {
     // Remove extension first
     const nameWithoutExt = path.parse(filename).name;
     
-    // Pattern 1: RED camera files (X###_X###_XXXXXX_...)
-    // Format: Camera_Magazine_Hash_Additional (e.g., A006_C001_0315GH_S000.0000127)
-    const redPattern = /^([A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}_[A-Z0-9.]+)/i;
+    // Pattern 1: RED camera files (X###_X###_XXXXXX_... OR X###_X###_XXXXXX....)
+    // Format: Camera_Magazine_Hash_Additional (e.g., A006_C001_0315GH_S000.0000127 or A006_C001_0315GH.0000127)
+    // Updated to make _S### optional for merged files
+    const redPattern = /^([A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(?:_S\d{3})?\.[A-Z0-9.]+)/i;
     const redMatch = nameWithoutExt.match(redPattern);
     
     if (redMatch) {
@@ -80,6 +86,7 @@ class FileManager {
    * Supports:
    *   - Standard RAW formats (CR2, CR3, NEF, ARW, etc.)
    *   - RED camera TIF files (identified by naming pattern)
+   *   - RED merged TIF files (without _S### sequence)
    */
   isBaseImage(filename) {
     const ext = path.extname(filename).toUpperCase();
@@ -87,7 +94,8 @@ class FileManager {
     // Additional check: TIF/TIFF files are only base if they match RED pattern
     if (ext === '.TIF' || ext === '.TIFF') {
       const nameWithoutExt = path.parse(filename).name;
-      const redPattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}_/i;
+      // Updated: _S### sequence is now optional to support merged files
+      const redPattern = /^[A-Z]\d{3}_[A-Z]\d{3}_[A-Z0-9]{6}(_S\d{3})?\.\d+$/i;
       return redPattern.test(nameWithoutExt);
     }
     
@@ -351,8 +359,15 @@ class FileManager {
    * Check if filename matches RED camera pattern
    * Pattern: A006_C001_0315GH_S000.0000127.tif
    */
+  /**
+   * Check if filename matches RED camera pattern
+   * Supports both:
+   *   - Bracketed: A006_C001_0315GH_S000.0000127.tif
+   *   - Merged: A006_C001_0315GH.0000127.tif (no _S### sequence)
+   */
   isREDFile(filename) {
-    return /^A\d{3}_C\d{3}_[A-Z0-9]+_S\d{3}\.\d+\.tiff?$/i.test(filename);
+    // Pattern with optional _S### sequence to support merged files
+    return /^A\d{3}_C\d{3}_[A-Z0-9]+(_S\d{3})?\.\d+\.tiff?$/i.test(filename);
   }
 
   /**

@@ -842,6 +842,61 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
 
     console.log('🔍 ==========================================\n');
     // ============================================================================
+    
+    // ============================================================================
+    // 🔍 MISSING FILE INVESTIGATION - Bug #2 Diagnostic
+    // ============================================================================
+    console.log('\n🔍 ===== MISSING FILE INVESTIGATION =====');
+    console.log('Looking for _GP_0831.CR2 and _GP_0831_adj.tif...\n');
+
+    // Check if base image exists
+    const gp831Base = scanResults.baseImages?.find(img => 
+      path.basename(img).includes('_GP_0831')
+    );
+    console.log(`_GP_0831.CR2 base image: ${gp831Base ? '✅ FOUND' : '❌ NOT FOUND'}`);
+    if (gp831Base) {
+      console.log(`  Path: ${gp831Base}`);
+      
+      // Check which cluster it's in
+      const gp831Cluster = scanResults.clusters.find(c => 
+        c.imagePaths?.includes(gp831Base)
+      );
+      if (gp831Cluster) {
+        console.log(`  In cluster: ${path.basename(gp831Cluster.representative)}`);
+        console.log(`  Cluster images: ${gp831Cluster.imagePaths.map(p => path.basename(p)).join(', ')}`);
+      } else {
+        console.log(`  ❌ NOT in any cluster!`);
+      }
+    }
+
+    // Check if derivative exists in scan
+    let gp831Deriv = null;
+    if (scanResults.derivatives) {
+      for (const [base, derivs] of scanResults.derivatives.entries()) {
+        const found = derivs.find(d => path.basename(d).includes('_GP_0831'));
+        if (found) {
+          gp831Deriv = { base, derivative: found };
+          break;
+        }
+      }
+    }
+
+    console.log(`_GP_0831_adj.tif derivative: ${gp831Deriv ? '✅ FOUND' : '❌ NOT FOUND'}`);
+    if (gp831Deriv) {
+      console.log(`  Linked to base: ${path.basename(gp831Deriv.base)}`);
+      console.log(`  Derivative path: ${gp831Deriv.derivative}`);
+    }
+    
+    // List ALL derivatives found for reference
+    console.log('\n📋 All derivatives found in scan:');
+    if (scanResults.derivatives instanceof Map) {
+      for (const [base, derivs] of scanResults.derivatives.entries()) {
+        console.log(`  ${path.basename(base)}: ${derivs.length} derivative(s)`);
+        derivs.forEach(d => console.log(`    - ${path.basename(d)}`));
+      }
+    }
+    console.log('🔍 =====================================\n');
+    // ============================================================================
 
     // Build cluster results for UI
     const processedClusters = scanResults.clusters.map(cluster => {
