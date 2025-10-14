@@ -21,15 +21,17 @@ class ClusteringService {
     // Extract timestamps for all images
     const imageData = [];
     for (const imagePath of imagePaths) {
-      const timestamp = await this.exifExtractor.extractFromRAW(imagePath);
+      // ✅ FIX: Handle both file objects and path strings
+      const actualPath = typeof imagePath === 'string' ? imagePath : imagePath.path;
+      const timestamp = await this.exifExtractor.extractFromRAW(actualPath);
       
       if (timestamp) {
         imageData.push({
-          path: imagePath,
+          path: actualPath,
           timestamp: timestamp
         });
       } else {
-        logger.warn('Skipping image without timestamp', { imagePath });
+        logger.warn('Skipping image without timestamp', { imagePath: actualPath });
       }
     }
 
