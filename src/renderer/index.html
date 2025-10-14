@@ -384,16 +384,16 @@
 
             <!-- GPS Coordinates Section -->
             <div id="gpsSection" style="display: none; margin-top: 20px;">
-              <div style="background: linear-gradient(135deg, #81d4fa 0%, #4fc3f7 100%); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(129, 212, 250, 0.3);">
+              <div style="background: #e1f5fe; padding: 20px; border-radius: 8px; border: 1px solid #b3e5fc;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                  <h3 style="margin: 0; color: white; display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 20px;">📍</span>
+                  <h3 style="margin: 0; color: #333; display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600;">
+                    <span style="font-size: 18px;">📍</span>
                     <span>GPS Coordinates</span>
                   </h3>
-                  <span id="gpsSourceBadge" style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 12px; color: white; font-weight: 500;">
+                  <span id="gpsSourceBadge" style="background: rgba(0,0,0,0.05); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #666; font-weight: 500;">
                     Manual Entry (Visual Analysis)
                   </span>
-                  <button id="editGpsBtn" onclick="editGPS()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                  <button id="editGpsBtn" onclick="editGPS()" style="background: #2196f3; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 13px;">
                     <span style="margin-right: 4px;">✏️</span> Edit
                   </button>
                 </div>
@@ -401,18 +401,18 @@
                 <!-- Display Mode - Single Row with 4 columns -->
                 <div id="gpsDisplay" style="display: block;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; align-items: center;">
-                    <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
-                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.8); margin-bottom: 4px; font-weight: 600;">LATITUDE</div>
-                      <div id="gpsLatDisplay" style="font-size: 16px; font-weight: 600; color: white; font-family: 'Courier New', monospace;">--</div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #b3e5fc;">
+                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; font-weight: 600;">LATITUDE</div>
+                      <div id="gpsLatDisplay" style="font-size: 16px; font-weight: 600; color: #333; font-family: 'Courier New', monospace;">--</div>
                     </div>
-                    <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
-                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.8); margin-bottom: 4px; font-weight: 600;">LONGITUDE</div>
-                      <div id="gpsLonDisplay" style="font-size: 16px; font-weight: 600; color: white; font-family: 'Courier New', monospace;">--</div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #b3e5fc;">
+                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; font-weight: 600;">LONGITUDE</div>
+                      <div id="gpsLonDisplay" style="font-size: 16px; font-weight: 600; color: #333; font-family: 'Courier New', monospace;">--</div>
                     </div>
-                    <button onclick="viewOnMap()" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <button onclick="viewOnMap()" style="background: #2196f3; border: none; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
                       <span>🗺️</span> View on Map
                     </button>
-                    <button onclick="copyGPSCoordinates()" style="background: rgba(255,255,255,0.25); border: none; color: white; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <button onclick="copyGPSCoordinates()" style="background: #2196f3; border: none; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
                       <span>📋</span> Copy Coordinates
                     </button>
                   </div>
@@ -422,15 +422,15 @@
                 <div id="gpsInput" style="display: none;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                     <div>
-                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.8); margin-bottom: 5px; font-weight: 600;">LATITUDE</label>
-                      <input type="text" id="gpsLat" placeholder="e.g., 51.3887557" style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; background: rgba(255,255,255,0.15); color: white; font-family: 'Courier New', monospace;" />
+                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; font-weight: 600;">LATITUDE</label>
+                      <input type="text" id="gpsLat" placeholder="e.g., 51.3887557" style="width: 100%; padding: 12px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 16px; background: white; color: #333; font-family: 'Courier New', monospace;" />
                     </div>
                     <div>
-                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.8); margin-bottom: 5px; font-weight: 600;">LONGITUDE</label>
-                      <input type="text" id="gpsLon" placeholder="e.g., 30.1037836" style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; background: rgba(255,255,255,0.15); color: white; font-family: 'Courier New', monospace;" />
+                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; font-weight: 600;">LONGITUDE</label>
+                      <input type="text" id="gpsLon" placeholder="e.g., 30.1037836" style="width: 100%; padding: 12px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 16px; background: white; color: #333; font-family: 'Courier New', monospace;" />
                     </div>
                   </div>
-                  <button onclick="saveGPS()" style="background: white; border: none; color: #0288d1; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; transition: all 0.2s;">
+                  <button onclick="saveGPS()" style="background: #2196f3; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; transition: all 0.2s; font-size: 14px;">
                     💾 Save GPS Coordinates
                   </button>
                 </div>
