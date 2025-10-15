@@ -3207,10 +3207,63 @@ async function batchAnalyzeAllClusters() {
 
 /**
  * Load all clusters into AI Analysis tab with thumbnail grid
+ * Called after batch analysis completes
  */
 function loadClustersForAnalysis() {
-  // Use the new card-based function
+  console.log('📊 loadClustersForAnalysis called');
+  console.log('   - allProcessedImages count:', allProcessedImages.length);
+  console.log('   - analyzedClusters size:', analyzedClusters.size);
+  
+  // Copy allProcessedImages to allClustersForAnalysis
+  allClustersForAnalysis = [...allProcessedImages];
+  
+  // Call the card view function
   loadClustersForAnalysisCardView();
+}
+
+/**
+ * Load analyzed clusters into card list view
+ */
+function loadClustersForAnalysisCardView() {
+  console.log('🎨 loadClustersForAnalysisCardView called');
+  
+  const generateBtn = document.getElementById('generateAllXMPBtn');
+  const emptyState = document.getElementById('aiAnalysisEmpty');
+  const cardList = document.getElementById('aiAnalysisCardList');
+  
+  if (!cardList) {
+    console.error('❌ aiAnalysisCardList element not found!');
+    return;
+  }
+  
+  // Filter to only show analyzed clusters
+  const analyzedClustersList = allClustersForAnalysis.filter((cluster, idx) => 
+    analyzedClusters.has(idx)
+  );
+  
+  console.log('   - Analyzed clusters:', analyzedClustersList.length);
+  
+  if (analyzedClustersList.length === 0) {
+    // Show empty state
+    if (emptyState) emptyState.style.display = 'block';
+    if (cardList) cardList.style.display = 'none';
+    if (generateBtn) generateBtn.style.display = 'none';
+    console.log('   ℹ️ No analyzed clusters, showing empty state');
+    return;
+  }
+  
+  // Show card list
+  if (emptyState) emptyState.style.display = 'none';
+  if (cardList) cardList.style.display = 'block';
+  if (generateBtn) {
+    generateBtn.style.display = 'block';
+    generateBtn.disabled = false;
+  }
+  
+  console.log('   ✅ Rendering cards...');
+  
+  // Render cards
+  renderClusterCards(analyzedClustersList);
 }
 
 /**
@@ -3743,42 +3796,61 @@ function loadClustersForAnalysisCardView() {
  */
 async function renderClusterCards(clusters) {
   const container = document.getElementById('clusterCardsContainer');
-  container.innerHTML = '';
+  if (!container) {
+    console.error('❌ clusterCardsContainer not found in DOM');
+    return;
+  }
   
-  for (const cluster of clusters) {
-    const card = await createClusterCard(cluster);
+  container.innerHTML = '';
+  console.log(`   📦 Rendering ${clusters.length} cards...`);
+  
+  for (let i = 0; i < clusters.length; i++) {
+    const cluster = clusters[i];
+    
+    // Find the actual index in allClustersForAnalysis
+    const actualIndex = allClustersForAnalysis.findIndex(c => 
+      c.mainRep?.representativePath === cluster.mainRep?.representativePath
+    );
+    
+    const card = await createClusterCard(cluster, actualIndex);
     container.appendChild(card);
   }
+  
+  console.log(`   ✅ ${container.children.length} cards rendered`);
 }
 
 /**
  * Create a single cluster card element
  */
-async function createClusterCard(cluster) {
+async function createClusterCard(cluster, clusterIndex) {
   const card = document.createElement('div');
   card.className = 'cluster-card';
-  card.dataset.groupIndex = cluster.groupIndex;
+  card.dataset.clusterIndex = clusterIndex;
   
   // Get thumbnail
   const thumbnailPath = cluster.mainRep?.representativePath || cluster.mainRep?.filePath;
-  let thumbnailSrc = '';
+  let thumbnailSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" fill="%23dee2e6"><rect width="200" height="150"/></svg>';
+  
   if (thumbnailPath) {
     try {
-      thumbnailSrc = await window.electronAPI.getPreviewImage(thumbnailPath);
+      const result = await window.electronAPI.getPreviewImage(thumbnailPath);
+      if (result.success) {
+        thumbnailSrc = result.dataUrl;
+      }
     } catch (error) {
       console.error('Failed to load thumbnail:', error);
     }
   }
   
-  // Get metadata (from stored analysis or cluster data)
-  const metadata = cluster.analysisMetadata || {};
+  // Get metadata from analyzedClusters Map
+  const metadata = analyzedClusters.get(clusterIndex) || {};
   const title = metadata.title || 'Untitled';
   const description = metadata.description || 'No description available';
   const caption = metadata.caption || 'No caption available';
   const gps = metadata.gps || cluster.mainRep?.gps || {};
   const lat = gps.latitude || 'N/A';
   const lon = gps.longitude || 'N/A';
-  const filename = cluster.mainRep?.filename || 'Unknown';
+  const filename = cluster.mainRep?.representativeFilename || cluster.mainRep?.filename || 'Unknown';
   
   // Build card HTML
   card.innerHTML = `
@@ -3790,17 +3862,17 @@ async function createClusterCard(cluster) {
     <div class="cluster-card-metadata">
       <div class="cluster-card-field">
         <label>Title:</label>
-        <p>${title}</p>
+        <p>${escapeHtml(title)}</p>
       </div>
       
       <div class="cluster-card-field">
         <label>Description:</label>
-        <p>${description}</p>
+        <p>${escapeHtml(description)}</p>
       </div>
       
       <div class="cluster-card-field">
         <label>Caption:</label>
-        <p>${caption}</p>
+        <p>${escapeHtml(caption)}</p>
       </div>
       
       <div class="cluster-card-field">
@@ -3815,7 +3887,7 @@ async function createClusterCard(cluster) {
     </div>
     
     <div class="cluster-card-actions">
-      <button class="cluster-card-edit-btn" onclick="openEditModal(${cluster.groupIndex})">
+      <button class="cluster-card-edit-btn" onclick="openEditModal(${clusterIndex})">
         Edit/Update
       </button>
     </div>
@@ -5188,6 +5260,192 @@ function showNotification(message, type = 'info') {
       }
     }, 300);
   }, 3000);
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Open map link in browser
+ */
+function openMapLink(lat, lon) {
+  const url = `https://www.google.com/maps?q=${lat},${lon}`;
+  window.open(url, '_blank');
+}
+
+/**
+ * Open edit modal for a cluster
+ */
+async function openEditModal(clusterIndex) {
+  console.log('🔧 Opening edit modal for cluster:', clusterIndex);
+  
+  const cluster = allClustersForAnalysis[clusterIndex];
+  if (!cluster) {
+    alert('Cluster not found');
+    return;
+  }
+  
+  // Store current editing context
+  window.currentEditingCluster = cluster;
+  window.currentEditingClusterIndex = clusterIndex;
+  
+  // Get metadata
+  const metadata = analyzedClusters.get(clusterIndex) || {};
+  
+  // Populate modal fields
+  const thumbnailPath = cluster.mainRep?.representativePath;
+  if (thumbnailPath) {
+    try {
+      const result = await window.electronAPI.getPreviewImage(thumbnailPath);
+      if (result.success) {
+        document.getElementById('modalThumbnail').src = result.dataUrl;
+      }
+    } catch (error) {
+      console.error('Failed to load thumbnail:', error);
+    }
+  }
+  
+  document.getElementById('modalFilename').textContent = 
+    cluster.mainRep?.representativeFilename || 'Unknown';
+  
+  // Populate all fields
+  document.getElementById('modalMetaTitle').value = metadata.title || '';
+  document.getElementById('modalMetaDescription').value = metadata.description || '';
+  document.getElementById('modalMetaCaption').value = metadata.caption || '';
+  
+  const gps = metadata.gps || cluster.mainRep?.gps || {};
+  document.getElementById('modalGpsLat').value = gps.latitude || '';
+  document.getElementById('modalGpsLon').value = gps.longitude || '';
+  
+  // Keywords
+  const keywordsContainer = document.getElementById('modalKeywordsContainer');
+  keywordsContainer.innerHTML = '';
+  (metadata.keywords || []).forEach(keyword => {
+    const tag = createModalKeywordTag(keyword);
+    keywordsContainer.appendChild(tag);
+  });
+  
+  document.getElementById('modalMetaCategory').value = metadata.category || '';
+  document.getElementById('modalMetaSceneType').value = metadata.sceneType || '';
+  document.getElementById('modalMetaMood').value = metadata.mood || '';
+  
+  const location = metadata.location || {};
+  document.getElementById('modalMetaCity').value = location.city || '';
+  document.getElementById('modalMetaState').value = location.state || '';
+  document.getElementById('modalMetaCountry').value = location.country || '';
+  document.getElementById('modalMetaSpecificLocation').value = location.specificLocation || '';
+  
+  const hashtags = metadata.hashtags || [];
+  document.getElementById('modalMetaHashtags').value = hashtags.join(' ');
+  
+  // Show modal
+  document.getElementById('editMetadataModal').style.display = 'flex';
+}
+
+/**
+ * Close edit modal
+ */
+function closeEditModal() {
+  document.getElementById('editMetadataModal').style.display = 'none';
+  window.currentEditingCluster = null;
+  window.currentEditingClusterIndex = null;
+}
+
+/**
+ * Save metadata from modal
+ */
+function saveModalMetadata() {
+  const clusterIndex = window.currentEditingClusterIndex;
+  
+  if (clusterIndex === null || clusterIndex === undefined) {
+    alert('No cluster selected');
+    return;
+  }
+  
+  // Collect keywords
+  const keywords = Array.from(
+    document.querySelectorAll('#modalKeywordsContainer .keyword-tag span:first-child')
+  ).map(span => span.textContent.trim());
+  
+  // Collect hashtags
+  const hashtagsText = document.getElementById('modalMetaHashtags').value || '';
+  const hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
+  
+  // Build metadata object
+  const metadata = {
+    title: document.getElementById('modalMetaTitle').value,
+    description: document.getElementById('modalMetaDescription').value,
+    caption: document.getElementById('modalMetaCaption').value,
+    gps: {
+      latitude: parseFloat(document.getElementById('modalGpsLat').value) || null,
+      longitude: parseFloat(document.getElementById('modalGpsLon').value) || null
+    },
+    keywords: keywords,
+    category: document.getElementById('modalMetaCategory').value,
+    sceneType: document.getElementById('modalMetaSceneType').value,
+    mood: document.getElementById('modalMetaMood').value,
+    location: {
+      city: document.getElementById('modalMetaCity').value,
+      state: document.getElementById('modalMetaState').value,
+      country: document.getElementById('modalMetaCountry').value,
+      specificLocation: document.getElementById('modalMetaSpecificLocation').value
+    },
+    hashtags: hashtags
+  };
+  
+  // Save to Map
+  analyzedClusters.set(clusterIndex, metadata);
+  
+  console.log(`✅ Saved metadata for cluster ${clusterIndex}`);
+  
+  // Close modal
+  closeEditModal();
+  
+  // Refresh card list
+  loadClustersForAnalysisCardView();
+}
+
+/**
+ * Create keyword tag for modal
+ */
+function createModalKeywordTag(keyword) {
+  const tag = document.createElement('div');
+  tag.className = 'keyword-tag';
+  
+  const text = document.createElement('span');
+  text.textContent = keyword;
+  
+  const remove = document.createElement('span');
+  remove.className = 'keyword-remove';
+  remove.textContent = '×';
+  remove.onclick = () => tag.remove();
+  
+  tag.appendChild(text);
+  tag.appendChild(remove);
+  
+  return tag;
+}
+
+/**
+ * Add keyword in modal
+ */
+function addModalKeyword() {
+  const input = document.getElementById('modalNewKeywordInput');
+  const keyword = input.value.trim();
+  
+  if (!keyword) return;
+  
+  const container = document.getElementById('modalKeywordsContainer');
+  const tag = createModalKeywordTag(keyword);
+  container.appendChild(tag);
+  
+  input.value = '';
 }
 
 // ============================================
