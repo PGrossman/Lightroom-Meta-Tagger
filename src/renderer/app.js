@@ -3209,45 +3209,8 @@ async function batchAnalyzeAllClusters() {
  * Load all clusters into AI Analysis tab with thumbnail grid
  */
 function loadClustersForAnalysis() {
-  // Check if we have clusters (either from batch analysis or from allProcessedImages)
-  const sourceClusters = allClustersForAnalysis.length > 0 ? allClustersForAnalysis : allProcessedImages;
-  const generateBtn = document.getElementById('generateAllXMPBtn');
-  
-  if (!sourceClusters || sourceClusters.length === 0) {
-    // Show empty state, hide button
-    document.getElementById('aiAnalysisEmpty').style.display = 'block';
-    document.getElementById('clusterSelectionSection').style.display = 'none';
-    if (generateBtn) generateBtn.style.display = 'none';
-    return;
-  }
-  
-  // ✅ DEDUPLICATE - Remove duplicate super clusters
-  const uniqueClusters = [];
-  const seenPaths = new Set();
-  
-  sourceClusters.forEach(group => {
-    const repPath = group.mainRep?.representativePath;
-    if (repPath && !seenPaths.has(repPath)) {
-      seenPaths.add(repPath);
-      uniqueClusters.push(group);
-    }
-  });
-  
-  allClustersForAnalysis = uniqueClusters;
-  
-  console.log(`✅ Loaded ${uniqueClusters.length} unique super clusters (${analyzedClusters.size} analyzed)`);
-  
-  // Show cluster grid and button
-  document.getElementById('aiAnalysisEmpty').style.display = 'none';
-  document.getElementById('clusterSelectionSection').style.display = 'block';
-  if (generateBtn) generateBtn.style.display = 'block';
-  document.getElementById('aiAnalysisResults').style.display = 'none';
-  
-  // Hide confidence badge when showing cluster grid
-  const confidenceInline = document.getElementById('aiConfidenceInline');
-  if (confidenceInline) confidenceInline.style.display = 'none';
-  
-  renderClusterThumbnailGrid();
+  // Use the new card-based function
+  loadClustersForAnalysisCardView();
 }
 
 /**
