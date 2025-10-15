@@ -15,22 +15,30 @@ class AIAnalysisService {
   /**
    * Analyze image with Ollama (primary)
    */
-  async analyzeWithOllama(imagePath, context) {
-    this.logger.info('Analyzing with Ollama', { imagePath });
+  async analyzeWithOllama(imagePath, context, customPrompt = null) {
+    this.logger.info('Analyzing with Ollama', { imagePath, hasCustomPrompt: !!customPrompt });
     
-    // Use balanced strategy by default (can be configured)
-    const promptStrategy = this.config?.aiAnalysis?.promptStrategy || 'balanced';
-    const prompt = this.buildPrompt(context, promptStrategy);
+    let enhancedPrompt;
     
-    // For original strategy, add the enhanced prompt wrapper
-    // For balanced strategy, confidence is already built-in
-    const enhancedPrompt = promptStrategy === 'original' 
-      ? `${prompt}
+    if (customPrompt) {
+      // Use custom prompt provided by user
+      enhancedPrompt = customPrompt;
+      this.logger.info('Using custom prompt for analysis');
+    } else {
+      // Use balanced strategy by default (can be configured)
+      const promptStrategy = this.config?.aiAnalysis?.promptStrategy || 'balanced';
+      const prompt = this.buildPrompt(context, promptStrategy);
+      
+      // For original strategy, add the enhanced prompt wrapper
+      // For balanced strategy, confidence is already built-in
+      enhancedPrompt = promptStrategy === 'original' 
+        ? `${prompt}
 
 IMPORTANT: Include a "confidence" field (0-100) indicating how certain you are about this analysis.
 Also include "uncertainFields" array listing any fields you're unsure about.
 If you cannot determine a field with confidence, leave it as an empty string and add it to uncertainFields.`
-      : prompt; // Balanced strategy already includes confidence requirements
+        : prompt; // Balanced strategy already includes confidence requirements
+    }
 
     try {
       const result = await this.ollamaService.analyzeImageWithVision(imagePath, enhancedPrompt);
@@ -60,14 +68,16 @@ If you cannot determine a field with confidence, leave it as an empty string and
   /**
    * Analyze image with Google Vision (fallback)
    */
-  async analyzeWithGoogleVision(imagePath, context) {
-    this.logger.info('Analyzing with Google Vision', { imagePath });
+  async analyzeWithGoogleVision(imagePath, context, customPrompt = null) {
+    this.logger.info('Analyzing with Google Vision', { imagePath, hasCustomPrompt: !!customPrompt });
     
     if (!this.googleVisionService.isConfigured()) {
       throw new Error('Google Vision API key not configured. Please add your API key in Settings.');
     }
 
     try {
+      // Google Vision doesn't support custom prompts, so we ignore it
+      // and use the standard context-based analysis
       const result = await this.googleVisionService.analyzeImageForMetadata(imagePath, context);
       
       // Google Vision is generally very confident
@@ -87,10 +97,11 @@ If you cannot determine a field with confidence, leave it as an empty string and
   /**
    * Main analysis method with automatic fallback logic
    */
-  async analyzeCluster(cluster, existingData = {}, forceProvider = null) {
+  async analyzeCluster(cluster, existingData = {}, forceProvider = null, customPrompt = null) {
     console.log('\n🤖 === AI ANALYSIS START ===');
     console.log('   Cluster:', cluster.mainRep?.representativeFilename || 'unknown');
     console.log('   forceProvider:', forceProvider);
+    console.log('   hasCustomPrompt:', !!customPrompt);
     
     const context = this.buildContext(cluster, existingData);
     const repPath = cluster.mainRep.representativePath;
@@ -99,10 +110,10 @@ If you cannot determine a field with confidence, leave it as an empty string and
 
     if (forceProvider === 'google') {
       // User explicitly requested Google Vision
-      result = await this.analyzeWithGoogleVision(repPath, context);
+      result = await this.analyzeWithGoogleVision(repPath, context, customPrompt);
     } else {
       // Start with Ollama
-      result = await this.analyzeWithOllama(repPath, context);
+      result = await this.analyzeWithOllama(repPath, context, customPrompt);
       
       // Check if confidence meets threshold
       if (result.confidence < this.confidenceThreshold) {

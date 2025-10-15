@@ -13,6 +13,10 @@ let currentPage = 1;
 let rowsPerPage = 10;
 let allClusters = [];
 
+// Prompt editing state
+let customPrompts = new Map(); // Map of representativePath -> customPrompt
+let currentPromptCluster = null; // Currently editing cluster
+
 // UI Elements - Will be initialized after DOM loads
 let selectDirBtn;
 let dropzone;
@@ -2800,6 +2804,55 @@ function initializeModalListeners() {
     }
   });
   console.log('✅ Escape key listener attached');
+  
+  // Prompt Editor Modal listeners
+  const promptModalCloseBtn = document.getElementById('promptModalCloseBtn');
+  const promptModalBackdrop = document.getElementById('promptModalBackdrop');
+  const promptEditorCancelBtn = document.getElementById('promptEditorCancelBtn');
+  const promptEditorSaveBtn = document.getElementById('promptEditorSaveBtn');
+  
+  if (promptModalCloseBtn) {
+    promptModalCloseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePromptEditor();
+    });
+    console.log('✅ Prompt modal close button listener attached');
+  }
+  
+  if (promptModalBackdrop) {
+    promptModalBackdrop.addEventListener('click', (e) => {
+      if (e.target === promptModalBackdrop) {
+        closePromptEditor();
+      }
+    });
+    console.log('✅ Prompt modal backdrop listener attached');
+  }
+  
+  if (promptEditorCancelBtn) {
+    promptEditorCancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closePromptEditor();
+    });
+    console.log('✅ Prompt editor cancel button listener attached');
+  }
+  
+  if (promptEditorSaveBtn) {
+    promptEditorSaveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveCustomPrompt();
+    });
+    console.log('✅ Prompt editor save button listener attached');
+  }
+  
+  // Close prompt modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const promptModal = document.getElementById('promptEditorModal');
+      if (promptModal && promptModal.style.display !== 'none') {
+        closePromptEditor();
+      }
+    }
+  });
 }
 
 // ============================================
@@ -3213,10 +3266,53 @@ async function renderClusterThumbnailGrid() {
     info.className = 'cluster-thumbnail-info';
     info.textContent = group.mainRep.representativeFilename;
     
+    // Action buttons container
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'cluster-actions';
+    
+    // Analyze with AI button
+    const analyzeBtn = document.createElement('button');
+    analyzeBtn.className = 'analyze-ai-btn';
+    analyzeBtn.innerHTML = `
+      <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      Analyze with AI
+    `;
+    analyzeBtn.onclick = (e) => {
+      e.stopPropagation();
+      analyzeClusterWithCustomPrompt(group);
+    };
+    
+    // View/Edit Prompt button
+    const promptBtn = document.createElement('button');
+    promptBtn.className = 'view-prompt-btn';
+    promptBtn.setAttribute('data-cluster-path', group.mainRep.representativePath);
+    promptBtn.innerHTML = `
+      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      View Prompt
+    `;
+    promptBtn.onclick = (e) => {
+      e.stopPropagation();
+      showPromptEditor(group);
+    };
+    
+    // Update button state based on custom prompt
+    updatePromptButtonState(group.mainRep.representativePath);
+    
+    actionsContainer.appendChild(analyzeBtn);
+    actionsContainer.appendChild(promptBtn);
+    
     card.appendChild(img);
     card.appendChild(info);
+    card.appendChild(actionsContainer);
     
-    // Click handler
+    // Click handler for card (select cluster)
     card.onclick = () => selectCluster(i);
     
     grid.appendChild(card);
@@ -4599,6 +4695,263 @@ window.debugGPS = function() {
   
   console.log('\n========================\n');
 };
+
+// ============================================
+// Prompt Editor Functions
+// ============================================
+
+/**
+ * Show the prompt editor modal for a specific cluster
+ */
+async function showPromptEditor(clusterGroup) {
+  console.log('📝 Opening prompt editor for:', clusterGroup.mainRep?.representativeFilename);
+  
+  currentPromptCluster = clusterGroup;
+  const representativePath = clusterGroup.mainRep?.representativePath;
+  const filename = clusterGroup.mainRep?.representativeFilename;
+  
+  if (!representativePath) {
+    alert('Error: Could not identify cluster for prompt editing');
+    return;
+  }
+  
+  // Update modal title and filename
+  document.getElementById('promptEditorTitle').textContent = 'Edit AI Prompt';
+  document.getElementById('promptEditorFilename').textContent = filename;
+  
+  // Check if we have a custom prompt for this cluster
+  let promptText = '';
+  if (customPrompts.has(representativePath)) {
+    promptText = customPrompts.get(representativePath);
+    console.log('📝 Using saved custom prompt');
+  } else {
+    // Generate default prompt
+    try {
+      console.log('📝 Generating default prompt...');
+      const result = await window.electronAPI.generateDefaultPrompt(clusterGroup);
+      if (result.success) {
+        promptText = result.prompt;
+        console.log('✅ Default prompt generated');
+      } else {
+        console.warn('⚠️ Failed to generate default prompt, using fallback');
+        promptText = generateFallbackPrompt(clusterGroup);
+      }
+    } catch (error) {
+      console.error('❌ Error generating default prompt:', error);
+      promptText = generateFallbackPrompt(clusterGroup);
+    }
+  }
+  
+  // Set the textarea content
+  document.getElementById('promptEditorTextarea').value = promptText;
+  
+  // Show the modal
+  document.getElementById('promptEditorModal').style.display = 'block';
+  
+  // Focus the textarea
+  setTimeout(() => {
+    document.getElementById('promptEditorTextarea').focus();
+  }, 100);
+}
+
+/**
+ * Generate a fallback prompt if the backend fails
+ */
+function generateFallbackPrompt(clusterGroup) {
+  const filename = clusterGroup.mainRep?.representativeFilename || 'Unknown';
+  const keywords = clusterGroup.mainRep?.keywords || [];
+  const gps = clusterGroup.mainRep?.gps;
+  
+  let prompt = `You are analyzing a photograph named "${filename}".\n\n`;
+  
+  if (keywords.length > 0) {
+    prompt += `The image has these keywords: ${keywords.join(', ')}\n\n`;
+  }
+  
+  if (gps && gps.latitude && gps.longitude) {
+    prompt += `The image was taken at GPS coordinates: ${gps.latitude}, ${gps.longitude}\n\n`;
+  }
+  
+  prompt += `Please analyze this image and provide detailed metadata including:\n`;
+  prompt += `- A descriptive title\n`;
+  prompt += `- Relevant keywords and tags\n`;
+  prompt += `- Location information if identifiable\n`;
+  prompt += `- Subject matter description\n`;
+  prompt += `- Technical details if relevant\n\n`;
+  prompt += `Format your response as JSON with fields: title, keywords, location, description, technicalDetails`;
+  
+  return prompt;
+}
+
+/**
+ * Save the custom prompt for the current cluster
+ */
+function saveCustomPrompt() {
+  const textarea = document.getElementById('promptEditorTextarea');
+  const promptText = textarea.value.trim();
+  
+  if (!promptText) {
+    alert('Prompt cannot be empty');
+    return;
+  }
+  
+  if (!currentPromptCluster) {
+    alert('Error: Could not save prompt');
+    return;
+  }
+  
+  const representativePath = currentPromptCluster.mainRep?.representativePath;
+  if (!representativePath) {
+    alert('Error: Could not identify cluster for saving prompt');
+    return;
+  }
+  
+  // Save the custom prompt
+  customPrompts.set(representativePath, promptText);
+  
+  console.log('💾 Saved custom prompt for:', currentPromptCluster.mainRep?.representativeFilename);
+  
+  // Update the button text to show it's been edited
+  updatePromptButtonState(representativePath);
+  
+  // Close the modal
+  closePromptEditor();
+  
+  // Show success message
+  showNotification('Custom prompt saved successfully!', 'success');
+}
+
+/**
+ * Close the prompt editor modal
+ */
+function closePromptEditor() {
+  document.getElementById('promptEditorModal').style.display = 'none';
+  currentPromptCluster = null;
+}
+
+/**
+ * Update the prompt button state based on whether a custom prompt exists
+ */
+function updatePromptButtonState(representativePath) {
+  // Find all prompt buttons for this cluster
+  const buttons = document.querySelectorAll(`[data-cluster-path="${representativePath}"]`);
+  
+  buttons.forEach(button => {
+    if (customPrompts.has(representativePath)) {
+      button.textContent = '✏️ Edit Prompt';
+      button.classList.add('editing');
+    } else {
+      button.textContent = 'View Prompt';
+      button.classList.remove('editing');
+    }
+  });
+}
+
+/**
+ * Analyze cluster with custom prompt if available
+ */
+async function analyzeClusterWithCustomPrompt(clusterGroup) {
+  const representativePath = clusterGroup.mainRep?.representativePath;
+  const customPrompt = customPrompts.get(representativePath);
+  
+  console.log('🤖 Analyzing cluster with', customPrompt ? 'custom' : 'default', 'prompt');
+  
+  try {
+    // Show loading state
+    updateStatus('Analyzing with AI...', 'processing');
+    showProgress(0);
+    
+    // Call backend with custom prompt if available
+    const result = await window.electronAPI.analyzeClusterWithAI(clusterGroup, customPrompt);
+    
+    showProgress(100);
+    
+    if (result.success) {
+      console.log('✅ AI analysis complete:', result.data);
+      
+      // Store analysis data globally
+      currentAnalysisData = result.data;
+      
+      // Display results in AI Analysis tab
+      displayAIAnalysisResults(result.data);
+      
+      // Switch to AI Analysis tab
+      const aiAnalysisTab = document.querySelector('[data-tab="ai-analysis"]');
+      if (aiAnalysisTab) {
+        aiAnalysisTab.click();
+      }
+      
+      updateStatus('AI analysis complete!', 'complete');
+      
+    } else {
+      throw new Error(result.error || 'AI analysis failed');
+    }
+    
+  } catch (error) {
+    console.error('❌ AI analysis failed:', error);
+    updateStatus(`AI analysis failed: ${error.message}`, 'error');
+    alert(`AI analysis failed: ${error.message}`);
+  }
+}
+
+/**
+ * Show a notification message
+ */
+function showNotification(message, type = 'info') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.textContent = message;
+  
+  // Style the notification
+  Object.assign(notification.style, {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    padding: '12px 20px',
+    borderRadius: '6px',
+    color: 'white',
+    fontWeight: '600',
+    zIndex: '10000',
+    maxWidth: '300px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    transform: 'translateX(100%)',
+    transition: 'transform 0.3s ease'
+  });
+  
+  // Set background color based on type
+  switch (type) {
+    case 'success':
+      notification.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+      break;
+    case 'error':
+      notification.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+      break;
+    case 'warning':
+      notification.style.background = 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)';
+      break;
+    default:
+      notification.style.background = 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)';
+  }
+  
+  // Add to page
+  document.body.appendChild(notification);
+  
+  // Animate in
+  setTimeout(() => {
+    notification.style.transform = 'translateX(0)';
+  }, 10);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    notification.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
 
 // ============================================
 // Application Ready

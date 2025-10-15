@@ -788,6 +788,37 @@
     </div>
   </div>
 
+  <!-- Prompt Editor Modal -->
+  <div id="promptEditorModal" class="modal" style="display: none;">
+    <div class="modal-backdrop" id="promptModalBackdrop"></div>
+    <div class="modal-content prompt-editor-modal">
+      <div class="modal-header">
+        <h3 id="promptEditorTitle">Edit AI Prompt</h3>
+        <button class="modal-close" id="promptModalCloseBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="prompt-editor-info">
+          <p><strong>Image:</strong> <span id="promptEditorFilename"></span></p>
+          <p class="prompt-editor-instructions">
+            Customize the prompt that will be sent to the AI for analyzing this image. 
+            The AI will use this prompt to generate metadata for the image.
+          </p>
+        </div>
+        <div class="prompt-editor-textarea-container">
+          <textarea 
+            id="promptEditorTextarea" 
+            placeholder="Enter your custom prompt here..."
+            rows="12"
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="promptEditorCancelBtn" class="secondary-button">Cancel</button>
+        <button id="promptEditorSaveBtn" class="primary-button">Save Prompt</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

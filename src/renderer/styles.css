@@ -2280,3 +2280,167 @@ td:nth-child(4) {
   transform: translateY(0);
 }
 
+/* ============================================
+   Prompt Editor Modal
+   ============================================ */
+
+.prompt-editor-modal {
+  max-width: 800px;
+  width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-editor-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.prompt-editor-modal .modal-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.prompt-editor-modal .modal-body {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.prompt-editor-info {
+  margin-bottom: 20px;
+}
+
+.prompt-editor-info p {
+  margin: 0 0 8px 0;
+  color: #495057;
+}
+
+.prompt-editor-instructions {
+  font-size: 14px;
+  color: #6c757d;
+  line-height: 1.5;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.prompt-editor-textarea-container {
+  margin-bottom: 20px;
+}
+
+#promptEditorTextarea {
+  width: 100%;
+  min-height: 300px;
+  padding: 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#promptEditorTextarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.prompt-editor-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 0 0 8px 8px;
+}
+
+/* ============================================
+   View/Edit Prompt Button
+   ============================================ */
+
+.view-prompt-btn {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.view-prompt-btn:hover {
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.view-prompt-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+}
+
+.view-prompt-btn:disabled {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.6;
+}
+
+.view-prompt-btn .btn-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+/* Button states */
+.view-prompt-btn.editing {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+}
+
+.view-prompt-btn.editing:hover {
+  background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+}
+
+/* ============================================
+   Cluster Action Buttons Container
+   ============================================ */
+
+.cluster-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.cluster-actions .analyze-ai-btn {
+  margin: 0;
+  flex: 1;
+  min-width: 120px;
+}
+
+.cluster-actions .view-prompt-btn {
+  margin: 0;
+  flex-shrink: 0;
+}
+

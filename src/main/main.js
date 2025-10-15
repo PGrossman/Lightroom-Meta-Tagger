@@ -1349,11 +1349,11 @@ ipcMain.handle('save-personal-data', async (event, data) => {
 // AI Analysis IPC Handlers
 // ============================================
 
-ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvider) => {
+ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, customPrompt) => {
   try {
     logger.info('Starting AI analysis', { 
       representative: clusterGroup.mainRep?.representativeFilename,
-      forceProvider: forceProvider || 'auto'
+      hasCustomPrompt: !!customPrompt
     });
     
     // Check if service is initialized
@@ -1381,17 +1381,18 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
     // Send progress updates
     event.sender.send('progress-update', {
       stage: 'ai-analysis',
-      message: forceProvider === 'google' 
-        ? 'Analyzing with Google Vision...' 
-        : 'Analyzing with Ollama...',
+      message: customPrompt 
+        ? 'Analyzing with custom prompt...' 
+        : 'Analyzing with default prompt...',
       percent: 10
     });
     
-    // Perform analysis
+    // Perform analysis with custom prompt if provided
     const analysisResult = await aiAnalysisService.analyzeCluster(
       clusterGroup,
       {},
-      forceProvider
+      'auto', // provider
+      customPrompt // custom prompt
     );
     
     event.sender.send('progress-update', {
@@ -1415,6 +1416,76 @@ ipcMain.handle('analyze-cluster-with-ai', async (event, clusterGroup, forceProvi
     logger.error('AI analysis failed', { 
       error: error.message,
       stack: error.stack
+    });
+    
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// Generate default prompt for a cluster
+ipcMain.handle('generate-default-prompt', async (event, clusterGroup) => {
+  try {
+    logger.info('Generating default prompt', { 
+      representative: clusterGroup.mainRep?.representativeFilename
+    });
+    
+    const filename = clusterGroup.mainRep?.representativeFilename || 'Unknown';
+    const keywords = clusterGroup.mainRep?.keywords || [];
+    const gps = clusterGroup.mainRep?.gps;
+    const imageCount = clusterGroup.allClusters?.length || 1;
+    
+    let prompt = `You are analyzing a photograph named "${filename}".\n\n`;
+    
+    // Add context about the image
+    if (keywords.length > 0) {
+      prompt += `The image has these keywords: ${keywords.join(', ')}\n\n`;
+    }
+    
+    if (gps && gps.latitude && gps.longitude) {
+      prompt += `The image was taken at GPS coordinates: ${gps.latitude}, ${gps.longitude}\n\n`;
+    }
+    
+    if (imageCount > 1) {
+      prompt += `This is part of a cluster with ${imageCount} related images.\n\n`;
+    }
+    
+    // Add analysis instructions
+    prompt += `Please analyze this image and provide detailed metadata including:\n`;
+    prompt += `- A descriptive title (be specific and engaging)\n`;
+    prompt += `- Relevant keywords and tags (5-10 keywords)\n`;
+    prompt += `- Location information if identifiable from the image\n`;
+    prompt += `- Subject matter description (what you see in the image)\n`;
+    prompt += `- Technical details if relevant (lighting, composition, etc.)\n`;
+    prompt += `- Any historical or cultural context if apparent\n\n`;
+    prompt += `Format your response as JSON with these exact fields:\n`;
+    prompt += `{\n`;
+    prompt += `  "title": "Descriptive title here",\n`;
+    prompt += `  "keywords": ["keyword1", "keyword2", "keyword3"],\n`;
+    prompt += `  "location": "Location description or null",\n`;
+    prompt += `  "description": "Detailed description of what you see",\n`;
+    prompt += `  "technicalDetails": "Technical observations or null",\n`;
+    prompt += `  "confidence": 0.85\n`;
+    prompt += `}\n\n`;
+    prompt += `Be thorough but concise. Focus on what would be most useful for organizing and finding this image later.`;
+    
+    logger.info('Default prompt generated', { 
+      promptLength: prompt.length,
+      hasGPS: !!gps,
+      keywordCount: keywords.length
+    });
+    
+    return {
+      success: true,
+      prompt: prompt
+    };
+    
+  } catch (error) {
+    logger.error('Failed to generate default prompt', { 
+      error: error.message,
+      representative: clusterGroup.mainRep?.representativeFilename
     });
     
     return {

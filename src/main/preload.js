@@ -41,8 +41,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   savePersonalData: (data) => ipcRenderer.invoke('save-personal-data', data),
   
   // AI Analysis
-  analyzeClusterWithAI: (clusterGroup, provider) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, provider),
+  analyzeClusterWithAI: (clusterGroup, customPrompt) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, customPrompt),
   generateXMPFiles: (data) => ipcRenderer.invoke('generate-xmp-files', data),
+  
+  // Prompt Editor
+  generateDefaultPrompt: (clusterGroup) => ipcRenderer.invoke('generate-default-prompt', clusterGroup),
   
   // File system helpers for drag & drop (via IPC to main process)
   isDirectory: (filePath) => ipcRenderer.invoke('is-directory', filePath),
