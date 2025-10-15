@@ -1467,7 +1467,9 @@ async function createResultsTableRowFromGroup(group) {
   thumbnail.onclick = () => {
     showImagePreview(
       cluster.representativePath,
-      cluster.representativeFilename
+      cluster.representativeFilename,
+      null, // similarityPercent
+      null  // sourceCluster - no button for main representatives
     );
   };
   

@@ -4188,3 +4188,26 @@ clusterCount: 32
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 32
+
+
+=== MAIN.JS LOADED 2025-10-15T23:33:43.633Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T23:34:07.890Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T23:34:56.072Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32
