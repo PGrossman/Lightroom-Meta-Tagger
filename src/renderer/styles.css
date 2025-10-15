@@ -2708,3 +2708,188 @@ td:nth-child(4) {
   font-weight: 600;
 }
 
+
+/* ============================================
+   EDIT METADATA MODAL STYLES (DRAGGABLE)
+   ============================================ */
+
+/* Make modal draggable */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  position: relative; /* For dragging */
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #dee2e6;
+  cursor: move; /* Show it's draggable */
+  user-select: none;
+  background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.modal-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+/* Form styling for modal */
+.modal-body .form-group {
+  margin-bottom: 20px;
+}
+
+.modal-body label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.modal-body input,
+.modal-body textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.modal-body input:focus,
+.modal-body textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.modal-body textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Keywords styling */
+.keyword-item {
+  display: inline-flex;
+  align-items: center;
+  background: #e9ecef;
+  border-radius: 20px;
+  padding: 4px 8px;
+  margin: 4px;
+  font-size: 13px;
+}
+
+.keyword-delete-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.keyword-text {
+  color: #495057;
+}
+
+/* Button styling */
+.btn-primary {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #545b62;
+}

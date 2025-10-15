@@ -3843,3 +3843,52 @@ clusterCount: 13
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T20:24:08.874Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T20:38:02.855Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T20:41:37.632Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Reactor 1 - 4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T20:41:56.145Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 11
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 11
+
+
+=== MAIN.JS LOADED 2025-10-15T20:56:08.654Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T20:56:22.168Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T20:56:23.380Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2

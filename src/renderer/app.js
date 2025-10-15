@@ -3062,6 +3062,12 @@ function setupCardEventListeners(container) {
   });
 }
 
+// ============================================
+// EDIT METADATA MODAL FUNCTIONS (FOR HTML MODAL)
+// ============================================
+
+// Global variables for modal state (already declared at top of file)
+
 /**
  * Show metadata editor modal for a specific cluster
  */
@@ -3074,103 +3080,239 @@ function showMetadataEditor(clusterIndex) {
   const cluster = allClustersForAnalysis[clusterIndex];
   const metadata = analyzedClusters.get(clusterIndex) || {};
   
-  // Create modal HTML
-  const modalHTML = `
-    <div id="metadataEditorModal" class="modal" style="display: block;">
-      <div class="modal-content" style="max-width: 600px;">
-        <div class="modal-header">
-          <h3>Edit Metadata - ${cluster.mainRep?.representativeFilename || 'Unknown'}</h3>
-          <button class="modal-close" onclick="closeMetadataEditor()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="editTitle">Title:</label>
-            <input type="text" id="editTitle" value="${metadata.title || ''}" placeholder="Enter title">
-          </div>
-          <div class="form-group">
-            <label for="editDescription">Description:</label>
-            <textarea id="editDescription" rows="3" placeholder="Enter description">${metadata.description || ''}</textarea>
-          </div>
-          <div class="form-group">
-            <label for="editCaption">Caption:</label>
-            <textarea id="editCaption" rows="2" placeholder="Enter caption">${metadata.caption || ''}</textarea>
-          </div>
-          <div class="form-group">
-            <label for="editKeywords">Keywords:</label>
-            <input type="text" id="editKeywords" value="${metadata.keywords ? metadata.keywords.join(', ') : ''}" placeholder="Enter keywords separated by commas">
-          </div>
-          <div class="form-group">
-            <label for="editGPS">GPS Coordinates:</label>
-            <input type="text" id="editGPS" value="${cluster.gps ? `${cluster.gps.latitude}, ${cluster.gps.longitude}` : ''}" placeholder="latitude, longitude">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button onclick="closeMetadataEditor()" class="btn-secondary">Cancel</button>
-          <button onclick="saveMetadata(${clusterIndex})" class="btn-primary">Save Changes</button>
-        </div>
-      </div>
-    </div>
-  `;
+  // Store current editing cluster index (uses existing global variables)
+  currentEditingCluster = cluster;
+  currentEditingGroupIndex = clusterIndex;
   
-  // Add modal to page
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  // Show the modal (the HTML one, not creating a new one)
+  const modal = document.getElementById('editMetadataModal');
+  if (!modal) {
+    console.error('Modal element not found!');
+    return;
+  }
   
-  // Close on backdrop click
-  document.getElementById('metadataEditorModal').addEventListener('click', (e) => {
-    if (e.target.id === 'metadataEditorModal') {
-      closeMetadataEditor();
+  modal.style.display = 'flex';
+  
+  // Add backdrop click handler ONLY to this modal
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeEditModal();
     }
+  };
+  
+  // Populate all fields
+  populateEditModal(cluster, metadata);
+}
+
+/**
+ * Populate the edit modal with data
+ */
+async function populateEditModal(cluster, metadata) {
+  console.log('Populating edit modal with:', { cluster, metadata });
+  
+  // Thumbnail and filename
+  const thumbnail = document.getElementById('modalThumbnail');
+  const filename = document.getElementById('modalFilename');
+  
+  if (cluster.mainRep) {
+    filename.textContent = cluster.mainRep.representativeFilename || 'Unknown';
+    
+    // Load thumbnail
+    const result = await window.electronAPI.getPreviewImage(cluster.mainRep.representativePath);
+    if (result.success) {
+      thumbnail.src = result.dataUrl;
+    }
+  }
+  
+  // Basic fields
+  document.getElementById('modalMetaTitle').value = metadata.title || '';
+  document.getElementById('modalMetaDescription').value = metadata.description || '';
+  document.getElementById('modalMetaCaption').value = metadata.caption || '';
+  
+  // GPS Coordinates - CRITICAL FIX
+  const gps = cluster.mainRep?.gps || cluster.gps || metadata.gps;
+  console.log('GPS data found:', gps);
+  
+  if (gps && gps.latitude && gps.longitude) {
+    document.getElementById('modalGpsLat').value = gps.latitude;
+    document.getElementById('modalGpsLon').value = gps.longitude;
+  } else {
+    document.getElementById('modalGpsLat').value = '';
+    document.getElementById('modalGpsLon').value = '';
+  }
+  
+  // Keywords
+  populateModalKeywords(metadata.keywords || []);
+  
+  // Extended fields
+  document.getElementById('modalMetaCategory').value = metadata.category || '';
+  document.getElementById('modalMetaSceneType').value = metadata.sceneType || '';
+  document.getElementById('modalMetaMood').value = metadata.mood || '';
+  
+  // Location fields
+  document.getElementById('modalMetaCity').value = metadata.city || '';
+  document.getElementById('modalMetaState').value = metadata.state || '';
+  document.getElementById('modalMetaCountry').value = metadata.country || '';
+  document.getElementById('modalMetaSpecificLocation').value = metadata.specificLocation || '';
+  
+  // Hashtags
+  document.getElementById('modalMetaHashtags').value = metadata.hashtags || '';
+}
+
+/**
+ * Populate keywords container
+ */
+function populateModalKeywords(keywords) {
+  const container = document.getElementById('modalKeywordsContainer');
+  container.innerHTML = '';
+  
+  if (!keywords || keywords.length === 0) {
+    container.innerHTML = '<p style="color: #6c757d; font-size: 14px;">No keywords yet. Add some below.</p>';
+    return;
+  }
+  
+  keywords.forEach((keyword, index) => {
+    const keywordDiv = document.createElement('div');
+    keywordDiv.className = 'keyword-item';
+    keywordDiv.innerHTML = `
+      <button class="keyword-delete-btn" onclick="removeModalKeyword(${index})">×</button>
+      <span class="keyword-text" contenteditable="true" data-index="${index}" onblur="updateModalKeyword(${index}, this.textContent)">${keyword}</span>
+    `;
+    container.appendChild(keywordDiv);
   });
 }
 
 /**
- * Close metadata editor modal
+ * Add new keyword
  */
-function closeMetadataEditor() {
-  const modal = document.getElementById('metadataEditorModal');
-  if (modal) {
-    modal.remove();
-  }
+function addModalKeyword() {
+  const input = document.getElementById('modalNewKeywordInput');
+  const keyword = input.value.trim();
+  
+  if (!keyword) return;
+  
+  // Get current keywords from metadata
+  const metadata = analyzedClusters.get(currentEditingGroupIndex) || {};
+  const keywords = metadata.keywords || [];
+  
+  // Add new keyword
+  keywords.push(keyword);
+  
+  // Update metadata
+  analyzedClusters.set(currentEditingGroupIndex, {
+    ...metadata,
+    keywords: keywords
+  });
+  
+  // Refresh display
+  populateModalKeywords(keywords);
+  
+  // Clear input
+  input.value = '';
 }
 
 /**
- * Save metadata changes
+ * Remove keyword
  */
-function saveMetadata(clusterIndex) {
-  const title = document.getElementById('editTitle').value.trim();
-  const description = document.getElementById('editDescription').value.trim();
-  const caption = document.getElementById('editCaption').value.trim();
-  const keywords = document.getElementById('editKeywords').value.trim();
-  const gps = document.getElementById('editGPS').value.trim();
+function removeModalKeyword(index) {
+  const metadata = analyzedClusters.get(currentEditingGroupIndex) || {};
+  const keywords = metadata.keywords || [];
   
-  // Get current metadata or create new
-  const currentMetadata = analyzedClusters.get(clusterIndex) || {};
+  keywords.splice(index, 1);
   
-  // Update metadata
-  const updatedMetadata = {
-    ...currentMetadata,
-    title: title || currentMetadata.title,
-    description: description || currentMetadata.description,
-    caption: caption || currentMetadata.caption,
-    keywords: keywords ? keywords.split(',').map(k => k.trim()).filter(k => k) : currentMetadata.keywords
-  };
+  analyzedClusters.set(currentEditingGroupIndex, {
+    ...metadata,
+    keywords: keywords
+  });
   
-  // Save metadata
-  analyzedClusters.set(clusterIndex, updatedMetadata);
+  populateModalKeywords(keywords);
+}
+
+/**
+ * Update keyword text
+ */
+function updateModalKeyword(index, newText) {
+  const metadata = analyzedClusters.get(currentEditingGroupIndex) || {};
+  const keywords = metadata.keywords || [];
   
-  // Update GPS if provided
-  if (gps) {
-    updateGPS(allClustersForAnalysis[clusterIndex].mainRep.representativePath, gps);
+  keywords[index] = newText.trim();
+  
+  analyzedClusters.set(currentEditingGroupIndex, {
+    ...metadata,
+    keywords: keywords
+  });
+}
+
+/**
+ * Close edit modal
+ */
+function closeEditModal() {
+  const modal = document.getElementById('editMetadataModal');
+  if (modal) {
+    modal.style.display = 'none';
   }
   
-  // Close modal
-  closeMetadataEditor();
-  
-  // Refresh the cards to show updated data
-  renderCards(document.getElementById('clusterCardsContainer'));
-  
-  console.log('✅ Metadata saved for cluster:', clusterIndex);
+  currentEditingCluster = null;
+  currentEditingGroupIndex = null;
 }
+
+/**
+ * Save metadata from modal
+ */
+function saveModalMetadata() {
+  if (currentEditingGroupIndex === null) {
+    console.error('No cluster index set');
+    return;
+  }
+  
+  // Get current metadata
+  const currentMetadata = analyzedClusters.get(currentEditingGroupIndex) || {};
+  
+  // Collect all values from form
+  const updatedMetadata = {
+    ...currentMetadata,
+    title: document.getElementById('modalMetaTitle').value.trim(),
+    description: document.getElementById('modalMetaDescription').value.trim(),
+    caption: document.getElementById('modalMetaCaption').value.trim(),
+    category: document.getElementById('modalMetaCategory').value.trim(),
+    sceneType: document.getElementById('modalMetaSceneType').value.trim(),
+    mood: document.getElementById('modalMetaMood').value.trim(),
+    city: document.getElementById('modalMetaCity').value.trim(),
+    state: document.getElementById('modalMetaState').value.trim(),
+    country: document.getElementById('modalMetaCountry').value.trim(),
+    specificLocation: document.getElementById('modalMetaSpecificLocation').value.trim(),
+    hashtags: document.getElementById('modalMetaHashtags').value.trim(),
+    keywords: currentMetadata.keywords || [] // Keywords updated separately
+  };
+  
+  // Handle GPS coordinates
+  const lat = document.getElementById('modalGpsLat').value.trim();
+  const lon = document.getElementById('modalGpsLon').value.trim();
+  
+  if (lat && lon) {
+    updatedMetadata.gps = {
+      latitude: parseFloat(lat),
+      longitude: parseFloat(lon)
+    };
+  }
+  
+  // Save to analyzedClusters
+  analyzedClusters.set(currentEditingGroupIndex, updatedMetadata);
+  
+  console.log('✅ Metadata saved:', updatedMetadata);
+  
+  // Refresh the card display
+  const container = document.getElementById('clusterCardsContainer');
+  renderCards(container);
+  
+  // Close modal
+  closeEditModal();
+  
+  // Show success message
+  showNotification('✅ Metadata updated successfully!');
+}
+
+// Backdrop click handling is now done in showMetadataEditor function
 
 async function makeCard(cluster, metadata, index) {
   const card = document.createElement('div');
