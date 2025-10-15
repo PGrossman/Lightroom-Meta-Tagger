@@ -55,6 +55,7 @@ class ImageProcessor {
     try {
       // Try Sharp first (fast - extracts embedded preview)
       await sharp(rawPath)
+        .rotate() // ✅ FIX: Auto-rotate based on EXIF orientation
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85 })
         .toFile(outputPath);
@@ -154,6 +155,7 @@ class ImageProcessor {
 
       // Convert PPM to JPEG with Sharp
       await sharp(Buffer.from(stdout))
+        .rotate() // ✅ FIX: Auto-rotate based on EXIF orientation
         .resize(1200, 1200, { 
           fit: 'inside',
           withoutEnlargement: true 

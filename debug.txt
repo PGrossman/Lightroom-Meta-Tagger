@@ -4119,3 +4119,72 @@ clusterCount: 2
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T23:09:33.231Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T23:10:01.180Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T23:10:49.948Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32
+
+
+=== MAIN.JS LOADED 2025-10-15T23:13:05.411Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T23:13:30.719Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T23:14:19.505Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32
+
+
+=== MAIN.JS LOADED 2025-10-15T23:24:19.660Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T23:24:42.645Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T23:25:28.608Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32
