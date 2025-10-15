@@ -3216,11 +3216,12 @@ async function populateEditModal(cluster, metadata) {
   document.getElementById('modalMetaSceneType').value = metadata.sceneType || '';
   document.getElementById('modalMetaMood').value = metadata.mood || '';
   
-  // Location fields
-  document.getElementById('modalMetaCity').value = metadata.city || '';
-  document.getElementById('modalMetaState').value = metadata.state || '';
-  document.getElementById('modalMetaCountry').value = metadata.country || '';
-  document.getElementById('modalMetaSpecificLocation').value = metadata.specificLocation || '';
+  // 🔧 FIX: Location fields - handle nested location object
+  const location = metadata.location || {};
+  document.getElementById('modalMetaCity').value = location.city || metadata.city || '';
+  document.getElementById('modalMetaState').value = location.state || metadata.state || '';
+  document.getElementById('modalMetaCountry').value = location.country || metadata.country || '';
+  document.getElementById('modalMetaSpecificLocation').value = location.specificLocation || metadata.specificLocation || '';
   
   // Hashtags
   document.getElementById('modalMetaHashtags').value = metadata.hashtags || '';
@@ -3359,10 +3360,13 @@ function saveModalMetadata() {
     category: document.getElementById('modalMetaCategory').value.trim(),
     sceneType: document.getElementById('modalMetaSceneType').value.trim(),
     mood: document.getElementById('modalMetaMood').value.trim(),
-    city: document.getElementById('modalMetaCity').value.trim(),
-    state: document.getElementById('modalMetaState').value.trim(),
-    country: document.getElementById('modalMetaCountry').value.trim(),
-    specificLocation: document.getElementById('modalMetaSpecificLocation').value.trim(),
+    // 🔧 FIX: Store location in nested object structure
+    location: {
+      city: document.getElementById('modalMetaCity').value.trim(),
+      state: document.getElementById('modalMetaState').value.trim(),
+      country: document.getElementById('modalMetaCountry').value.trim(),
+      specificLocation: document.getElementById('modalMetaSpecificLocation').value.trim()
+    },
     hashtags: document.getElementById('modalMetaHashtags').value.trim(),
     keywords: currentMetadata.keywords || [] // Keywords updated separately
   };

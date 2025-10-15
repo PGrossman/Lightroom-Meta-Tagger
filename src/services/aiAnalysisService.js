@@ -188,7 +188,7 @@ CONTEXT INFORMATION:`;
     }
     
     if (context.gps) {
-      prompt += `\n- GPS Coordinates: ${context.gps.latitude}, ${context.gps.longitude} (Use this to help identify the location)`;
+      prompt += `\n- GPS Coordinates: ${context.gps.latitude}, ${context.gps.longitude} (Use your knowledge of geography to determine the city, state/province, and country from these coordinates)`;
     }
     
     if (context.folderName) {
@@ -265,7 +265,7 @@ Respond with ONLY valid JSON in this exact format:
 IMPORTANT: 
 - confidence should be 0-100 based on how certain you are
 - Add field names to uncertainFields if you're not confident about them
-- Use GPS coordinates to help identify location if provided
+- **When GPS coordinates are provided, you MUST use them to determine the city, state, and country** (use your knowledge of world geography)
 - Incorporate existing keywords naturally if they're relevant and specific enough
 - Always prioritize what is ACTUALLY VISIBLE over abstract concepts`;
 
@@ -307,9 +307,14 @@ ANALYZE THIS IMAGE AND PROVIDE:
    - Scene Type: Type of scene (landscape, portrait, architecture, etc.)
 
 3. **Location Information**
-   - City, State/Province, Country
+${context.gps ? `   - **Use GPS coordinates ${context.gps.latitude}, ${context.gps.longitude} to determine:**
+     * City name
+     * State/Province name  
+     * Country name
+     * Specific location or landmark name
+   - GPS validation: Does the visual content match this GPS location? (AGREE/DISAGREE with reasoning)` : `   - Estimate City, State/Province, Country from visual content if identifiable
    - Specific location name (if identifiable)
-${context.gps ? `   - GPS validation: Does the image match GPS coordinates ${context.gps.latitude}, ${context.gps.longitude}? (AGREE/DISAGREE with reasoning)` : `   - GPS prediction: Estimate coordinates based on visual content (if possible)`}
+   - GPS prediction: Estimate coordinates based on visual content (if possible)`}
 
 4. **Social Media**
    - Caption: Engaging 100-200 character caption

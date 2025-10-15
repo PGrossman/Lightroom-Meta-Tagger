@@ -1445,7 +1445,8 @@ ipcMain.handle('generate-default-prompt', async (event, clusterGroup) => {
     }
     
     if (gps && gps.latitude && gps.longitude) {
-      prompt += `The image was taken at GPS coordinates: ${gps.latitude}, ${gps.longitude}\n\n`;
+      prompt += `The image was taken at GPS coordinates: ${gps.latitude}, ${gps.longitude}\n`;
+      prompt += `Use your knowledge of geography to determine the city, state/province, and country from these coordinates.\n\n`;
     }
     
     if (imageCount > 1) {
