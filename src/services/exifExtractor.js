@@ -16,7 +16,16 @@ class ExifExtractor {
    */
   async extractMetadata(imagePath) {
     // ✅ FIX: Handle both file objects and path strings
-    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath.path;
+    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath?.path;
+    
+    if (!actualPath) {
+      logger.error('extractMetadata: No path provided', { received: imagePath });
+      return {
+        timestamp: null,
+        gps: null,
+        camera: { make: null, model: null }
+      };
+    }
     
     // Check cache first
     if (this.cache.has(actualPath)) {
@@ -35,7 +44,7 @@ class ExifExtractor {
         '-Make',
         '-Model',
         '-json',
-        actualPath  // ✅ CHANGED: Use actualPath instead of imagePath
+        actualPath
       ]);
 
       const data = JSON.parse(stdout)[0];
@@ -49,11 +58,11 @@ class ExifExtractor {
         }
       };
 
-      // Cache the result - use actualPath
+      // Cache the result
       this.cache.set(actualPath, metadata);
       
       logger.debug('Metadata extracted', { 
-        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
+        imagePath: actualPath,
         hasTimestamp: !!metadata.timestamp,
         hasGPS: !!metadata.gps
       });
@@ -62,7 +71,7 @@ class ExifExtractor {
       
     } catch (error) {
       logger.error('Failed to extract metadata', { 
-        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
+        imagePath: actualPath,
         error: error.message 
       });
       return {
@@ -79,7 +88,12 @@ class ExifExtractor {
    */
   async extractFromRAW(imagePath) {
     // ✅ FIX: Handle both file objects and path strings
-    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath.path;
+    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath?.path;
+    
+    if (!actualPath) {
+      logger.error('extractFromRAW: No path provided', { received: imagePath });
+      return null;
+    }
     
     // Check cache first - if we have full metadata, extract timestamp
     if (this.cache.has(actualPath)) {
@@ -92,7 +106,7 @@ class ExifExtractor {
         '-DateTimeOriginal',
         '-s3',
         '-d', '%Y:%m:%d %H:%M:%S',
-        actualPath  // ✅ CHANGED: Use actualPath instead of imagePath
+        actualPath
       ]);
 
       const dateTimeStr = stdout.trim();
@@ -123,7 +137,7 @@ class ExifExtractor {
       const timestampMs = date.getTime();
       
       logger.debug('Timestamp extracted', { 
-        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
+        imagePath: actualPath,
         timestamp: date.toISOString(),
         timestampMs
       });
@@ -132,7 +146,7 @@ class ExifExtractor {
       
     } catch (error) {
       logger.error('Failed to extract timestamp', { 
-        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
+        imagePath: actualPath,
         error: error.message 
       });
       return null;
