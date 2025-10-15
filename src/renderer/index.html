@@ -254,9 +254,6 @@
             <h2 style="margin: 0;">AI Metadata Analysis</h2>
             <p style="margin: 5px 0 0 0; font-size: 14px; color: #6c757d;">
               Select Cluster to Analyze
-              <span id="aiConfidenceInline" style="margin-left: 15px; padding: 4px 10px; background: #d1ecf1; color: #0c5460; border-radius: 12px; font-size: 12px; font-weight: 600; display: none;">
-                <!-- Confidence will be inserted here -->
-              </span>
             </p>
           </div>
           
@@ -275,217 +272,116 @@
           </button>
         </div>
         
-        <!-- Cluster Selection Section -->
-        <div id="clusterSelectionSection" style="display: none;">
-          <div id="clusterThumbnailGrid" class="cluster-thumbnail-grid">
-            <!-- Thumbnails will be inserted here -->
+        <!-- Scrollable Card List -->
+        <div id="aiAnalysisCardList" style="display: none;">
+          <div id="clusterCardsContainer" class="cluster-cards-container">
+            <!-- Cards will be inserted here by JavaScript -->
           </div>
-          
-          <!-- Status text below thumbnails -->
-          <p id="xmpGenerationStatus" style="text-align: center; margin: 10px 0; font-size: 14px; color: #6c757d;"></p>
         </div>
-
-        <!-- Analysis Results (shown for selected cluster) -->
-        <div id="aiAnalysisResults" style="display: none;">
-          
-          <!-- Metadata Section Title -->
-          <div style="margin-bottom: 20px;">
-            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">🤖 AI Generated Metadata</h3>
-          </div>
-
-          <!-- AI Generated Content -->
-          <div id="aiGeneratedContent" class="analysis-tab-content active">
+        
+        <!-- Edit Modal (Hidden by default) -->
+        <div id="editMetadataModal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+              <h2>Edit Metadata</h2>
+              <button class="modal-close-btn" onclick="closeEditModal()">×</button>
+            </div>
             
-            <!-- Confidence indicator inline with title -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-              <span id="aiConfidenceInline" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 13px; font-weight: 600;">
-                <span>●</span>
-                <span id="aiConfidenceText">Confidence: --</span>
-              </span>
-            </div>
-
-            <!-- Low confidence warning -->
-            <div id="lowConfidenceWarning" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
-              <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Low Confidence Analysis</h4>
-              <p id="lowConfidenceMessage" style="margin: 0 0 15px 0; color: #856404; font-size: 14px;"></p>
-              <div style="display: flex; gap: 10px;">
-                <button id="reanalyzeOllamaBtn" class="secondary-button">Re-analyze with Ollama</button>
-                <button id="analyzeGoogleBtn" class="secondary-button">Analyze with Google Vision</button>
-                <button id="acceptManuallyBtn" class="secondary-button">Accept & Edit Manually</button>
+            <!-- Modal Body (Scrollable) -->
+            <div class="modal-body">
+              <!-- Thumbnail Preview -->
+              <div style="text-align: center; margin-bottom: 20px;">
+                <img id="modalThumbnail" src="" alt="Preview" style="max-width: 300px; max-height: 200px; border-radius: 8px; border: 2px solid #dee2e6;">
+                <p id="modalFilename" style="font-size: 12px; color: #6c757d; margin-top: 8px;"></p>
               </div>
-            </div>
-
-            <!-- Metadata Fields (All Editable) -->
-            <div class="metadata-section">
-              <h3>📝 AI Generated Metadata (Editable)</h3>
-            
-            <!-- Title -->
-            <div class="metadata-field">
-              <label for="metaTitle">Title:</label>
-              <input type="text" id="metaTitle" class="metadata-input" placeholder="Image title">
-              <span class="field-hint">Short, descriptive title (10-15 words)</span>
-            </div>
-
-            <!-- Description -->
-            <div class="metadata-field">
-              <label for="metaDescription">Description:</label>
-              <textarea id="metaDescription" class="metadata-textarea" rows="3" placeholder="Detailed description"></textarea>
-              <span class="field-hint">2-3 sentence description (150-300 characters)</span>
-            </div>
-
-            <!-- Caption -->
-            <div class="metadata-field">
-              <label for="metaCaption">Caption (Social Media):</label>
-              <input type="text" id="metaCaption" class="metadata-input" placeholder="Social media ready caption">
-              <span class="field-hint">100-200 characters, engaging and concise</span>
-            </div>
-
-            <!-- Keywords -->
-            <div class="metadata-field">
-              <label for="metaKeywords">Keywords:</label>
-              <div id="keywordsContainer" class="keywords-container">
-                <!-- Keywords will be inserted here dynamically -->
-              </div>
-              <div class="keyword-input-group">
-                <input type="text" id="newKeywordInput" class="metadata-input" placeholder="Add new keyword">
-                <button id="addKeywordBtn" class="setting-btn">+ Add</button>
-              </div>
-              <span class="field-hint">7-10 relevant keywords for cataloging</span>
-            </div>
-
-            <!-- Category & Scene Type (Side by Side) -->
-            <div class="metadata-row">
-              <div class="metadata-field">
-                <label for="metaCategory">Category:</label>
-                <input type="text" id="metaCategory" class="metadata-input" placeholder="e.g., Aviation, Landscape">
-              </div>
-              <div class="metadata-field">
-                <label for="metaSceneType">Scene Type:</label>
-                <input type="text" id="metaSceneType" class="metadata-input" placeholder="e.g., Landscape, Portrait">
-              </div>
-            </div>
-
-            <!-- Mood -->
-            <div class="metadata-field">
-              <label for="metaMood">Mood:</label>
-              <input type="text" id="metaMood" class="metadata-input" placeholder="e.g., Dynamic, Peaceful, Somber">
-            </div>
-
-            <!-- Location -->
-            <div class="metadata-field">
-              <label>📍 Location:</label>
-              <div class="location-grid">
-                <input type="text" id="metaCity" class="metadata-input" placeholder="City">
-                <input type="text" id="metaState" class="metadata-input" placeholder="State/Province">
-                <input type="text" id="metaCountry" class="metadata-input" placeholder="Country">
-                <input type="text" id="metaSpecificLocation" class="metadata-input" placeholder="Specific location">
-              </div>
-            </div>
-
-            <!-- GPS Coordinates Section -->
-            <div id="gpsSection" style="display: none; margin-top: 20px;">
-              <div style="background: #e1f5fe; padding: 20px; border-radius: 8px; border: 1px solid #b3e5fc;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                  <h3 style="margin: 0; color: #333; display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600;">
-                    <span style="font-size: 18px;">📍</span>
-                    <span>GPS Coordinates</span>
-                  </h3>
-                  <span id="gpsSourceBadge" style="background: rgba(0,0,0,0.05); padding: 6px 12px; border-radius: 20px; font-size: 11px; color: #666; font-weight: 500;">
-                    Manual Entry (Visual Analysis)
-                  </span>
-                  <button id="editGpsBtn" onclick="editGPS()" style="background: #2196f3; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-size: 13px;">
-                    <span style="margin-right: 4px;">✏️</span> Edit
-                  </button>
+              
+              <!-- All Editable Fields -->
+              <div class="metadata-section">
+                
+                <!-- Title -->
+                <div class="metadata-field">
+                  <label for="modalMetaTitle">Title:</label>
+                  <input type="text" id="modalMetaTitle" class="metadata-input" placeholder="Image title">
                 </div>
                 
-                <!-- Display Mode - Single Row with 4 columns -->
-                <div id="gpsDisplay" style="display: block;">
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; align-items: center;">
-                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #b3e5fc;">
-                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; font-weight: 600;">LATITUDE</div>
-                      <div id="gpsLatDisplay" style="font-size: 16px; font-weight: 600; color: #333; font-family: 'Courier New', monospace;">--</div>
-                    </div>
-                    <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #b3e5fc;">
-                      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 4px; font-weight: 600;">LONGITUDE</div>
-                      <div id="gpsLonDisplay" style="font-size: 16px; font-weight: 600; color: #333; font-family: 'Courier New', monospace;">--</div>
-                    </div>
-                    <button onclick="viewOnMap()" style="background: #2196f3; border: none; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
-                      <span>🗺️</span> View on Map
-                    </button>
-                    <button onclick="copyGPSCoordinates()" style="background: #2196f3; border: none; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px;">
-                      <span>📋</span> Copy Coordinates
-                    </button>
+                <!-- Description -->
+                <div class="metadata-field">
+                  <label for="modalMetaDescription">Description:</label>
+                  <textarea id="modalMetaDescription" class="metadata-textarea" rows="3" placeholder="Detailed description"></textarea>
+                </div>
+                
+                <!-- Caption -->
+                <div class="metadata-field">
+                  <label for="modalMetaCaption">Caption:</label>
+                  <textarea id="modalMetaCaption" class="metadata-textarea" rows="2" placeholder="Social media caption"></textarea>
+                </div>
+                
+                <!-- GPS Coordinates -->
+                <div class="metadata-field">
+                  <label>GPS Coordinates:</label>
+                  <div class="location-grid">
+                    <input type="text" id="modalGpsLat" class="metadata-input" placeholder="Latitude">
+                    <input type="text" id="modalGpsLon" class="metadata-input" placeholder="Longitude">
                   </div>
                 </div>
                 
-                <!-- Edit Mode (Hidden by default) -->
-                <div id="gpsInput" style="display: none;">
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                    <div>
-                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; font-weight: 600;">LATITUDE</label>
-                      <input type="text" id="gpsLat" placeholder="e.g., 51.3887557" style="width: 100%; padding: 12px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 16px; background: white; color: #333; font-family: 'Courier New', monospace;" />
-                    </div>
-                    <div>
-                      <label style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 5px; font-weight: 600;">LONGITUDE</label>
-                      <input type="text" id="gpsLon" placeholder="e.g., 30.1037836" style="width: 100%; padding: 12px; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 16px; background: white; color: #333; font-family: 'Courier New', monospace;" />
-                    </div>
+                <!-- Keywords -->
+                <div class="metadata-field">
+                  <label>Keywords:</label>
+                  <div id="modalKeywordsContainer" class="keywords-container"></div>
+                  <div class="keyword-input-group">
+                    <input type="text" id="modalNewKeywordInput" class="metadata-input" placeholder="Add new keyword">
+                    <button onclick="addModalKeyword()" class="setting-btn">+ Add</button>
                   </div>
-                  <button onclick="saveGPS()" style="background: #2196f3; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; transition: all 0.2s; font-size: 14px;">
-                    💾 Save GPS Coordinates
-                  </button>
                 </div>
+                
+                <!-- Category & Scene Type -->
+                <div class="metadata-row">
+                  <div class="metadata-field">
+                    <label for="modalMetaCategory">Category:</label>
+                    <input type="text" id="modalMetaCategory" class="metadata-input" placeholder="e.g., Aviation">
+                  </div>
+                  <div class="metadata-field">
+                    <label for="modalMetaSceneType">Scene Type:</label>
+                    <input type="text" id="modalMetaSceneType" class="metadata-input" placeholder="e.g., Landscape">
+                  </div>
+                </div>
+                
+                <!-- Mood -->
+                <div class="metadata-field">
+                  <label for="modalMetaMood">Mood:</label>
+                  <input type="text" id="modalMetaMood" class="metadata-input" placeholder="e.g., Dynamic">
+                </div>
+                
+                <!-- Location -->
+                <div class="metadata-field">
+                  <label>Location:</label>
+                  <div class="location-grid">
+                    <input type="text" id="modalMetaCity" class="metadata-input" placeholder="City">
+                    <input type="text" id="modalMetaState" class="metadata-input" placeholder="State">
+                    <input type="text" id="modalMetaCountry" class="metadata-input" placeholder="Country">
+                    <input type="text" id="modalMetaSpecificLocation" class="metadata-input" placeholder="Specific Location">
+                  </div>
+                </div>
+                
+                <!-- Hashtags -->
+                <div class="metadata-field">
+                  <label for="modalMetaHashtags">Hashtags:</label>
+                  <textarea id="modalMetaHashtags" class="metadata-textarea" rows="2" placeholder="#hashtag1 #hashtag2"></textarea>
+                </div>
+                
               </div>
             </div>
-
-            <!-- Hashtags -->
-            <div class="metadata-field">
-              <label for="metaHashtags">Hashtags (Social Media):</label>
-              <textarea id="metaHashtags" class="metadata-textarea" rows="2" placeholder="#hashtag1 #hashtag2 #hashtag3"></textarea>
-              <span class="field-hint">10-15 relevant hashtags for social media</span>
-            </div>
-
-            <!-- Alt Text -->
-            <div class="metadata-field">
-              <label for="metaAltText">Alt Text (Accessibility):</label>
-              <textarea id="metaAltText" class="metadata-textarea" rows="2" placeholder="Screen reader description"></textarea>
-              <span class="field-hint">Concise description for accessibility</span>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+              <button onclick="closeEditModal()" class="secondary-button">Cancel</button>
+              <button onclick="saveModalMetadata()" class="select-btn">Save</button>
             </div>
           </div>
-
-          <!-- Static Metadata Display -->
-          <div class="static-metadata-section">
-            <h3>⚙️ Static Metadata (Auto-Applied)</h3>
-            <div class="static-metadata-display">
-              <div class="static-field">
-                <span class="static-label">Creator:</span>
-                <span class="static-value">Philip Ethan Grossman</span>
-              </div>
-              <div class="static-field">
-                <span class="static-label">Copyright:</span>
-                <span id="copyrightDisplay" class="static-value">© 2025 Philip Ethan Grossman. All Rights Reserved.</span>
-              </div>
-              <div class="static-field">
-                <span class="static-label">Date Created:</span>
-                <span id="dateCreatedDisplay" class="static-value">From EXIF</span>
-              </div>
-            </div>
-          </div>
-
-            <!-- Action Buttons -->
-            <div class="analysis-actions">
-              <button id="regenerateBtn" class="setting-btn">
-                🔄 Regenerate with AI
-              </button>
-              <button id="saveMetadataBtn" class="select-btn">
-                💾 Save Metadata for This Cluster
-              </button>
-            </div>
-
-          </div>
-          <!-- End AI Generated Content -->
-
         </div>
-      </div>
+
 
       <!-- Personal Data Tab -->
       <div id="personal-data-tab" class="tab-panel">
