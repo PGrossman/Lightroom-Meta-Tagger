@@ -3713,3 +3713,133 @@ representatives: 13
 
 
 === MAIN.JS LOADED 2025-10-15T19:14:13.496Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:20:02.042Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:25:07.465Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:25:48.951Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:26:03.313Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:27:29.381Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:29:05.817Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T19:32:54.987Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T19:33:16.919Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T19:43:22.382Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T19:43:32.535Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T19:43:52.728Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T19:49:55.568Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T19:50:04.623Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T19:50:24.379Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T19:55:34.092Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T19:55:44.709Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T19:56:04.603Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T20:10:31.916Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T20:10:41.436Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T20:11:01.334Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13

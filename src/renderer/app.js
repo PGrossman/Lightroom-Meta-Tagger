@@ -271,7 +271,10 @@ function initializeEventListeners() {
   // Save Personal Data button
   const savePersonalDataBtn = document.getElementById('savePersonalDataBtn');
   if (savePersonalDataBtn) {
-    savePersonalDataBtn.addEventListener('click', savePersonalData);
+    savePersonalDataBtn.addEventListener('click', () => {
+      console.log('Save Personal Data clicked - function not yet implemented');
+      alert('Save Personal Data feature coming soon');
+    });
     console.log('✅ Save Personal Data button listener attached');
   }
   
@@ -3034,7 +3037,139 @@ async function renderCards(container) {
     }
   }
   
+  // Add event delegation for dynamically created buttons
+  setupCardEventListeners(container);
+  
   console.log(`✅ Rendered ${container.children.length} cards`);
+}
+
+function setupCardEventListeners(container) {
+  // Edit/Update button event delegation
+  container.addEventListener('click', (e) => {
+    if (e.target.classList.contains('cluster-card-edit-btn')) {
+      const clusterId = e.target.getAttribute('data-cluster-id');
+      console.log('Edit/Update clicked for cluster:', clusterId);
+      showMetadataEditor(parseInt(clusterId));
+    }
+    
+    // Map link event delegation
+    if (e.target.classList.contains('cluster-card-map-link')) {
+      e.preventDefault();
+      const lat = e.target.getAttribute('data-lat');
+      const lon = e.target.getAttribute('data-lon');
+      window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+    }
+  });
+}
+
+/**
+ * Show metadata editor modal for a specific cluster
+ */
+function showMetadataEditor(clusterIndex) {
+  if (clusterIndex < 0 || clusterIndex >= allClustersForAnalysis.length) {
+    console.error('Invalid cluster index:', clusterIndex);
+    return;
+  }
+
+  const cluster = allClustersForAnalysis[clusterIndex];
+  const metadata = analyzedClusters.get(clusterIndex) || {};
+  
+  // Create modal HTML
+  const modalHTML = `
+    <div id="metadataEditorModal" class="modal" style="display: block;">
+      <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3>Edit Metadata - ${cluster.mainRep?.representativeFilename || 'Unknown'}</h3>
+          <button class="modal-close" onclick="closeMetadataEditor()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="editTitle">Title:</label>
+            <input type="text" id="editTitle" value="${metadata.title || ''}" placeholder="Enter title">
+          </div>
+          <div class="form-group">
+            <label for="editDescription">Description:</label>
+            <textarea id="editDescription" rows="3" placeholder="Enter description">${metadata.description || ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label for="editCaption">Caption:</label>
+            <textarea id="editCaption" rows="2" placeholder="Enter caption">${metadata.caption || ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label for="editKeywords">Keywords:</label>
+            <input type="text" id="editKeywords" value="${metadata.keywords ? metadata.keywords.join(', ') : ''}" placeholder="Enter keywords separated by commas">
+          </div>
+          <div class="form-group">
+            <label for="editGPS">GPS Coordinates:</label>
+            <input type="text" id="editGPS" value="${cluster.gps ? `${cluster.gps.latitude}, ${cluster.gps.longitude}` : ''}" placeholder="latitude, longitude">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button onclick="closeMetadataEditor()" class="btn-secondary">Cancel</button>
+          <button onclick="saveMetadata(${clusterIndex})" class="btn-primary">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  // Close on backdrop click
+  document.getElementById('metadataEditorModal').addEventListener('click', (e) => {
+    if (e.target.id === 'metadataEditorModal') {
+      closeMetadataEditor();
+    }
+  });
+}
+
+/**
+ * Close metadata editor modal
+ */
+function closeMetadataEditor() {
+  const modal = document.getElementById('metadataEditorModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+/**
+ * Save metadata changes
+ */
+function saveMetadata(clusterIndex) {
+  const title = document.getElementById('editTitle').value.trim();
+  const description = document.getElementById('editDescription').value.trim();
+  const caption = document.getElementById('editCaption').value.trim();
+  const keywords = document.getElementById('editKeywords').value.trim();
+  const gps = document.getElementById('editGPS').value.trim();
+  
+  // Get current metadata or create new
+  const currentMetadata = analyzedClusters.get(clusterIndex) || {};
+  
+  // Update metadata
+  const updatedMetadata = {
+    ...currentMetadata,
+    title: title || currentMetadata.title,
+    description: description || currentMetadata.description,
+    caption: caption || currentMetadata.caption,
+    keywords: keywords ? keywords.split(',').map(k => k.trim()).filter(k => k) : currentMetadata.keywords
+  };
+  
+  // Save metadata
+  analyzedClusters.set(clusterIndex, updatedMetadata);
+  
+  // Update GPS if provided
+  if (gps) {
+    updateGPS(allClustersForAnalysis[clusterIndex].mainRep.representativePath, gps);
+  }
+  
+  // Close modal
+  closeMetadataEditor();
+  
+  // Refresh the cards to show updated data
+  renderCards(document.getElementById('clusterCardsContainer'));
+  
+  console.log('✅ Metadata saved for cluster:', clusterIndex);
 }
 
 async function makeCard(cluster, metadata, index) {
@@ -3055,7 +3190,7 @@ async function makeCard(cluster, metadata, index) {
   const title = metadata?.title || 'Untitled';
   const description = metadata?.description || 'No description';
   const caption = metadata?.caption || 'No caption';
-  const gps = metadata?.gps || {};
+  const gps = cluster.gps || metadata?.gps || {};
   const lat = gps.latitude || 'N/A';
   const lon = gps.longitude || 'N/A';
   
@@ -3087,12 +3222,12 @@ async function makeCard(cluster, metadata, index) {
         <label>GPS:</label>
         <div class="cluster-card-gps">
           <span>LAT: ${lat} LON: ${lon}</span>
-          ${gps.latitude ? `<a href="#" class="cluster-card-map-link" onclick="window.open('https://www.google.com/maps?q=${gps.latitude},${gps.longitude}', '_blank'); return false;">📍 View on Map</a>` : ''}
+          ${gps.latitude ? `<a href="#" class="cluster-card-map-link" data-lat="${gps.latitude}" data-lon="${gps.longitude}">📍 View on Map</a>` : ''}
         </div>
       </div>
     </div>
     <div class="cluster-card-actions">
-      <button class="cluster-card-edit-btn" onclick="alert('Edit modal coming soon')">Edit/Update</button>
+      <button class="cluster-card-edit-btn" data-cluster-id="${index}">Edit/Update</button>
     </div>
   `;
   
@@ -3165,7 +3300,7 @@ window.debugGPS = function() {
     });
   }
 }
-        group.mainRep.gps = {
+
 // ============================================
 // Prompt Editor Functions
 // ============================================
@@ -3195,7 +3330,6 @@ function showPromptEditor(clusterGroup) {
  * Generate or load prompt for cluster
  */
 async function generateOrLoadPrompt(clusterGroup) {
-        };
   try {
     // Check if we have a custom prompt for this cluster
     const repPath = clusterGroup.mainRep?.representativePath;
@@ -3271,9 +3405,7 @@ function generateFallbackPrompt(clusterGroup) {
   
   return prompt;
 }
-      }
-    });
-    
+
 /**
  * Save custom prompt
  */
@@ -3326,8 +3458,7 @@ function closePromptEditor() {
   // Clear current cluster
   currentPromptCluster = null;
 }
-    }
-  } else {
+
 /**
  * Update prompt button state
  */
@@ -3348,9 +3479,6 @@ function updatePromptButtonState(representativePath) {
  * Show notification
  */
 function showNotification(message) {
-  }
-  
-  // STEP 3: Deduplicate and prepare for analysis
   // Create a simple notification
   const notification = document.createElement('div');
   notification.style.cssText = `
