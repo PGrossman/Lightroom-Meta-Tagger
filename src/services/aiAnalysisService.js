@@ -19,14 +19,16 @@ class AIAnalysisService {
     this.logger.info('Analyzing with Ollama', { imagePath, hasCustomPrompt: !!customPrompt });
     
     let enhancedPrompt;
+    let promptStrategy = 'balanced'; // ✅ DECLARE OUTSIDE IF/ELSE BLOCK
     
     if (customPrompt) {
       // Use custom prompt provided by user
       enhancedPrompt = customPrompt;
+      promptStrategy = 'custom'; // ✅ SET TO 'custom' when using custom prompt
       this.logger.info('Using custom prompt for analysis');
     } else {
       // Use balanced strategy by default (can be configured)
-      const promptStrategy = this.config?.aiAnalysis?.promptStrategy || 'balanced';
+      promptStrategy = this.config?.aiAnalysis?.promptStrategy || 'balanced';
       const prompt = this.buildPrompt(context, promptStrategy);
       
       // For original strategy, add the enhanced prompt wrapper
