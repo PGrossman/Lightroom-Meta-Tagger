@@ -41,7 +41,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // Get all DOM elements
   selectDirBtn = document.getElementById('selectDirBtn');
   dropzone = document.getElementById('dropzone');
-  console.log('DEBUG: dropzone element found:', !!dropzone);
   resultsTable = document.getElementById('resultsTable');
   resultsTableBody = document.getElementById('resultsTableBody');
   processImagesBtn = document.getElementById('processImagesBtn');
@@ -49,11 +48,6 @@ window.addEventListener('DOMContentLoaded', () => {
   filesToProcessEl = document.getElementById('filesToProcess');
   progressFill = document.getElementById('progressFill');
   progressText = document.getElementById('progressText');
-
-  console.log('DEBUG: Element check after DOM load:');
-  console.log('  selectDirBtn:', selectDirBtn);
-  console.log('  dropzone:', dropzone);
-  console.log('  resultsTable:', resultsTable);
   
   // Initialize all event listeners
   initializeEventListeners();
@@ -139,28 +133,31 @@ function initializeEventListeners() {
   }
 
   // Dropzone event listeners
-  console.log('DEBUG: Checking dropzone element:', dropzone);
   if (dropzone) {
-    console.log('DEBUG: Adding event listeners to dropzone');
+    dropzone.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
     
     dropzone.addEventListener('dragover', (e) => {
-      console.log('DEBUG: dragover event triggered');
       e.preventDefault();
+      e.stopPropagation();
       dropzone.classList.add('dragover');
       dropzone.style.backgroundColor = '#e3f2fd';
       dropzone.style.borderColor = '#3498db';
     });
     
-    dropzone.addEventListener('dragleave', () => {
-      console.log('DEBUG: dragleave event triggered');
+    dropzone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       dropzone.classList.remove('dragover');
       dropzone.style.backgroundColor = '#f8f9fa';
       dropzone.style.borderColor = '#cbd5e0';
     });
 
     dropzone.addEventListener('drop', async (e) => {
-      console.log('DEBUG: drop event triggered');
       e.preventDefault();
+      e.stopPropagation();
       dropzone.classList.remove('dragover');
       dropzone.style.backgroundColor = '#d4edda';
       dropzone.style.borderColor = '#28a745';
@@ -170,18 +167,15 @@ function initializeEventListeners() {
       if (files.length > 0) {
         // In Electron, files[0].path gives the absolute file system path
         const droppedPath = files[0].path;
-        console.log('Dropped path:', droppedPath);
-        alert(`File dropped: ${files[0].name}`);
+        console.log('File/folder dropped:', droppedPath);
         
-        // Determine if it's a directory or file (await since it's now an IPC call)
+        // Determine if it's a directory or file
         let dirToScan;
         const isDir = await window.electronAPI.isDirectory(droppedPath);
         if (isDir) {
           dirToScan = droppedPath;
-          console.log('Directory dropped, scanning:', dirToScan);
         } else {
           dirToScan = await window.electronAPI.getParentDir(droppedPath);
-          console.log('File dropped, scanning parent directory:', dirToScan);
         }
         
         // Scan the directory
@@ -190,20 +184,11 @@ function initializeEventListeners() {
     });
 
     dropzone.addEventListener('click', async (e) => {
-      console.log('Dropzone clicked, target:', e.target.id);
       if (e.target.id !== 'selectDirBtn') {
-        console.log('Triggering selectAndScanDirectory from dropzone click');
         await selectAndScanDirectory();
       }
     });
     
-    // Test if dropzone is working
-    console.log('DEBUG: Dropzone element details:', {
-      id: dropzone.id,
-      tagName: dropzone.tagName,
-      className: dropzone.className,
-      style: dropzone.style.cssText
-    });
     console.log('✅ Dropzone listeners attached');
   } else {
     console.error('CRITICAL ERROR: dropzone is NULL after DOM load!');
