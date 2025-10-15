@@ -15,9 +15,12 @@ class ExifExtractor {
    * Returns: { timestamp, gps, camera }
    */
   async extractMetadata(imagePath) {
+    // ✅ FIX: Handle both file objects and path strings
+    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath.path;
+    
     // Check cache first
-    if (this.cache.has(imagePath)) {
-      return this.cache.get(imagePath);
+    if (this.cache.has(actualPath)) {
+      return this.cache.get(actualPath);
     }
 
     try {
@@ -32,7 +35,7 @@ class ExifExtractor {
         '-Make',
         '-Model',
         '-json',
-        imagePath
+        actualPath  // ✅ CHANGED: Use actualPath instead of imagePath
       ]);
 
       const data = JSON.parse(stdout)[0];
@@ -46,11 +49,11 @@ class ExifExtractor {
         }
       };
 
-      // Cache the result
-      this.cache.set(imagePath, metadata);
+      // Cache the result - use actualPath
+      this.cache.set(actualPath, metadata);
       
       logger.debug('Metadata extracted', { 
-        imagePath,
+        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
         hasTimestamp: !!metadata.timestamp,
         hasGPS: !!metadata.gps
       });
@@ -59,7 +62,7 @@ class ExifExtractor {
       
     } catch (error) {
       logger.error('Failed to extract metadata', { 
-        imagePath, 
+        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
         error: error.message 
       });
       return {
@@ -75,9 +78,12 @@ class ExifExtractor {
    * Returns timestamp in milliseconds, or null if not found
    */
   async extractFromRAW(imagePath) {
+    // ✅ FIX: Handle both file objects and path strings
+    const actualPath = typeof imagePath === 'string' ? imagePath : imagePath.path;
+    
     // Check cache first - if we have full metadata, extract timestamp
-    if (this.cache.has(imagePath)) {
-      const cached = this.cache.get(imagePath);
+    if (this.cache.has(actualPath)) {
+      const cached = this.cache.get(actualPath);
       return cached.timestamp;
     }
 
@@ -86,20 +92,20 @@ class ExifExtractor {
         '-DateTimeOriginal',
         '-s3',
         '-d', '%Y:%m:%d %H:%M:%S',
-        imagePath
+        actualPath  // ✅ CHANGED: Use actualPath instead of imagePath
       ]);
 
       const dateTimeStr = stdout.trim();
       
       if (!dateTimeStr || dateTimeStr === '-') {
-        logger.warn('No timestamp found in EXIF', { imagePath });
+        logger.warn('No timestamp found in EXIF', { imagePath: actualPath });
         return null;
       }
 
       const parts = dateTimeStr.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
       
       if (!parts) {
-        logger.warn('Could not parse timestamp', { imagePath, dateTimeStr });
+        logger.warn('Could not parse timestamp', { imagePath: actualPath, dateTimeStr });
         return null;
       }
 
@@ -117,7 +123,7 @@ class ExifExtractor {
       const timestampMs = date.getTime();
       
       logger.debug('Timestamp extracted', { 
-        imagePath,
+        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
         timestamp: date.toISOString(),
         timestampMs
       });
@@ -126,7 +132,7 @@ class ExifExtractor {
       
     } catch (error) {
       logger.error('Failed to extract timestamp', { 
-        imagePath, 
+        imagePath: actualPath,  // ✅ CHANGED: Use actualPath
         error: error.message 
       });
       return null;
@@ -238,12 +244,17 @@ class ExifExtractor {
    */
   async extractBatchMetadata(imagePaths) {
     try {
+      // ✅ FIX: Convert all items to paths (handle both objects and strings)
+      const actualPaths = imagePaths.map(item => 
+        typeof item === 'string' ? item : item.path
+      );
+      
       // Process in smaller batches to avoid buffer issues
       const batchSize = 20; // Process 20 images at a time
       const allResults = [];
 
-      for (let i = 0; i < imagePaths.length; i += batchSize) {
-        const batch = imagePaths.slice(i, i + batchSize);
+      for (let i = 0; i < actualPaths.length; i += batchSize) {
+        const batch = actualPaths.slice(i, i + batchSize);
         
         const { stdout } = await execFileAsync('exiftool', [
           '-DateTimeOriginal',
@@ -255,7 +266,7 @@ class ExifExtractor {
           '-Make',
           '-Model',
           '-json',
-          ...batch
+          ...batch  // ✅ Now uses actualPaths which are guaranteed to be strings
         ], {
           maxBuffer: 10 * 1024 * 1024, // 10MB buffer per batch
           timeout: 60000 // 60 second timeout per batch
@@ -306,7 +317,13 @@ class ExifExtractor {
       // Fallback: extract individually
       logger.warn('Falling back to individual metadata extraction');
       const results = [];
-      for (const imagePath of imagePaths) {
+      
+      // ✅ FIX: Handle objects in fallback too
+      const actualPaths = imagePaths.map(item => 
+        typeof item === 'string' ? item : item.path
+      );
+      
+      for (const imagePath of actualPaths) {
         const metadata = await this.extractMetadata(imagePath);
         results.push({
           path: imagePath,
