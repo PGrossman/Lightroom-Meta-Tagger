@@ -508,12 +508,30 @@ class FileManager {
     const exifExtractor = new ExifExtractor();
     const clusteringService = new ClusteringService(exifExtractor);
     
-    // ✅ FIX: Cluster Canon files by timestamp (pass paths only, and await)
-    const canonClusters = await clusteringService.clusterByTimestamp(
-      canonFiles.map(f => f.path),  // Map to .path to get strings
-      timestampThreshold
-    );
-    logger.info('Canon clustering complete', { clusters: canonClusters.length });
+    // Cluster Canon files by timestamp (pass paths only, and await)
+    let canonClusters = [];
+    if (canonFiles.length > 0) {
+      try {
+        canonClusters = await clusteringService.clusterByTimestamp(
+          canonFiles.map(f => f.path),
+          timestampThreshold
+        );
+        
+        // Validate return value
+        if (!Array.isArray(canonClusters)) {
+          logger.error('clusterByTimestamp did not return an array', { 
+            returned: typeof canonClusters,
+            value: canonClusters 
+          });
+          canonClusters = [];
+        }
+        
+        logger.info('Canon clustering complete', { clusters: canonClusters.length });
+      } catch (error) {
+        logger.error('Canon clustering failed', { error: error.message });
+        canonClusters = [];
+      }
+    }
     
     // Format Canon clusters for display
     const formattedCanonClusters = canonClusters.map((cluster, index) => 
@@ -541,8 +559,7 @@ class FileManager {
       canonClusters: formattedCanonClusters.length,
       bracketedClusters: allClusters.filter(c => c.isBracketed).length,
       singletonClusters: allClusters.filter(c => !c.isBracketed).length,
-      averageClusterSize: allClusters.length > 0 ?
-        totalImages / allClusters.length : 0
+      averageClusterSize: allClusters.length > 0 ? totalImages / allClusters.length : 0
     };
     
     logger.info('Combined clustering complete', clusterStats);
