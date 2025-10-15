@@ -1551,6 +1551,39 @@ ipcMain.handle('generate-xmp-files', async (event, data) => {
   }
 });
 
+// Open external URLs (for Google Maps links)
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    logger.info('Opening external URL', { url });
+    
+    // Validate URL for security
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL provided');
+    }
+    
+    // Only allow HTTPS URLs for security
+    if (!url.startsWith('https://')) {
+      throw new Error('Only HTTPS URLs are allowed');
+    }
+    
+    // Use Electron's shell.openExternal
+    const { shell } = require('electron');
+    await shell.openExternal(url);
+    
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to open external URL', {
+      url,
+      error: error.message
+    });
+    
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
 /**
  * Helper function to extract EXIF data from image
  */

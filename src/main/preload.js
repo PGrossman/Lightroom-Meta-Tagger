@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeClusterWithAI: (clusterGroup, customPrompt) => ipcRenderer.invoke('analyze-cluster-with-ai', clusterGroup, customPrompt),
   generateXMPFiles: (data) => ipcRenderer.invoke('generate-xmp-files', data),
   
+  // External links
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  
   // Prompt Editor
   generateDefaultPrompt: (clusterGroup) => ipcRenderer.invoke('generate-default-prompt', clusterGroup),
   

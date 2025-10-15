@@ -261,6 +261,11 @@
           <button id="generateAllXMPBtn" class="select-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 12px 32px; font-size: 16px; white-space: nowrap; display: none;" disabled>
             ✅ Generate XMP
           </button>
+          
+          <!-- Result Display -->
+          <div id="xmpResultDisplay" style="display: none; text-align: right; margin-top: 8px; font-size: 14px; color: #28a745; font-weight: 600;">
+            <!-- Results will be shown here -->
+          </div>
         </div>
         
         <!-- Empty State -->
@@ -285,7 +290,7 @@
             <!-- Modal Header -->
             <div class="modal-header">
               <h2>Edit Metadata</h2>
-              <button class="modal-close-btn" onclick="closeEditModal()">×</button>
+              <button class="modal-close-btn" id="editModalCloseBtn">×</button>
             </div>
             
             <!-- Modal Body (Scrollable) -->
@@ -332,7 +337,7 @@
                   <div id="modalKeywordsContainer" class="keywords-container"></div>
                   <div class="keyword-input-group">
                     <input type="text" id="modalNewKeywordInput" class="metadata-input" placeholder="Add new keyword">
-                    <button onclick="addModalKeyword()" class="setting-btn">+ Add</button>
+                    <button id="addModalKeywordBtn" class="setting-btn">+ Add</button>
                   </div>
                 </div>
                 
@@ -376,8 +381,8 @@
             
             <!-- Modal Footer -->
             <div class="modal-footer">
-              <button onclick="closeEditModal()" class="secondary-button">Cancel</button>
-              <button onclick="saveModalMetadata()" class="select-btn">Save</button>
+<button id="editModalCancelBtn" class="secondary-button">Cancel</button>
+<button id="editModalSaveBtn" class="select-btn">Save</button>
             </div>
           </div>
         </div>

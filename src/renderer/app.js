@@ -2891,6 +2891,54 @@ function initializeModalListeners() {
       }
     }
   });
+  
+  // Edit Metadata Modal listeners
+  const editModalCloseBtn = document.getElementById('editModalCloseBtn');
+  const editModalCancelBtn = document.getElementById('editModalCancelBtn');
+  const editModalSaveBtn = document.getElementById('editModalSaveBtn');
+  const addModalKeywordBtn = document.getElementById('addModalKeywordBtn');
+  const editModalOverlay = document.getElementById('editMetadataModal');
+
+  if (editModalCloseBtn) {
+    editModalCloseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeEditModal();
+    });
+    console.log('✅ Edit modal close button listener attached');
+  }
+
+  if (editModalCancelBtn) {
+    editModalCancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeEditModal();
+    });
+    console.log('✅ Edit modal cancel button listener attached');
+  }
+
+  if (editModalSaveBtn) {
+    editModalSaveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveModalMetadata();
+    });
+    console.log('✅ Edit modal save button listener attached');
+  }
+
+  if (addModalKeywordBtn) {
+    addModalKeywordBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addModalKeyword();
+    });
+    console.log('✅ Add keyword button listener attached');
+  }
+
+  if (editModalOverlay) {
+    editModalOverlay.addEventListener('click', (e) => {
+      if (e.target === editModalOverlay) {
+        closeEditModal();
+      }
+    });
+    console.log('✅ Edit modal backdrop listener attached');
+  }
 }
 
 // ============================================
@@ -3045,7 +3093,7 @@ async function renderCards(container) {
 
 function setupCardEventListeners(container) {
   // Edit/Update button event delegation
-  container.addEventListener('click', (e) => {
+  container.addEventListener('click', async (e) => {
     if (e.target.classList.contains('cluster-card-edit-btn')) {
       const clusterId = e.target.getAttribute('data-cluster-id');
       console.log('Edit/Update clicked for cluster:', clusterId);
@@ -3057,7 +3105,26 @@ function setupCardEventListeners(container) {
       e.preventDefault();
       const lat = e.target.getAttribute('data-lat');
       const lon = e.target.getAttribute('data-lon');
-      window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+      
+      // Validate GPS coordinates
+      if (!lat || !lon || isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) {
+        console.error('❌ Invalid GPS coordinates:', { lat, lon });
+        alert('Invalid GPS coordinates. Please check the location data.');
+        return;
+      }
+      
+      // Use proper Google Maps URL format
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+      console.log('🗺️ Opening Google Maps:', mapsUrl);
+      
+      try {
+        // Use Electron's openExternal API through IPC
+        await window.electronAPI.openExternal(mapsUrl);
+      } catch (error) {
+        console.error('❌ Failed to open Google Maps:', error);
+        // Fallback to window.open if IPC fails
+        window.open(mapsUrl, '_blank');
+      }
     }
   });
 }
@@ -3174,10 +3241,25 @@ function populateModalKeywords(keywords) {
   keywords.forEach((keyword, index) => {
     const keywordDiv = document.createElement('div');
     keywordDiv.className = 'keyword-item';
-    keywordDiv.innerHTML = `
-      <button class="keyword-delete-btn" onclick="removeModalKeyword(${index})">×</button>
-      <span class="keyword-text" contenteditable="true" data-index="${index}" onblur="updateModalKeyword(${index}, this.textContent)">${keyword}</span>
-    `;
+    
+    // Create delete button WITHOUT onclick
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'keyword-delete-btn';
+    deleteBtn.textContent = '×';
+    deleteBtn.addEventListener('click', () => removeModalKeyword(index));
+    
+    // Create editable text WITHOUT onblur inline
+    const keywordText = document.createElement('span');
+    keywordText.className = 'keyword-text';
+    keywordText.contentEditable = true;
+    keywordText.setAttribute('data-index', index);
+    keywordText.textContent = keyword;
+    keywordText.addEventListener('blur', function() {
+      updateModalKeyword(index, this.textContent);
+    });
+    
+    keywordDiv.appendChild(deleteBtn);
+    keywordDiv.appendChild(keywordText);
     container.appendChild(keywordDiv);
   });
 }
@@ -3332,7 +3414,14 @@ async function makeCard(cluster, metadata, index) {
   const title = metadata?.title || 'Untitled';
   const description = metadata?.description || 'No description';
   const caption = metadata?.caption || 'No caption';
-  const gps = cluster.gps || metadata?.gps || {};
+  // Check all possible GPS locations - mainRep.gps is where it's stored!
+  const gps = cluster.mainRep?.gps || metadata?.gps || cluster.gps || {};
+  console.log('🗺️ makeCard GPS check:', {
+    fromMainRep: cluster.mainRep?.gps,
+    fromMetadata: metadata?.gps,
+    fromCluster: cluster.gps,
+    final: cluster.mainRep?.gps || metadata?.gps || cluster.gps
+  });
   const lat = gps.latitude || 'N/A';
   const lon = gps.longitude || 'N/A';
   
@@ -3379,9 +3468,94 @@ async function makeCard(cluster, metadata, index) {
 function initializeAIAnalysisListeners() {
   const generateAllXMPBtn = document.getElementById('generateAllXMPBtn');
   if (generateAllXMPBtn) {
-    generateAllXMPBtn.addEventListener('click', () => {
-      alert('Generate XMP - coming soon!');
+    generateAllXMPBtn.addEventListener('click', async () => {
+      await handleGenerateAllXMP();
     });
+    console.log('✅ Generate XMP button listener attached');
+  }
+}
+
+// Add this new function to app.js:
+async function handleGenerateAllXMP() {
+  console.log('🚀 Starting batch XMP generation...');
+  
+  // Disable button during generation
+  const generateBtn = document.getElementById('generateAllXMPBtn');
+  if (generateBtn) {
+    generateBtn.disabled = true;
+    generateBtn.textContent = '⏳ Generating XMP Files...';
+  }
+  
+  let totalFilesCreated = 0;
+  let totalClustersProcessed = 0;
+  let failedClusters = 0;
+  
+  try {
+    // Loop through all analyzed clusters
+    for (let i = 0; i < allClustersForAnalysis.length; i++) {
+      // Only process clusters that have been analyzed
+      if (!analyzedClusters.has(i)) {
+        console.log(`⏭️  Skipping cluster ${i} (not analyzed)`);
+        continue;
+      }
+      
+      const cluster = allClustersForAnalysis[i];
+      const metadata = analyzedClusters.get(i);
+      
+      console.log(`[${i+1}/${allClustersForAnalysis.length}] Generating XMP for:`, cluster.mainRep?.representativeFilename);
+      
+      try {
+        // Call the XMP generation for this cluster
+        const result = await window.electronAPI.generateXMPFiles({
+          cluster: cluster,
+          metadata: metadata
+        });
+        
+        if (result.success) {
+          totalFilesCreated += result.count || result.successCount || 0;
+          totalClustersProcessed++;
+          console.log(`✅ Generated ${result.count || result.successCount} XMP files`);
+        } else {
+          failedClusters++;
+          console.error(`❌ Failed:`, result.error);
+        }
+      } catch (error) {
+        failedClusters++;
+        console.error(`❌ Error processing cluster:`, error);
+      }
+      
+      // Update button text with progress
+      if (generateBtn) {
+        generateBtn.textContent = `⏳ Generating... (${totalClustersProcessed}/${analyzedClusters.size})`;
+      }
+    }
+    
+    // Success message
+    console.log(`\n✅ BATCH COMPLETE:`);
+    console.log(`   Clusters processed: ${totalClustersProcessed}`);
+    console.log(`   Total XMP files created: ${totalFilesCreated}`);
+    console.log(`   Failed: ${failedClusters}`);
+    
+    // Update button to show completion
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+      generateBtn.innerHTML = `✅ ${totalFilesCreated} XMP files created`;
+    }
+    
+    // Success notification removed - info is already displayed in UI
+    
+  } catch (error) {
+    console.error('❌ Batch XMP generation failed:', error);
+    
+    // Reset button on error
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.textContent = '❌ Generation Failed';
+      generateBtn.style.background = '#dc3545';
+    }
+    
+    // Error notification removed - info is already displayed in UI
   }
 }
 

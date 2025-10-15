@@ -3892,3 +3892,121 @@ clusterCount: 2
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T21:14:25.543Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T21:20:46.763Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T21:20:47.953Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T21:47:22.952Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T21:47:31.730Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T21:47:33.024Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T21:53:34.830Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T21:53:43.034Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T21:53:44.272Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T21:58:19.358Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T21:58:32.403Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T21:58:33.602Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
+
+
+=== MAIN.JS LOADED 2025-10-15T22:07:31.254Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T22:18:51.804Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T22:19:27.197Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl/Promethus Statue
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T22:19:28.357Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 2
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 2
