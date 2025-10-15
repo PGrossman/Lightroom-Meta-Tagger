@@ -1526,7 +1526,8 @@ async function createResultsTableRowFromGroup(group) {
         showImagePreview(
           simRep.cluster.representativePath,
           simRep.cluster.representativeFilename,
-          simRep.similarityPercent
+          simRep.similarityPercent,
+          cluster  // ← ADD THIS 4th PARAMETER: Pass the parent cluster for extraction
         );
       };
       
@@ -2575,11 +2576,15 @@ function showNotification(message) {
 /**
  * Show image preview modal
  */
-async function showImagePreview(imagePath, filename, similarityPercent = null) {
+/**
+ * Show image preview modal with optional "Make Parent Image" button
+ */
+async function showImagePreview(imagePath, filename, similarityPercent = null, sourceCluster = null) {
   const modal = document.getElementById('imagePreviewModal');
   const previewImg = document.getElementById('previewImage');
   const filenameEl = document.getElementById('previewFilename');
   const similarityEl = document.getElementById('previewSimilarity');
+  const makeParentBtn = document.getElementById('makeParentImageBtn');
   
   // Load thumbnail
   const result = await window.electronAPI.getPreviewImage(imagePath);
@@ -2588,11 +2593,24 @@ async function showImagePreview(imagePath, filename, similarityPercent = null) {
     previewImg.src = result.dataUrl;
     filenameEl.textContent = filename;
     
+    // Show similarity percentage if available
     if (similarityPercent) {
       similarityEl.textContent = `${similarityPercent}% match`;
       similarityEl.style.display = 'block';
     } else {
       similarityEl.style.display = 'none';
+    }
+    
+    // Show "Make Parent Image" button only for Similar Parent Representatives
+    if (sourceCluster && similarityPercent) {
+      makeParentBtn.style.display = 'block';
+      
+      // Store data on the button for the click handler
+      makeParentBtn.dataset.imagePath = imagePath;
+      makeParentBtn.dataset.filename = filename;
+      makeParentBtn.dataset.sourceClusterPath = sourceCluster.representativePath;
+    } else {
+      makeParentBtn.style.display = 'none';
     }
     
     modal.style.display = 'flex';
@@ -2617,11 +2635,117 @@ function closeImagePreview() {
 }
 
 /**
+ * Extract a Similar Parent Representative and make it its own parent image
+ */
+function makeParentImage(imagePath, sourceClusterPath) {
+  console.log('🔄 Extracting image to new parent cluster:', imagePath);
+  console.log('   From source cluster:', sourceClusterPath);
+  
+  // Find the source super cluster in allProcessedImages
+  const sourceGroupIndex = allProcessedImages.findIndex(g => 
+    g.mainRep && g.mainRep.representativePath === sourceClusterPath
+  );
+  
+  if (sourceGroupIndex === -1) {
+    console.error('❌ Source cluster not found');
+    alert('Error: Could not find source cluster');
+    return;
+  }
+  
+  const sourceGroup = allProcessedImages[sourceGroupIndex];
+  
+  // Find the specific similar rep to extract
+  const simRepIndex = sourceGroup.similarReps.findIndex(
+    sim => sim.cluster.representativePath === imagePath
+  );
+  
+  if (simRepIndex === -1) {
+    console.error('❌ Similar representative not found in source cluster');
+    alert('Error: Could not find image in cluster');
+    return;
+  }
+  
+  // Extract the similar rep's cluster data
+  const extractedCluster = sourceGroup.similarReps[simRepIndex].cluster;
+  
+  // Remove it from the source group's similarReps
+  sourceGroup.similarReps.splice(simRepIndex, 1);
+  
+  // Also remove from allClusters array if it exists
+  const allClustersIndex = sourceGroup.allClusters.findIndex(
+    c => c.representativePath === imagePath
+  );
+  if (allClustersIndex !== -1) {
+    sourceGroup.allClusters.splice(allClustersIndex, 1);
+  }
+  
+  // Update connection count for source group
+  sourceGroup.connectionCount = sourceGroup.similarReps.length;
+  
+  // Create a new group with just this image as the parent
+  const newGroup = {
+    mainRep: extractedCluster,
+    similarReps: [],
+    allClusters: [extractedCluster],
+    connectionCount: 0
+  };
+  
+  // Add the new group to allProcessedImages
+  allProcessedImages.push(newGroup);
+  
+  // Also update window.processedClusters if it exists
+  if (window.processedClusters) {
+    const existingIndex = window.processedClusters.findIndex(
+      c => c.representativePath === imagePath
+    );
+    if (existingIndex === -1) {
+      window.processedClusters.push(extractedCluster);
+    }
+  }
+  
+  // Also add to allClustersForAnalysis if it exists (for AI Analysis tab)
+  if (window.allClustersForAnalysis) {
+    const analysisExists = window.allClustersForAnalysis.findIndex(
+      g => g.mainRep && g.mainRep.representativePath === imagePath
+    );
+    if (analysisExists === -1) {
+      window.allClustersForAnalysis.push(newGroup);
+    }
+  }
+  
+  console.log('✅ Created new parent cluster:', extractedCluster.representativeFilename);
+  console.log('   Total clusters now:', allProcessedImages.length);
+  console.log('   Source cluster now has', sourceGroup.similarReps.length, 'similar reps');
+  
+  // Close the modal
+  closeImagePreview();
+  
+  // Refresh the Visual Analysis table to show the changes
+  refreshVisualAnalysisTable();
+  
+  // Show success notification
+  showNotification(`Created new parent cluster: ${extractedCluster.representativeFilename}`);
+}
+
+/**
+ * Refresh the Visual Analysis table after making changes
+ */
+async function refreshVisualAnalysisTable() {
+  console.log('🔄 Refreshing Visual Analysis table...');
+  
+  // Re-render the current page
+  await renderResultsPage();
+  
+  console.log('✅ Visual Analysis table refreshed');
+}
+
+/**
  * Initialize modal event listeners
  */
 function initializeModalListeners() {
   const modalCloseBtn = document.getElementById('modalCloseBtn');
   const modalBackdrop = document.getElementById('modalBackdrop');
+  const makeParentBtn = document.getElementById('makeParentImageBtn');
   
   if (modalCloseBtn) {
     modalCloseBtn.addEventListener('click', (e) => {
@@ -2637,12 +2761,35 @@ function initializeModalListeners() {
   if (modalBackdrop) {
     modalBackdrop.addEventListener('click', (e) => {
       console.log('🔴 Backdrop clicked');
-      e.stopPropagation();
-      closeImagePreview();
+      if (e.target === modalBackdrop) {
+        closeImagePreview();
+      }
     });
     console.log('✅ Modal backdrop listener attached');
   } else {
     console.error('❌ modalBackdrop not found');
+  }
+  
+  // ✅ NEW: Add listener for "Make Parent Image" button
+  if (makeParentBtn) {
+    makeParentBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('🎯 Make Parent Image button clicked');
+      
+      // Get data from button
+      const imagePath = e.target.dataset.imagePath;
+      const sourceClusterPath = e.target.dataset.sourceClusterPath;
+      
+      if (imagePath && sourceClusterPath) {
+        makeParentImage(imagePath, sourceClusterPath);
+      } else {
+        console.error('❌ Missing data for makeParentImage');
+        alert('Error: Missing required data');
+      }
+    });
+    console.log('✅ Make Parent Image button listener attached');
+  } else {
+    console.error('❌ makeParentImageBtn not found');
   }
   
   // Close modal on Escape key
