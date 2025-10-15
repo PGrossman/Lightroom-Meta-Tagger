@@ -32,3 +32,6 @@ temp/
 !zz_Lightroom Meta Data Docs - DO NOT TOUCH/
 !zzz_CLAUDE/
 
+# But ignore large zip files in versions folder
+z_VERSIONS/*.zip
+

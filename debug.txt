@@ -3654,3 +3654,50 @@ clusterCount: 13
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T17:21:07.295Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-15T17:22:41.712Z ===
+scanResults: true
+dirPath: /Users/grossph/Desktop/Test Folder/2011 - 11 - 20 Chernobyl
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-15T17:23:01.336Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 13
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 13
+
+
+=== MAIN.JS LOADED 2025-10-15T18:08:11.945Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:21:59.736Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:22:27.413Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:30:24.704Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:34:10.682Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:34:40.020Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T18:35:34.606Z ===
+
+
+=== MAIN.JS LOADED 2025-10-15T19:01:33.642Z ===

@@ -41,6 +41,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Get all DOM elements
   selectDirBtn = document.getElementById('selectDirBtn');
   dropzone = document.getElementById('dropzone');
+  console.log('DEBUG: dropzone element found:', !!dropzone);
   resultsTable = document.getElementById('resultsTable');
   resultsTableBody = document.getElementById('resultsTableBody');
   processImagesBtn = document.getElementById('processImagesBtn');
@@ -138,21 +139,31 @@ function initializeEventListeners() {
   }
 
   // Dropzone event listeners
+  console.log('DEBUG: Checking dropzone element:', dropzone);
   if (dropzone) {
     console.log('DEBUG: Adding event listeners to dropzone');
     
     dropzone.addEventListener('dragover', (e) => {
+      console.log('DEBUG: dragover event triggered');
       e.preventDefault();
       dropzone.classList.add('dragover');
+      dropzone.style.backgroundColor = '#e3f2fd';
+      dropzone.style.borderColor = '#3498db';
     });
     
     dropzone.addEventListener('dragleave', () => {
+      console.log('DEBUG: dragleave event triggered');
       dropzone.classList.remove('dragover');
+      dropzone.style.backgroundColor = '#f8f9fa';
+      dropzone.style.borderColor = '#cbd5e0';
     });
 
     dropzone.addEventListener('drop', async (e) => {
+      console.log('DEBUG: drop event triggered');
       e.preventDefault();
       dropzone.classList.remove('dragover');
+      dropzone.style.backgroundColor = '#d4edda';
+      dropzone.style.borderColor = '#28a745';
       
       const files = e.dataTransfer.files;
       
@@ -160,6 +171,7 @@ function initializeEventListeners() {
         // In Electron, files[0].path gives the absolute file system path
         const droppedPath = files[0].path;
         console.log('Dropped path:', droppedPath);
+        alert(`File dropped: ${files[0].name}`);
         
         // Determine if it's a directory or file (await since it's now an IPC call)
         let dirToScan;
@@ -183,6 +195,14 @@ function initializeEventListeners() {
         console.log('Triggering selectAndScanDirectory from dropzone click');
         await selectAndScanDirectory();
       }
+    });
+    
+    // Test if dropzone is working
+    console.log('DEBUG: Dropzone element details:', {
+      id: dropzone.id,
+      tagName: dropzone.tagName,
+      className: dropzone.className,
+      style: dropzone.style.cssText
     });
     console.log('✅ Dropzone listeners attached');
   } else {
@@ -2950,309 +2970,62 @@ async function handleTestGoogleVision() {
 // AI Analysis Tab Functions
 // ============================================
 
-let currentAnalysisData = null; // Store current analysis for editing
+let currentAnalysisData = null;
 let allClustersForAnalysis = [];
-let analyzedClusters = new Map(); // clusterIndex → metadata
+let analyzedClusters = new Map();
 let currentClusterIndex = null;
-let preAnalysisGPS = new Map(); // clusterIndex → GPS data (for GPS added BEFORE AI analysis)
+let preAnalysisGPS = new Map();
 
-// ============================================
-// Cluster Management for AI Analysis
-// ============================================
-
-/**
- * Batch analyze all clusters with AI
- * ✅ COMPLETE GPS FIX with full debug logging
- */
 async function batchAnalyzeAllClusters() {
-  console.log('\n\n🚀 ========================================');
-  console.log('    BATCH ANALYSIS WITH GPS SYNC');
-  console.log('========================================\n');
+  console.log('\n🚀 BATCH ANALYSIS START');
   
-  // STEP 1: Log initial state
-  console.log('📊 STEP 1: Initial State');
-  console.log(`   - allProcessedImages count: ${allProcessedImages.length}`);
-  console.log(`   - window.processedClusters count: ${window.processedClusters?.length || 0}`);
-  
-  // STEP 2: Sync GPS from window.processedClusters to allProcessedImages
-  console.log('\n🔄 STEP 2: GPS Sync Process');
-  let gpsFoundCount = 0;
-  let gpsSyncedCount = 0;
-  
-  if (window.processedClusters && allProcessedImages) {
-    // First, check what GPS exists in processedClusters
-    console.log('\n   Scanning window.processedClusters for GPS:');
-    window.processedClusters.forEach((cluster, idx) => {
-      // ✅ FIX: window.processedClusters uses .gps directly (NO mainRep!)
-      if (cluster.gps?.latitude) {
-        gpsFoundCount++;
-        const filename = cluster.representativeFilename || (cluster.representative ? cluster.representative.split('/').pop() : 'Unknown');
-        console.log(`   [${idx}] ✅ GPS FOUND: ${filename}`);
-        console.log(`                GPS: ${cluster.gps.latitude}, ${cluster.gps.longitude}`);
-      }
-    });
+  for (let i = 0; i < allProcessedImages.length; i++) {
+    const group = allProcessedImages[i];
+    const clusterName = group.mainRep?.representativeFilename || 'Unknown';
     
-    console.log(`\n   📍 Total GPS coordinates found: ${gpsFoundCount}`);
-    
-    if (gpsFoundCount === 0) {
-      console.warn('\n   ⚠️  WARNING: NO GPS found in processedClusters!');
-      console.log('   This means GPS was NOT saved when you edited it.');
-      console.log('   Check the updateGPS() function.');
-    }
-    
-    // Now sync to allProcessedImages
-    console.log('\n   Syncing to allProcessedImages:');
-    allProcessedImages.forEach((group, groupIndex) => {
-      const repPath = group.mainRep?.representativePath;
-      
-      // ✅ FIX: Match using representativePath OR representative (NO mainRep in processedClusters!)
-      const processedCluster = window.processedClusters.find(c => 
-        c.representativePath === repPath || 
-        c.representative === repPath
-      );
-      
-      if (processedCluster && processedCluster.gps?.latitude) {
-        // Sync GPS to group
-        group.mainRep.gps = {
-          latitude: processedCluster.gps.latitude,
-          longitude: processedCluster.gps.longitude,
-          altitude: processedCluster.gps.altitude || null,
-          source: processedCluster.gps.source || 'Manual Entry'
-        };
-        gpsSyncedCount++;
-        console.log(`   [${groupIndex}] ✅ SYNCED: ${group.mainRep.representativeFilename}`);
-        console.log(`                    GPS: ${processedCluster.gps.latitude}, ${processedCluster.gps.longitude}`);
-      }
-    });
-    
-    console.log(`\n   📍 GPS coordinates synced: ${gpsSyncedCount}/${gpsFoundCount}`);
-    
-    if (gpsSyncedCount < gpsFoundCount) {
-      console.warn(`\n   ⚠️  WARNING: ${gpsFoundCount - gpsSyncedCount} GPS coordinates could not be synced!`);
-      console.log('   Path matching may have failed.');
-    }
-  } else {
-    console.error('\n   ❌ ERROR: Missing data structures');
-    console.log(`   - window.processedClusters exists: ${!!window.processedClusters}`);
-    console.log(`   - allProcessedImages exists: ${!!allProcessedImages}`);
-  }
-  
-  // STEP 3: Deduplicate and prepare for analysis
-  console.log('\n📋 STEP 3: Deduplication');
-  const uniqueClusters = [];
-  const seenPaths = new Set();
-  
-  allProcessedImages.forEach(group => {
-    const repPath = group.mainRep?.representativePath;
-    if (!seenPaths.has(repPath)) {
-      seenPaths.add(repPath);
-      uniqueClusters.push(group);
-    }
-  });
-  
-  console.log(`   - Unique clusters: ${uniqueClusters.length}`);
-  console.log(`   - Duplicates removed: ${allProcessedImages.length - uniqueClusters.length}`);
-  
-  // STEP 4: Log GPS status for each cluster
-  console.log('\n📍 STEP 4: Final GPS Status Before Analysis');
-  let clustersWithGPS = 0;
-  uniqueClusters.forEach((group, idx) => {
-    const hasGPS = !!group.mainRep?.gps?.latitude;
-    if (hasGPS) {
-      clustersWithGPS++;
-      console.log(`   [${idx}] ✅ ${group.mainRep.representativeFilename}`);
-      console.log(`            GPS: ${group.mainRep.gps.latitude}, ${group.mainRep.gps.longitude}`);
-    } else {
-      console.log(`   [${idx}] ⚪ ${group.mainRep.representativeFilename} - NO GPS`);
-    }
-  });
-  
-  console.log(`\n   📍 Clusters with GPS: ${clustersWithGPS}/${uniqueClusters.length}`);
-  
-  if (clustersWithGPS === 0 && gpsFoundCount > 0) {
-    console.error('\n   🔴 CRITICAL ERROR: GPS was found but not in any clusters!');
-    console.log('   This indicates the sync failed completely.');
-  }
-  
-  // STEP 5: Run AI Analysis
-  console.log('\n\n🤖 STEP 5: Starting AI Analysis');
-  console.log('========================================\n');
-  
-  analyzedClusters.clear();
-  allClustersForAnalysis = uniqueClusters;
-  
-  // ============================================================================
-  // 🔍 STEP 3: BEFORE AI ANALYSIS - Track derivatives before analysis
-  // ============================================================================
-  console.log('\n🔍 ========== STEP 3: BEFORE AI ANALYSIS ==========');
-  let step3Derivs = 0;
-  let step3Files = 0;
-  let step3Reps = 0;
-  allClustersForAnalysis.forEach((group, idx) => {
-    const mainDerivs = group.mainRep?.derivatives?.length || 0;
-    const mainImages = group.mainRep?.imagePaths?.length || 0;
-    step3Derivs += mainDerivs;
-    step3Files += mainImages;
-    step3Reps += 1;
-    
-    if (group.similarReps) {
-      group.similarReps.forEach(sim => {
-        const simDerivs = sim.cluster?.derivatives?.length || 0;
-        const simImages = sim.cluster?.imagePaths?.length || 0;
-        step3Derivs += simDerivs;
-        step3Files += simImages;
-        step3Reps += 1;
-      });
-    }
-  });
-  console.log(`📊 Total before analysis: ${step3Reps} reps + ${step3Files} images + ${step3Derivs} derivatives`);
-  console.log(`📊 GRAND TOTAL: ${step3Reps + step3Files + step3Derivs} files`);
-  console.log(`📊 EXPECTED: 78 files`);
-  console.log(`📊 DIFFERENCE: ${78 - (step3Reps + step3Files + step3Derivs)} files ${78 - (step3Reps + step3Files + step3Derivs) > 0 ? 'MISSING' : 'EXTRA'}`);
-  console.log('🔍 ==========================================\n');
-  // ============================================================================
-  
-  // ============================================================================
-  // 🔍 DIAGNOSTIC: Check if derivatives exist in cluster data
-  // ============================================================================
-  console.log('\n🔍 ========== DERIVATIVE DIAGNOSTIC ==========');
-  console.log(`Total clusters: ${allClustersForAnalysis.length}`);
-  
-  allClustersForAnalysis.forEach((group, idx) => {
-    console.log(`\n📦 Cluster ${idx + 1}: ${group.mainRep?.representativeFilename}`);
-    console.log('   Structure check:');
-    console.log('   - Has mainRep?', !!group.mainRep);
-    console.log('   - Has imagePaths?', !!group.mainRep?.imagePaths);
-    console.log('   - imagePaths count:', group.mainRep?.imagePaths?.length || 0);
-    console.log('   - Has derivatives?', !!group.mainRep?.derivatives);
-    console.log('   - Derivatives count:', group.mainRep?.derivatives?.length || 0);
-    
-    if (group.mainRep?.derivatives && group.mainRep.derivatives.length > 0) {
-      console.log('   ✅ DERIVATIVES FOUND:');
-      group.mainRep.derivatives.forEach(d => {
-        console.log('      -', d.split('/').pop());
-      });
-    } else {
-      console.log('   ❌ NO DERIVATIVES in mainRep');
-    }
-    
-    // Check similar reps too
-    if (group.similarReps && group.similarReps.length > 0) {
-      console.log(`   Similar reps: ${group.similarReps.length}`);
-      group.similarReps.forEach((sim, simIdx) => {
-        console.log(`   - Similar ${simIdx + 1}: ${sim.cluster?.representativeFilename}`);
-        console.log(`     Derivatives: ${sim.cluster?.derivatives?.length || 0}`);
-        if (sim.cluster?.derivatives && sim.cluster.derivatives.length > 0) {
-          sim.cluster.derivatives.forEach(d => {
-            console.log('        -', d.split('/').pop());
-          });
-        }
-      });
-    }
-  });
-  
-  console.log('\n🔍 ========== END DIAGNOSTIC ==========\n');
-  // ============================================================================
-  
-  for (let i = 0; i < uniqueClusters.length; i++) {
-    const group = uniqueClusters[i];
-    const clusterName = group.mainRep?.representativeFilename || `Cluster ${i + 1}`;
+    console.log(`[${i+1}/${allProcessedImages.length}] Analyzing: ${clusterName}`);
     
     try {
-      console.log(`\n[${i + 1}/${uniqueClusters.length}] Analyzing: ${clusterName}`);
-      
-      // Log GPS being sent
-      if (group.mainRep?.gps?.latitude) {
-        console.log(`   📍 GPS will be sent to AI:`);
-        console.log(`      Lat: ${group.mainRep.gps.latitude}`);
-        console.log(`      Lon: ${group.mainRep.gps.longitude}`);
-      } else {
-        console.log(`   ⚪ No GPS for this cluster`);
-      }
-      
-      updateStatus(`Analyzing cluster ${i + 1} of ${uniqueClusters.length}: ${clusterName}...`, 'processing');
-      showProgress(Math.round(((i + 1) / uniqueClusters.length) * 100));
-      
-      // Call backend - GPS is in group.mainRep.gps
+      updateStatus(`Analyzing cluster ${i + 1} of ${allProcessedImages.length}...`, 'processing');
       const result = await window.electronAPI.analyzeClusterWithAI(group);
       
       if (result.success) {
         analyzedClusters.set(i, result.data.metadata);
-        console.log(`   ✅ Analysis complete`);
-        
-        // Log if GPS came back in metadata
-        if (result.data.metadata.gpsAnalysis?.latitude) {
-          console.log(`   📍 AI returned GPS: ${result.data.metadata.gpsAnalysis.latitude}, ${result.data.metadata.gpsAnalysis.longitude}`);
-        }
-      } else {
-        console.error(`   ❌ Analysis failed: ${result.error}`);
-        alert(`Analysis failed for ${clusterName}: ${result.error}`);
+        console.log(`✅ Stored at index ${i}`);
       }
-      
     } catch (error) {
-      console.error(`   ❌ Error: ${error.message}`);
-      alert(`Error analyzing ${clusterName}: ${error.message}`);
+      console.error(`❌ Error: ${error.message}`);
     }
   }
   
-  console.log('\n\n✅ ========================================');
-  console.log('    BATCH ANALYSIS COMPLETE');
-  console.log('========================================\n');
-  
+  console.log('✅ BATCH COMPLETE, size:', analyzedClusters.size);
   updateStatus('All clusters analyzed!', 'complete');
-  showProgress(100);
   
-  loadClustersForAnalysis();
-}
-
-/**
- * Load all clusters into AI Analysis tab with thumbnail grid
- * Called after batch analysis completes
- */
-function loadClustersForAnalysis() {
-  console.log('📊 loadClustersForAnalysis called');
-  console.log('   - allProcessedImages count:', allProcessedImages.length);
-  console.log('   - analyzedClusters size:', analyzedClusters.size);
-  
-  // Copy allProcessedImages to allClustersForAnalysis
   allClustersForAnalysis = [...allProcessedImages];
-  
-  // Call the card view function
-  loadClustersForAnalysisCardView();
+  showCards();
 }
 
-/**
- * Load analyzed clusters into card list view
- */
-function loadClustersForAnalysisCardView() {
-  console.log('🎨 loadClustersForAnalysisCardView called');
+function showCards() {
+  console.log('🎨 showCards called');
   
-  const generateBtn = document.getElementById('generateAllXMPBtn');
   const emptyState = document.getElementById('aiAnalysisEmpty');
   const cardList = document.getElementById('aiAnalysisCardList');
+  const container = document.getElementById('clusterCardsContainer');
+  const generateBtn = document.getElementById('generateAllXMPBtn');
   
-  if (!cardList) {
-    console.error('❌ aiAnalysisCardList element not found!');
+  if (!cardList || !container) {
+    console.error('❌ Elements not found!');
     return;
   }
   
-  // Filter to only show analyzed clusters
-  const analyzedClustersList = allClustersForAnalysis.filter((cluster, idx) => 
-    analyzedClusters.has(idx)
-  );
-  
-  console.log('   - Analyzed clusters:', analyzedClustersList.length);
-  
-  if (analyzedClustersList.length === 0) {
-    // Show empty state
+  if (analyzedClusters.size === 0) {
+    console.log('ℹ️ No analyzed clusters');
     if (emptyState) emptyState.style.display = 'block';
     if (cardList) cardList.style.display = 'none';
-    if (generateBtn) generateBtn.style.display = 'none';
-    console.log('   ℹ️ No analyzed clusters, showing empty state');
     return;
   }
   
-  // Show card list
+  console.log('✅ Showing cards');
   if (emptyState) emptyState.style.display = 'none';
   if (cardList) cardList.style.display = 'block';
   if (generateBtn) {
@@ -3260,1811 +3033,223 @@ function loadClustersForAnalysisCardView() {
     generateBtn.disabled = false;
   }
   
-  console.log('   ✅ Rendering cards...');
-  
-  // Render cards
-  renderClusterCards(analyzedClustersList);
+  renderCards(container);
 }
 
-/**
- * Render thumbnail grid of all clusters
- */
-async function renderClusterThumbnailGrid() {
-  const grid = document.getElementById('clusterThumbnailGrid');
-  
-  // ✅ FORCE CLEAR - Remove all children completely
-  while (grid.firstChild) {
-    grid.removeChild(grid.firstChild);
-  }
-  
-  console.log('🎨 === RENDERING THUMBNAIL GRID ===');
-  console.log('📊 allClustersForAnalysis.length:', allClustersForAnalysis.length);
-  console.log('📋 allClustersForAnalysis:', allClustersForAnalysis.map(g => g.mainRep?.representativeFilename));
+async function renderCards(container) {
+  console.log('📦 renderCards called');
+  container.innerHTML = '';
   
   for (let i = 0; i < allClustersForAnalysis.length; i++) {
-    const group = allClustersForAnalysis[i];
-    console.log(`  Rendering card ${i}: ${group.mainRep?.representativeFilename}`);
-    
-    const card = document.createElement('div');
-    card.className = 'cluster-thumbnail-card';
-    
     if (analyzedClusters.has(i)) {
-      card.classList.add('analyzed');
-    }
-    
-    if (i === currentClusterIndex) {
-      card.classList.add('current');
-    }
-    
-    // Thumbnail
-    const img = document.createElement('img');
-    img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 24 24" fill="none" stroke="%236c757d" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-    
-    // Load actual thumbnail
-    const repPath = group.mainRep.representativePath;
-    const result = await window.electronAPI.getPreviewImage(repPath);
-    if (result.success) {
-      img.src = result.dataUrl;
-    }
-    
-    // Info
-    const info = document.createElement('div');
-    info.className = 'cluster-thumbnail-info';
-    info.textContent = group.mainRep.representativeFilename;
-    
-    // Action buttons container
-    const actionsContainer = document.createElement('div');
-    actionsContainer.className = 'cluster-actions';
-    
-    // Analyze with AI button
-    const analyzeBtn = document.createElement('button');
-    analyzeBtn.className = 'analyze-ai-btn';
-    analyzeBtn.innerHTML = `
-      <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-      Analyze with AI
-    `;
-    analyzeBtn.onclick = (e) => {
-      e.stopPropagation();
-      analyzeClusterWithCustomPrompt(group);
-    };
-    
-    // View/Edit Prompt button
-    const promptBtn = document.createElement('button');
-    promptBtn.className = 'view-prompt-btn';
-    promptBtn.setAttribute('data-cluster-path', group.mainRep.representativePath);
-    promptBtn.innerHTML = `
-      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-      </svg>
-      View Prompt
-    `;
-    promptBtn.onclick = (e) => {
-      e.stopPropagation();
-      showPromptEditor(group);
-    };
-    
-    // Update button state based on custom prompt
-    updatePromptButtonState(group.mainRep.representativePath);
-    
-    actionsContainer.appendChild(analyzeBtn);
-    actionsContainer.appendChild(promptBtn);
-    
-    card.appendChild(img);
-    card.appendChild(info);
-    card.appendChild(actionsContainer);
-    
-    // Click handler for card (select cluster)
-    card.onclick = () => selectCluster(i);
-    
-    grid.appendChild(card);
-    console.log(`  ✅ Card ${i} appended to grid`);
-  }
-  
-  console.log(`🎨 Total cards in grid: ${grid.children.length}`);
-  console.log('🎨 === END RENDERING ===\n');
-  
-  // Update "Generate All" button state
-  updateGenerateAllButtonState();
-}
-
-/**
- * Select a cluster for analysis/editing
- */
-async function selectCluster(clusterIndex) {
-  console.log('🎯 selectCluster called with index:', clusterIndex);
-  
-  // ✅ SIMPLE FIX: Save current cluster FIRST before doing anything else
-  if (currentClusterIndex !== null && currentClusterIndex !== clusterIndex) {
-    try {
-      console.log('💾 Auto-saving current cluster', currentClusterIndex, 'before switching');
-      
-      // Force blur on ANY active element to ensure values are committed to DOM
-      if (document.activeElement) {
-        document.activeElement.blur();
-      }
-      
-      // Wait 50ms for blur to complete and DOM to update
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Now collect metadata
-      const editedMetadata = collectMetadataFromForm();
-      analyzedClusters.set(currentClusterIndex, editedMetadata);
-      
-      console.log('✅ Auto-saved metadata:', editedMetadata);
-    } catch (error) {
-      console.error('❌ Failed to auto-save metadata:', error);
+      const cluster = allClustersForAnalysis[i];
+      const metadata = analyzedClusters.get(i);
+      const card = await makeCard(cluster, metadata, i);
+      container.appendChild(card);
     }
   }
   
-  // Now proceed with switching
-  currentClusterIndex = clusterIndex;
-  const group = allClustersForAnalysis[clusterIndex];
-  
-  if (!group) {
-    console.error('❌ No cluster found at index:', clusterIndex);
-    return;
-  }
-  
-  // Check if analyzed
-  if (!analyzedClusters.has(clusterIndex)) {
-    alert('This cluster has not been analyzed yet. Please run "Run AI Analysis" first.');
-    return;
-  }
-  
-  // Load metadata for selected cluster
-  const savedMetadata = analyzedClusters.get(clusterIndex);
-  
-  console.log('✅ Loading metadata for:', group.mainRep?.representativeFilename);
-  
-  displayAIAnalysisResults({
-    cluster: group,
-    metadata: savedMetadata,
-    affectedImages: getAllAffectedPaths(group),
-    imageCount: countTotalImages(group),
-    breakdown: {
-      parents: 1 + (group.similarReps?.length || 0),
-      children: countChildren(group)
-    }
-  });
-  
-  // Show results
-  document.getElementById('aiAnalysisResults').style.display = 'block';
-  
-  // Update visual selection
-  updateThumbnailSelection(clusterIndex);
-  
-  console.log('✅ Selection complete, currentClusterIndex:', currentClusterIndex);
+  console.log(`✅ Rendered ${container.children.length} cards`);
 }
 
-/**
- * Update thumbnail selection visual state
- */
-function updateThumbnailSelection(selectedIndex) {
-  const cards = document.querySelectorAll('.cluster-thumbnail-card');
-  cards.forEach((card, idx) => {
-    if (idx === selectedIndex) {
-      card.classList.add('current');
-    } else {
-      card.classList.remove('current');
-    }
-  });
-}
-
-/**
- * Save current metadata (called when switching between clusters)
- */
-function backToClusterSelection() {
-  // Save current metadata if edited
-  if (currentClusterIndex !== null) {
-    const editedMetadata = collectMetadataFromForm();
-    analyzedClusters.set(currentClusterIndex, editedMetadata);
-    console.log(`💾 Auto-saved metadata for cluster ${currentClusterIndex}`);
-  }
-  
-  // Update button states
-  updateGenerateAllButtonState();
-}
-
-/**
- * Save metadata for current cluster
- */
-function saveCurrentClusterMetadata() {
-  if (currentClusterIndex === null) return;
-  
-  const metadata = collectMetadataFromForm();
-  analyzedClusters.set(currentClusterIndex, metadata);
-  
-  alert('✅ Metadata saved for this cluster!');
-  
-  // Update button states
-  updateGenerateAllButtonState();
-  
-  // Re-render thumbnails to update status
-  renderClusterThumbnailGrid();
-  
-  // ❌ DON'T GO BACK - stay on current cluster (thumbnails always visible)
-}
-
-/**
- * Update "Generate All XMP" button state
- */
-function updateGenerateAllButtonState() {
-  const btn = document.getElementById('generateAllXMPBtn');
-  const status = document.getElementById('xmpGenerationStatus');
-  
-  if (!btn || !status) return;
-  
-  const totalClusters = allClustersForAnalysis.length;
-  const analyzedCount = analyzedClusters.size;
-  
-  if (analyzedCount === 0) {
-    btn.disabled = true;
-    status.textContent = `No clusters analyzed yet (0/${totalClusters})`;
-  } else if (analyzedCount < totalClusters) {
-    btn.disabled = false;
-    status.textContent = `Ready to generate for ${analyzedCount}/${totalClusters} clusters`;
-    status.style.color = '#ffc107';
-  } else {
-    btn.disabled = false;
-    status.textContent = '';
-    status.style.color = '#28a745';
-  }
-}
-
-/**
- * Generate XMP for all analyzed clusters
- */
-/**
- * Generate XMP for all analyzed clusters
- * Updated version: removes popups, tracks total XMP files, updates button state
- */
-/**
- * Generate XMP files for all analyzed clusters
- */
-async function generateAllXMPFiles() {
-  const analyzedClustersList = allClustersForAnalysis.filter(cluster => 
-    analyzedClusters.has(cluster.groupIndex)
-  );
-  
-  if (analyzedClustersList.length === 0) {
-    alert('No analyzed clusters to generate XMP for');
-    return;
-  }
-  
-  try {
-    updateStatus('Generating XMP files for all clusters...', 'processing');
-    showProgress(0);
-    
-    for (let i = 0; i < analyzedClustersList.length; i++) {
-      const cluster = analyzedClustersList[i];
-      const metadata = cluster.analysisMetadata || {};
-      
-      const result = await window.electronAPI.generateXMPFiles({
-        cluster: cluster,
-        metadata: metadata,
-        affectedImages: cluster.images || []
-      });
-      
-      if (!result.success) {
-        console.error(`Failed to generate XMP for cluster ${cluster.groupIndex}`);
-      }
-      
-      showProgress(((i + 1) / analyzedClustersList.length) * 100);
-    }
-    
-    updateStatus('All XMP files generated successfully!', 'complete');
-    alert(`✅ Success! Generated XMP files for ${analyzedClustersList.length} clusters.`);
-    
-  } catch (error) {
-    console.error('XMP generation failed:', error);
-    updateStatus(`XMP generation failed: ${error.message}`, 'error');
-    alert(`XMP generation failed: ${error.message}`);
-  }
-}
-
-/**
- * Helper: Get all image paths affected by a cluster
- * ✅ FIXED: Now includes derivatives (TIF, PSD)
- */
-function getAllAffectedPaths(group) {
-  const paths = [group.mainRep.representativePath];
-  
-  // Main rep's bracketed images
-  if (group.mainRep.imagePaths) {
-    paths.push(...group.mainRep.imagePaths.filter(p => p !== group.mainRep.representativePath));
-  }
-  
-  // ✅ FIX: Add main rep's derivatives
-  if (group.mainRep.derivatives) {
-    paths.push(...group.mainRep.derivatives);
-  }
-  
-  // Similar representatives and their files
-  if (group.similarReps) {
-    group.similarReps.forEach(sim => {
-      paths.push(sim.cluster.representativePath);
-      
-      // Similar rep's bracketed images
-      if (sim.cluster.imagePaths) {
-        paths.push(...sim.cluster.imagePaths);
-      }
-      
-      // ✅ FIX: Add similar rep's derivatives
-      if (sim.cluster.derivatives) {
-        paths.push(...sim.cluster.derivatives);
-      }
-    });
-  }
-  
-  const uniquePaths = [...new Set(paths)];
-  
-  // ============================================================================
-  // 🔍 STEP 4: getAllAffectedPaths RESULT - Final path collection
-  // ============================================================================
-  console.log('\n🔍 ========== STEP 4: getAllAffectedPaths RESULT ==========');
-  console.log(`📊 Total paths collected: ${uniquePaths.length}`);
-  console.log(`📊 EXPECTED: 78 files`);
-  console.log(`📊 DIFFERENCE: ${78 - uniquePaths.length} files ${78 - uniquePaths.length > 0 ? 'MISSING' : 'EXTRA'}`);
-  console.log('Files collected:', uniquePaths.map(p => p.split('/').pop()));
-  console.log('🔍 ==========================================\n');
-  // ============================================================================
-  
-  return uniquePaths;
-}
-
-/**
- * Helper: Count total images in a cluster
- */
-function countTotalImages(group) {
-  return getAllAffectedPaths(group).length;
-}
-
-/**
- * Helper: Count child images in a cluster
- */
-function countChildren(group) {
-  let total = 0;
-  if (group.mainRep.isBracketed && group.mainRep.imageCount) {
-    total += group.mainRep.imageCount - 1;
-  }
-  if (group.similarReps) {
-    group.similarReps.forEach(sim => {
-      if (sim.cluster.isBracketed && sim.cluster.imageCount) {
-        total += sim.cluster.imageCount;
-      }
-    });
-  }
-  return total;
-}
-
-/**
- * Trigger AI analysis from Visual Analysis tab
- * Called when user clicks "Analyze with AI" button on a cluster
- */
-async function analyzeClusterWithAI(clusterGroup) {
-  try {
-    console.log('Starting AI analysis for cluster:', clusterGroup.mainRep.representativeFilename);
-    
-    // Find and disable the button that triggered this (visual feedback)
-    const buttons = document.querySelectorAll('.analyze-ai-btn');
-    buttons.forEach(btn => {
-      btn.disabled = true;
-      btn.classList.add('loading');
-      btn.innerHTML = `
-        <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 6v6l4 2"/>
-        </svg>
-        Analyzing...
-      `;
-    });
-    
-    // Show loading state
-    updateStatus('Analyzing with AI...', 'processing');
-    showProgress(0);
-    
-    // Ensure currentClusterIndex is set for GPS priority lookups
-    const groupIndex = allProcessedImages.findIndex(g => g.mainRep?.representativePath === clusterGroup.mainRep?.representativePath);
-    if (groupIndex !== -1) {
-      currentClusterIndex = groupIndex;
-    }
-
-    // Merge pre-analysis GPS into the group before sending to backend
-    if (groupIndex !== -1 && preAnalysisGPS.has(groupIndex)) {
-      const gpsData = preAnalysisGPS.get(groupIndex);
-      if (!clusterGroup.mainRep.gps) {
-        clusterGroup.mainRep.gps = gpsData;
-        console.log('✅ Injected pre-analysis GPS into clusterGroup before AI call:', gpsData);
-      }
-    }
-
-    // Call backend AI analysis with GPS in payload if present
-    const result = await window.electronAPI.analyzeClusterWithAI(clusterGroup);
-    
-    showProgress(100);
-    
-    if (result.success) {
-      console.log('AI analysis complete:', result.data);
-      
-      // Store analysis data globally
-      currentAnalysisData = result.data;
-
-      // Also merge pre-analysis GPS into analysis result for display priority
-      if (groupIndex !== -1 && preAnalysisGPS.has(groupIndex)) {
-        const gpsData = preAnalysisGPS.get(groupIndex);
-        if (!currentAnalysisData.metadata.manualGPS && gpsData?.latitude) {
-          currentAnalysisData.metadata.manualGPS = gpsData;
-          console.log('✅ Merged pre-analysis GPS into analysis metadata for display:', gpsData);
-        }
-      }
-      
-      // Display results in AI Analysis tab
-      displayAIAnalysisResults(result.data);
-      
-      // Switch to AI Analysis tab
-      const aiAnalysisTab = document.querySelector('[data-tab="ai-analysis"]');
-      if (aiAnalysisTab) {
-        aiAnalysisTab.click();
-      }
-      
-      updateStatus('AI analysis complete!', 'complete');
-      
-    } else {
-      throw new Error(result.error || 'AI analysis failed');
-    }
-    
-  } catch (error) {
-    console.error('AI analysis failed:', error);
-    updateStatus(`AI analysis failed: ${error.message}`, 'error');
-    alert(`AI analysis failed: ${error.message}`);
-  } finally {
-    // Re-enable all buttons
-    const buttons = document.querySelectorAll('.analyze-ai-btn');
-    buttons.forEach(btn => {
-      btn.disabled = false;
-      btn.classList.remove('loading');
-      btn.innerHTML = `
-        <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5"/>
-          <path d="M2 12l10 5 10-5"/>
-        </svg>
-        Analyze with AI
-      `;
-    });
-  }
-}
-
-/**
- * Display AI analysis results in the UI
- */
-/**
- * Display AI analysis results in card list format
- */
-function displayAIAnalysisResults(analysisData) {
-  console.log('Displaying AI analysis results');
-  
-  // Add to analyzed clusters if not already present
-  const groupIndex = analysisData.cluster?.groupIndex;
-  if (groupIndex !== undefined && !analyzedClusters.has(groupIndex)) {
-    analyzedClusters.add(groupIndex);
-    console.log(`✅ Added cluster ${groupIndex} to analyzed set`);
-  }
-  
-  // Show card list view
-  loadClustersForAnalysisCardView();
-}
-
-/**
- * Load all analyzed clusters into card list view
- */
-function loadClustersForAnalysisCardView() {
-  const generateBtn = document.getElementById('generateAllXMPBtn');
-  
-  // Filter to only show analyzed clusters
-  const analyzedClustersList = allClustersForAnalysis.filter(cluster => 
-    analyzedClusters.has(cluster.groupIndex)
-  );
-  
-  if (analyzedClustersList.length === 0) {
-    // Show empty state
-    document.getElementById('aiAnalysisEmpty').style.display = 'block';
-    document.getElementById('aiAnalysisCardList').style.display = 'none';
-    if (generateBtn) generateBtn.style.display = 'none';
-    return;
-  }
-  
-  // Show card list
-  document.getElementById('aiAnalysisEmpty').style.display = 'none';
-  document.getElementById('aiAnalysisCardList').style.display = 'block';
-  if (generateBtn) {
-    generateBtn.style.display = 'block';
-    generateBtn.disabled = false;
-  }
-  
-  // Render cards
-  renderClusterCards(analyzedClustersList);
-}
-
-/**
- * Render cluster cards
- */
-async function renderClusterCards(clusters) {
-  const container = document.getElementById('clusterCardsContainer');
-  if (!container) {
-    console.error('❌ clusterCardsContainer not found in DOM');
-    return;
-  }
-  
-  container.innerHTML = '';
-  console.log(`   📦 Rendering ${clusters.length} cards...`);
-  
-  for (let i = 0; i < clusters.length; i++) {
-    const cluster = clusters[i];
-    
-    // Find the actual index in allClustersForAnalysis
-    const actualIndex = allClustersForAnalysis.findIndex(c => 
-      c.mainRep?.representativePath === cluster.mainRep?.representativePath
-    );
-    
-    const card = await createClusterCard(cluster, actualIndex);
-    container.appendChild(card);
-  }
-  
-  console.log(`   ✅ ${container.children.length} cards rendered`);
-}
-
-/**
- * Create a single cluster card element
- */
-async function createClusterCard(cluster, clusterIndex) {
+async function makeCard(cluster, metadata, index) {
   const card = document.createElement('div');
   card.className = 'cluster-card';
-  card.dataset.clusterIndex = clusterIndex;
   
-  // Get thumbnail
-  const thumbnailPath = cluster.mainRep?.representativePath || cluster.mainRep?.filePath;
-  let thumbnailSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" fill="%23dee2e6"><rect width="200" height="150"/></svg>';
+  const thumbnailPath = cluster.mainRep?.representativePath;
+  let thumbnailSrc = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" fill="%23ccc"><rect width="200" height="150"/></svg>';
   
   if (thumbnailPath) {
     try {
       const result = await window.electronAPI.getPreviewImage(thumbnailPath);
-      if (result.success) {
-        thumbnailSrc = result.dataUrl;
-      }
-    } catch (error) {
-      console.error('Failed to load thumbnail:', error);
-    }
+      if (result.success) thumbnailSrc = result.dataUrl;
+    } catch (e) {}
   }
   
-  // Get metadata from analyzedClusters Map
-  const metadata = analyzedClusters.get(clusterIndex) || {};
-  const title = metadata.title || 'Untitled';
-  const description = metadata.description || 'No description available';
-  const caption = metadata.caption || 'No caption available';
-  const gps = metadata.gps || cluster.mainRep?.gps || {};
+  const filename = cluster.mainRep?.representativeFilename || 'Unknown';
+  const title = metadata?.title || 'Untitled';
+  const description = metadata?.description || 'No description';
+  const caption = metadata?.caption || 'No caption';
+  const gps = metadata?.gps || {};
   const lat = gps.latitude || 'N/A';
   const lon = gps.longitude || 'N/A';
-  const filename = cluster.mainRep?.representativeFilename || cluster.mainRep?.filename || 'Unknown';
   
-  // Build card HTML
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+  
   card.innerHTML = `
     <div class="cluster-card-thumbnail">
       <img src="${thumbnailSrc}" alt="${filename}">
       <p>${filename}</p>
     </div>
-    
     <div class="cluster-card-metadata">
       <div class="cluster-card-field">
         <label>Title:</label>
         <p>${escapeHtml(title)}</p>
       </div>
-      
       <div class="cluster-card-field">
         <label>Description:</label>
         <p>${escapeHtml(description)}</p>
       </div>
-      
       <div class="cluster-card-field">
         <label>Caption:</label>
         <p>${escapeHtml(caption)}</p>
       </div>
-      
       <div class="cluster-card-field">
         <label>GPS:</label>
         <div class="cluster-card-gps">
-          <span>LAT: ${lat}  LON: ${lon}</span>
-          ${gps.latitude ? `<a href="#" class="cluster-card-map-link" onclick="openMapLink(${gps.latitude}, ${gps.longitude}); return false;">
-            📍 View on Map
-          </a>` : ''}
+          <span>LAT: ${lat} LON: ${lon}</span>
+          ${gps.latitude ? `<a href="#" class="cluster-card-map-link" onclick="window.open('https://www.google.com/maps?q=${gps.latitude},${gps.longitude}', '_blank'); return false;">📍 View on Map</a>` : ''}
         </div>
       </div>
     </div>
-    
     <div class="cluster-card-actions">
-      <button class="cluster-card-edit-btn" onclick="openEditModal(${clusterIndex})">
-        Edit/Update
-      </button>
+      <button class="cluster-card-edit-btn" onclick="alert('Edit modal coming soon')">Edit/Update</button>
     </div>
   `;
   
   return card;
 }
 
-/**
- * Open map link in browser
- */
-function openMapLink(lat, lon) {
-  const url = `https://www.google.com/maps?q=${lat},${lon}`;
-  window.open(url, '_blank');
-}
-
-/**
- * Open edit modal for a cluster
- */
-async function openEditModal(groupIndex) {
-  // Find the cluster
-  const cluster = allClustersForAnalysis.find(c => c.groupIndex === groupIndex);
-  if (!cluster) {
-    alert('Cluster not found');
-    return;
-  }
-  
-  // Store current editing cluster
-  currentEditingCluster = cluster;
-  currentEditingGroupIndex = groupIndex;
-  
-  // Populate modal fields
-  const metadata = cluster.analysisMetadata || {};
-  
-  // Thumbnail
-  const thumbnailPath = cluster.mainRep?.representativePath || cluster.mainRep?.filePath;
-  if (thumbnailPath) {
-    try {
-      const thumbnailSrc = await window.electronAPI.getPreviewImage(thumbnailPath);
-      document.getElementById('modalThumbnail').src = thumbnailSrc;
-    } catch (error) {
-      console.error('Failed to load thumbnail:', error);
-    }
-  }
-  document.getElementById('modalFilename').textContent = cluster.mainRep?.filename || 'Unknown';
-  
-  // Populate fields
-  document.getElementById('modalMetaTitle').value = metadata.title || '';
-  document.getElementById('modalMetaDescription').value = metadata.description || '';
-  document.getElementById('modalMetaCaption').value = metadata.caption || '';
-  
-  const gps = metadata.gps || cluster.mainRep?.gps || {};
-  document.getElementById('modalGpsLat').value = gps.latitude || '';
-  document.getElementById('modalGpsLon').value = gps.longitude || '';
-  
-  // Keywords
-  const keywordsContainer = document.getElementById('modalKeywordsContainer');
-  keywordsContainer.innerHTML = '';
-  (metadata.keywords || []).forEach(keyword => {
-    const tag = createModalKeywordTag(keyword);
-    keywordsContainer.appendChild(tag);
-  });
-  
-  document.getElementById('modalMetaCategory').value = metadata.category || '';
-  document.getElementById('modalMetaSceneType').value = metadata.sceneType || '';
-  document.getElementById('modalMetaMood').value = metadata.mood || '';
-  
-  const location = metadata.location || {};
-  document.getElementById('modalMetaCity').value = location.city || '';
-  document.getElementById('modalMetaState').value = location.state || '';
-  document.getElementById('modalMetaCountry').value = location.country || '';
-  document.getElementById('modalMetaSpecificLocation').value = location.specificLocation || '';
-  
-  document.getElementById('modalMetaHashtags').value = (metadata.hashtags || []).join(' ');
-  
-  // Show modal
-  document.getElementById('editMetadataModal').style.display = 'flex';
-}
-
-/**
- * Close edit modal
- */
-function closeEditModal() {
-  document.getElementById('editMetadataModal').style.display = 'none';
-  currentEditingCluster = null;
-  currentEditingGroupIndex = null;
-}
-
-/**
- * Save metadata from modal
- */
-function saveModalMetadata() {
-  if (!currentEditingCluster || currentEditingGroupIndex === null) {
-    alert('No cluster selected');
-    return;
-  }
-  
-  // Collect metadata from modal fields
-  const keywords = Array.from(document.querySelectorAll('#modalKeywordsContainer .keyword-tag span:first-child'))
-    .map(span => span.textContent.trim());
-    
-  const hashtagsText = document.getElementById('modalMetaHashtags').value || '';
-  const hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
-  
-  const metadata = {
-    title: document.getElementById('modalMetaTitle').value,
-    description: document.getElementById('modalMetaDescription').value,
-    caption: document.getElementById('modalMetaCaption').value,
-    gps: {
-      latitude: parseFloat(document.getElementById('modalGpsLat').value) || null,
-      longitude: parseFloat(document.getElementById('modalGpsLon').value) || null
-    },
-    keywords: keywords,
-    category: document.getElementById('modalMetaCategory').value,
-    sceneType: document.getElementById('modalMetaSceneType').value,
-    mood: document.getElementById('modalMetaMood').value,
-    location: {
-      city: document.getElementById('modalMetaCity').value,
-      state: document.getElementById('modalMetaState').value,
-      country: document.getElementById('modalMetaCountry').value,
-      specificLocation: document.getElementById('modalMetaSpecificLocation').value
-    },
-    hashtags: hashtags
-  };
-  
-  // Update cluster's metadata
-  currentEditingCluster.analysisMetadata = metadata;
-  
-  console.log(`✅ Saved metadata for cluster ${currentEditingGroupIndex}`);
-  
-  // Close modal
-  closeEditModal();
-  
-  // Refresh card list
-  loadClustersForAnalysisCardView();
-}
-
-/**
- * Create keyword tag for modal
- */
-function createModalKeywordTag(keyword) {
-  const tag = document.createElement('div');
-  tag.className = 'keyword-tag';
-  
-  const text = document.createElement('span');
-  text.textContent = keyword;
-  
-  const remove = document.createElement('span');
-  remove.className = 'keyword-remove';
-  remove.textContent = '×';
-  remove.onclick = () => tag.remove();
-  
-  tag.appendChild(text);
-  tag.appendChild(remove);
-  
-  return tag;
-}
-
-/**
- * Add keyword in modal
- */
-function addModalKeyword() {
-  const input = document.getElementById('modalNewKeywordInput');
-  const keyword = input.value.trim();
-  
-  if (!keyword) return;
-  
-  const container = document.getElementById('modalKeywordsContainer');
-  const tag = createModalKeywordTag(keyword);
-  container.appendChild(tag);
-  
-  input.value = '';
-}
-
-
-/**
- * Display preview image
- */
-async function displayPreviewImage(analysisData) {
-  const previewImg = document.getElementById('aiPreviewImage');
-  const filenameEl = document.getElementById('aiPreviewFilename');
-  const imageCountEl = document.getElementById('aiPreviewImageCount');
-  
-  // Get representative image path
-  const repPath = analysisData.cluster.mainRep.representativePath;
-  const filename = repPath.split('/').pop();
-  
-  // Load thumbnail
-  const result = await window.electronAPI.getPreviewImage(repPath);
-  if (result.success) {
-    previewImg.src = result.dataUrl;
-  }
-  
-  // Display filename
-  filenameEl.textContent = filename;
-  
-  // Display image count
-  const totalImages = analysisData.imageCount;
-  const parents = analysisData.breakdown.parents;
-  const children = analysisData.breakdown.children;
-  
-  imageCountEl.textContent = `📦 This XMP will be applied to ${totalImages} images (${parents} parent${parents > 1 ? 's' : ''}, ${children} child${children !== 1 ? 'ren' : ''})`;
-}
-
-/**
- * Display confidence score with color coding
- */
-function displayConfidenceScore(metadata) {
-  const confidenceSection = document.getElementById('confidenceSection');
-  const providerEl = document.getElementById('confidenceProvider');
-  const scoreEl = document.getElementById('confidenceScore');
-  const fillEl = document.getElementById('confidenceFill');
-  const messageEl = document.getElementById('confidenceMessage');
-  
-  const confidence = metadata.confidence;
-  
-  // Set provider icon and name
-  const providerIcon = metadata.provider === 'google_vision' ? '🌐' : '🤖';
-  const providerName = metadata.provider === 'google_vision' ? 'Google Vision' : 'Ollama';
-  providerEl.textContent = `${providerIcon} ${providerName}`;
-  
-  // Set confidence score
-  scoreEl.textContent = `${confidence}%`;
-  
-  // Set progress bar width
-  fillEl.style.width = `${confidence}%`;
-  
-  // Determine confidence level and apply styling
-  let level, message;
-  
-  if (confidence >= 90) {
-    level = 'excellent';
-    message = '✅ Excellent confidence - Results are highly accurate';
-  } else if (confidence >= 80) {
-    level = 'good';
-    message = 'ℹ️ Good confidence - Results are likely accurate';
-  } else if (confidence >= 70) {
-    level = 'fair';
-    message = '⚠️ Fair confidence - Review results carefully';
-  } else {
-    level = 'poor';
-    message = '❌ Low confidence - Consider using Google Vision or manual editing';
-  }
-  
-  // Apply confidence class
-  confidenceSection.className = `confidence-indicator confidence-${level}`;
-  fillEl.className = `confidence-fill ${level}`;
-  messageEl.textContent = message;
-}
-
-/**
- * Show low confidence warning
- */
-function showLowConfidenceWarning(confidence, threshold) {
-  const warningDiv = document.getElementById('lowConfidenceWarning');
-  warningDiv.style.display = 'block';
-  
-  const warningText = warningDiv.querySelector('p:nth-of-type(2)');
-  warningText.textContent = `Analysis confidence (${confidence}%) is below the threshold (${threshold}%). You can:`;
-}
-
-/**
- * Populate all metadata fields
- */
-function populateMetadataFields(metadata) {
-  // Title
-  document.getElementById('metaTitle').value = metadata.title || '';
-  
-  // Description
-  document.getElementById('metaDescription').value = metadata.description || '';
-  
-  // Caption
-  document.getElementById('metaCaption').value = metadata.caption || '';
-  
-  // Keywords
-  populateKeywords(metadata.keywords || []);
-  
-  // Category & Scene Type
-  document.getElementById('metaCategory').value = metadata.category || '';
-  document.getElementById('metaSceneType').value = metadata.sceneType || '';
-  
-  // Mood
-  document.getElementById('metaMood').value = metadata.mood || '';
-  
-  // Location
-  if (metadata.location) {
-    document.getElementById('metaCity').value = metadata.location.city || '';
-    document.getElementById('metaState').value = metadata.location.state || '';
-    document.getElementById('metaCountry').value = metadata.location.country || '';
-    document.getElementById('metaSpecificLocation').value = metadata.location.specificLocation || '';
-  }
-  
-  // GPS coordinates - Check multiple sources with priority:
-  // 1. Manual GPS (user edited on AI Analysis page)
-  // 2. GPS from Visual Analysis page (pre-analysis)
-  // 3. GPS from cluster mainRep (saved during visual analysis)
-  // 4. GPS Analysis from AI
-  // 5. EXIF GPS from parent
-  let gpsData = null;
-  let gpsSource = '';
-  
-  console.log('🔍 Checking GPS sources for cluster', currentClusterIndex);
-  console.log('   metadata.manualGPS:', metadata.manualGPS);
-  console.log('   currentClusterIndex:', currentClusterIndex);
-  console.log('   Has preAnalysisGPS:', currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex));
-  
-  if (metadata.manualGPS?.latitude) {
-    gpsData = metadata.manualGPS;
-    gpsSource = 'Manual Entry';
-    console.log('   ✅ Using metadata.manualGPS');
-  } else if (currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex)) {
-    gpsData = preAnalysisGPS.get(currentClusterIndex);
-    gpsSource = 'Manual Entry (Pre-Analysis)';
-    console.log('   ✅ Using preAnalysisGPS Map');
-  } else if (currentClusterIndex !== null && allClustersForAnalysis[currentClusterIndex]?.mainRep?.gps) {
-    gpsData = allClustersForAnalysis[currentClusterIndex].mainRep.gps;
-    gpsSource = 'Manual Entry (Visual Analysis)';
-    console.log('   ✅ Using allClustersForAnalysis[currentClusterIndex].mainRep.gps');
-  } else if (metadata.gpsAnalysis?.latitude) {
-    gpsData = {
-      latitude: parseFloat(metadata.gpsAnalysis.latitude),
-      longitude: parseFloat(metadata.gpsAnalysis.longitude),
-      altitude: metadata.gpsAnalysis.altitude || null
-    };
-    gpsSource = 'AI Analysis';
-    console.log('   ✅ Using metadata.gpsAnalysis');
-  } else if (currentAnalysisData?.cluster?.mainRep?.gps) {
-    gpsData = currentAnalysisData.cluster.mainRep.gps;
-    gpsSource = 'EXIF Data';
-    console.log('   ✅ Using currentAnalysisData.cluster.mainRep.gps');
-  }
-  
-  console.log('   📍 Final GPS for display:', gpsData);
-  displayGPSSection(gpsData, gpsSource);
-  
-  // Hashtags
-  const hashtags = metadata.hashtags || [];
-  document.getElementById('metaHashtags').value = hashtags.join(' ');
-  
-  // Alt Text
-  document.getElementById('metaAltText').value = metadata.altText || '';
-}
-
-/**
- * Display GPS section with edit capability
- * ✅ NEW: Light blue design with simple element updates
- */
-function displayGPSSection(gpsData, source) {
-  console.log('🔍 displayGPSSection called:', gpsData);
-  
-  const gpsSection = document.getElementById('gpsSection');
-  const gpsLatDisplay = document.getElementById('gpsLatDisplay');
-  const gpsLonDisplay = document.getElementById('gpsLonDisplay');
-  const gpsLat = document.getElementById('gpsLat');
-  const gpsLon = document.getElementById('gpsLon');
-  const gpsSourceBadge = document.getElementById('gpsSourceBadge');
-  
-  // Check if GPS section exists
-  if (!gpsSection) {
-    console.error('❌ gpsSection element not found in DOM');
-    return;
-  }
-  
-  // Enhanced GPS data validation
-  const hasValidGPS = gpsData && 
-                     typeof gpsData === 'object' && 
-                     (gpsData.latitude !== undefined && gpsData.latitude !== null);
-  
-  if (!hasValidGPS) {
-    console.log('⚠️ No valid GPS data to display. GPS data:', gpsData);
-    gpsSection.style.display = 'none';
-    if (gpsLatDisplay) gpsLatDisplay.textContent = '--';
-    if (gpsLonDisplay) gpsLonDisplay.textContent = '--';
-    if (gpsLat) gpsLat.value = '';
-    if (gpsLon) gpsLon.value = '';
-    return;
-  }
-  
-  // Display the GPS data
-  gpsSection.style.display = 'block';
-  if (gpsLatDisplay) gpsLatDisplay.textContent = `${gpsData.latitude}°`;
-  if (gpsLonDisplay) gpsLonDisplay.textContent = `${gpsData.longitude}°`;
-  if (gpsLat) gpsLat.value = gpsData.latitude;
-  if (gpsLon) gpsLon.value = gpsData.longitude;
-  if (gpsSourceBadge) gpsSourceBadge.textContent = source || 'Manual Entry';
-  
-  console.log('✅ GPS displayed successfully:', gpsData.latitude, gpsData.longitude);
-}
-
-/**
- * Edit GPS - Toggle between display and edit mode
- */
-function editGPS() {
-  const gpsDisplay = document.getElementById('gpsDisplay');
-  const gpsInput = document.getElementById('gpsInput');
-  
-  if (gpsDisplay && gpsInput) {
-    gpsDisplay.style.display = 'none';
-    gpsInput.style.display = 'block';
-  }
-}
-
-/**
- * Save GPS coordinates
- */
-function saveGPS() {
-  const gpsLat = document.getElementById('gpsLat');
-  const gpsLon = document.getElementById('gpsLon');
-  
-  if (!gpsLat || !gpsLon) {
-    console.error('GPS input fields not found');
-    return;
-  }
-  
-  const latitude = parseFloat(gpsLat.value);
-  const longitude = parseFloat(gpsLon.value);
-  
-  if (isNaN(latitude) || isNaN(longitude)) {
-    alert('Please enter valid GPS coordinates');
-    return;
-  }
-  
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-    alert('GPS coordinates out of range.\nLatitude: -90 to 90\nLongitude: -180 to 180');
-    return;
-  }
-  
-  const gpsData = {
-    latitude,
-    longitude,
-    source: 'Manual Entry'
-  };
-  
-  // Save to current analysis data
-  if (currentAnalysisData && currentAnalysisData.metadata) {
-    currentAnalysisData.metadata.manualGPS = gpsData;
-    console.log('✅ GPS saved to currentAnalysisData.metadata.manualGPS:', gpsData);
-  }
-  
-  // Update display
-  displayGPSSection(gpsData, 'Manual Entry');
-  
-  // Switch back to display mode
-  const gpsDisplay = document.getElementById('gpsDisplay');
-  const gpsInput = document.getElementById('gpsInput');
-  if (gpsDisplay && gpsInput) {
-    gpsDisplay.style.display = 'block';
-    gpsInput.style.display = 'none';
-  }
-}
-
-/**
- * View GPS coordinates on Google Maps
- */
-function viewOnMap() {
-  const gpsLatDisplay = document.getElementById('gpsLatDisplay');
-  const gpsLonDisplay = document.getElementById('gpsLonDisplay');
-  
-  if (!gpsLatDisplay || !gpsLonDisplay) {
-    alert('GPS coordinates not available');
-    return;
-  }
-  
-  const lat = gpsLatDisplay.textContent.replace('°', '').trim();
-  const lon = gpsLonDisplay.textContent.replace('°', '').trim();
-  
-  if (lat && lon && lat !== '--' && lon !== '--') {
-    const url = `https://www.google.com/maps?q=${lat},${lon}`;
-    window.electronAPI.openExternal(url);
-  }
-}
-
-/**
- * Copy GPS coordinates to clipboard
- */
-function copyGPSCoordinates() {
-  const gpsLatDisplay = document.getElementById('gpsLatDisplay');
-  const gpsLonDisplay = document.getElementById('gpsLonDisplay');
-  
-  if (!gpsLatDisplay || !gpsLonDisplay) {
-    alert('GPS coordinates not available');
-    return;
-  }
-  
-  const lat = gpsLatDisplay.textContent.replace('°', '').trim();
-  const lon = gpsLonDisplay.textContent.replace('°', '').trim();
-  
-  if (lat && lon && lat !== '--' && lon !== '--') {
-    const text = `${lat}, ${lon}`;
-    navigator.clipboard.writeText(text).then(() => {
-      alert('GPS coordinates copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy:', err);
-      alert('Failed to copy coordinates');
-    });
-  }
-}
-
-/**
- * Show GPS edit form (OLD - kept for compatibility)
- */
-function showGPSEditForm(currentGPS, source) {
-  const gpsSection = document.getElementById('gpsDisplaySection');
-  
-  gpsSection.innerHTML = `
-    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <strong style="color: #856404;">📍 Edit GPS Coordinates</strong>
-        <span style="font-size: 11px; color: #856404;">Will apply to ALL cluster images</span>
-        </div>
-      
-      <div style="display: grid; gap: 10px;">
-        <div>
-          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Latitude (decimal degrees)</label>
-          <input type="number" id="gpsLatInput" step="0.000001" placeholder="51.389167" 
-                 value="${currentGPS?.latitude || ''}"
-                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
-          <span style="font-size: 11px; color: #856404;">North: positive, South: negative</span>
-        </div>
-        
-        <div>
-          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Longitude (decimal degrees)</label>
-          <input type="number" id="gpsLonInput" step="0.000001" placeholder="30.099444"
-                 value="${currentGPS?.longitude || ''}"
-                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
-          <span style="font-size: 11px; color: #856404;">East: positive, West: negative</span>
-        </div>
-        
-        <div>
-          <label style="display: block; font-size: 13px; color: #856404; margin-bottom: 4px;">Altitude (meters, optional)</label>
-          <input type="number" id="gpsAltInput" step="0.1" placeholder="123.5"
-                 value="${currentGPS?.altitude || ''}"
-                 style="width: 100%; padding: 8px; border: 1px solid #ffc107; border-radius: 4px;">
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-          <button id="saveGPSBtn" class="secondary-button" style="background: #28a745; color: white;">
-            ✓ Save GPS
-          </button>
-          <button id="cancelGPSBtn" class="secondary-button">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Add event listeners
-  document.getElementById('saveGPSBtn').addEventListener('click', () => {
-    const lat = parseFloat(document.getElementById('gpsLatInput').value);
-    const lon = parseFloat(document.getElementById('gpsLonInput').value);
-    const alt = document.getElementById('gpsAltInput').value ? 
-                 parseFloat(document.getElementById('gpsAltInput').value) : null;
-    
-    if (isNaN(lat) || isNaN(lon)) {
-      alert('Please enter valid latitude and longitude values');
-      return;
-    }
-    
-    // Validate ranges
-    if (lat < -90 || lat > 90) {
-      alert('Latitude must be between -90 and 90');
-      return;
-    }
-    if (lon < -180 || lon > 180) {
-      alert('Longitude must be between -180 and 180');
-      return;
-    }
-    
-    const gpsData = {
-      latitude: lat,
-      longitude: lon,
-      altitude: alt,
-      source: 'Manual Entry'
-    };
-    
-    // ✅ TWO SCENARIOS:
-    // 1. AFTER AI analysis (currentAnalysisData exists) - save to metadata
-    // 2. BEFORE AI analysis (on Visual Analysis page) - save to preAnalysisGPS Map
-    
-    if (currentAnalysisData && currentAnalysisData.metadata) {
-      // Scenario 1: AFTER AI analysis - save to currentAnalysisData
-      currentAnalysisData.metadata.manualGPS = gpsData;
-      console.log('✅ GPS saved to currentAnalysisData.metadata.manualGPS (post-AI):', gpsData);
-      
-      // Redisplay GPS section
-      displayGPSSection(gpsData, 'Manual Entry');
-      
-      // Show success message
-      updateStatus('GPS coordinates updated - will apply to all cluster images on XMP generation', 'complete');
-      
-      // Log verification
-      console.log('📍 Current analysis data after GPS save:', JSON.stringify({
-        hasMetadata: !!currentAnalysisData.metadata,
-        hasManualGPS: !!currentAnalysisData.metadata?.manualGPS,
-        manualGPS: currentAnalysisData.metadata?.manualGPS,
-        title: currentAnalysisData.metadata?.title
-      }, null, 2));
-    } 
-    else {
-      // Scenario 2: BEFORE AI analysis - save to preAnalysisGPS Map
-      // Use currentClusterIndex if we're viewing a cluster
-      
-      if (currentClusterIndex !== null) {
-        preAnalysisGPS.set(currentClusterIndex, gpsData);
-        console.log(`✅ GPS saved to preAnalysisGPS Map (pre-AI) for cluster ${currentClusterIndex}:`, gpsData);
-        
-        // Redisplay GPS section
-        displayGPSSection(gpsData, 'Manual Entry (Pre-Analysis)');
-        
-        // Show success message
-        updateStatus(`GPS saved for cluster ${currentClusterIndex}. Will be preserved when running AI analysis.`, 'complete');
-      } else {
-        console.error('❌ Cannot save GPS: No current cluster index');
-        alert('Error: Unable to determine which cluster to save GPS to');
-      }
-    }
-  });
-  
-  document.getElementById('cancelGPSBtn').addEventListener('click', () => {
-    // Restore previous display
-    if (currentGPS) {
-      displayGPSSection(currentGPS, source);
-    } else {
-      displayGPSSection(null, '');
-    }
-  });
-}
-
-/**
- * Populate keywords as tags
- */
-function populateKeywords(keywords) {
-  const container = document.getElementById('keywordsContainer');
-  container.innerHTML = '';
-  
-  keywords.forEach(keyword => {
-    const tag = createKeywordTag(keyword);
-    container.appendChild(tag);
-  });
-}
-
-/**
- * Create a keyword tag element
- */
-function createKeywordTag(keyword) {
-  const tag = document.createElement('div');
-  tag.className = 'keyword-tag';
-  
-  const text = document.createElement('span');
-  text.textContent = keyword;
-  
-  const remove = document.createElement('span');
-  remove.className = 'keyword-remove';
-  remove.textContent = '×';
-  remove.onclick = () => tag.remove();
-  
-  tag.appendChild(text);
-  tag.appendChild(remove);
-  
-  return tag;
-}
-
-/**
- * Display static metadata (creator, copyright, date)
- */
-function displayStaticMetadata(analysisData) {
-  // Extract year from EXIF or use current year
-  const year = new Date().getFullYear(); // TODO: Extract from EXIF
-  
-  const copyrightEl = document.getElementById('copyrightDisplay');
-  copyrightEl.textContent = `© ${year} Philip Ethan Grossman. All Rights Reserved.`;
-  
-  const dateEl = document.getElementById('dateCreatedDisplay');
-  dateEl.textContent = 'From EXIF DateTimeOriginal';
-}
-
-/**
- * Add keyword from input
- */
-function addKeyword() {
-  const input = document.getElementById('newKeywordInput');
-  const keyword = input.value.trim();
-  
-  if (!keyword) return;
-  
-  // Check if keyword already exists
-  const existingKeywords = Array.from(document.querySelectorAll('.keyword-tag span:first-child'))
-    .map(span => span.textContent);
-  
-  if (existingKeywords.includes(keyword)) {
-    alert('This keyword already exists');
-    return;
-  }
-  
-  // Add keyword tag
-  const container = document.getElementById('keywordsContainer');
-  const tag = createKeywordTag(keyword);
-  container.appendChild(tag);
-  
-  // Clear input
-  input.value = '';
-}
-
-/**
- * Collect edited metadata from form
- */
-function collectMetadataFromForm() {
-  console.log('🔍 ========== COLLECTING METADATA FROM FORM ==========');
-  console.log('🔍 currentAnalysisData:', currentAnalysisData ? 'EXISTS' : 'NULL');
-  
-  if (currentAnalysisData) {
-    console.log('🔍 currentAnalysisData.metadata:', JSON.stringify({
-      hasManualGPS: !!currentAnalysisData.metadata?.manualGPS,
-      manualGPS: currentAnalysisData.metadata?.manualGPS,
-      hasGpsAnalysis: !!currentAnalysisData.metadata?.gpsAnalysis,
-      gpsAnalysis: currentAnalysisData.metadata?.gpsAnalysis,
-      hasClusterGPS: !!currentAnalysisData.cluster?.mainRep?.gps,
-      clusterGPS: currentAnalysisData.cluster?.mainRep?.gps
-    }, null, 2));
-  }
-  
-  // Collect all field values
-  const metadata = {
-    title: document.getElementById('metaTitle')?.value || '',
-    description: document.getElementById('metaDescription')?.value || '',
-    caption: document.getElementById('metaCaption')?.value || '',
-    category: document.getElementById('metaCategory')?.value || '',
-    sceneType: document.getElementById('metaSceneType')?.value || '',
-    mood: document.getElementById('metaMood')?.value || '',
-    altText: document.getElementById('metaAltText')?.value || '',
-    
-    // Location
-    location: {
-      city: document.getElementById('metaCity')?.value || '',
-      state: document.getElementById('metaState')?.value || '',
-      country: document.getElementById('metaCountry')?.value || '',
-      specificLocation: document.getElementById('metaSpecificLocation')?.value || ''
-    },
-    
-    // Keywords - collect from the keywords container
-    keywords: [],
-    
-    // Subjects - collect from subjects container
-    subjects: [],
-    
-    // Hashtags - collect from hashtags container
-    hashtags: [],
-    
-    // Preserve confidence and provider info
-    confidence: currentAnalysisData?.metadata?.confidence || 85,
-    provider: currentAnalysisData?.metadata?.provider || 'ollama'
-  };
-  
-  // ✅ GPS COLLECTION - Check MULTIPLE sources
-  // Priority: Manual (post-AI) > Pre-Analysis > AI Analysis > EXIF
-  console.log('🔍 Checking GPS from multiple sources...');
-  
-  // Priority 1: Manual GPS from currentAnalysisData (post-AI)
-  if (currentAnalysisData?.metadata?.manualGPS?.latitude) {
-    metadata.gps = currentAnalysisData.metadata.manualGPS;
-    console.log('✅ Using manual GPS from currentAnalysisData:', metadata.gps);
-  }
-  // Priority 2: Pre-analysis GPS from Map
-  else if (currentClusterIndex !== null && preAnalysisGPS.has(currentClusterIndex)) {
-    metadata.gps = preAnalysisGPS.get(currentClusterIndex);
-    console.log('✅ Using pre-analysis GPS from Map:', metadata.gps);
-  }
-  // Priority 3: AI Analysis GPS
-  else if (currentAnalysisData?.metadata?.gpsAnalysis?.latitude) {
-    metadata.gps = {
-      latitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.latitude),
-      longitude: parseFloat(currentAnalysisData.metadata.gpsAnalysis.longitude),
-      altitude: currentAnalysisData.metadata.gpsAnalysis.altitude || null,
-      source: 'AI Analysis'
-    };
-    console.log('✅ Using AI Analysis GPS:', metadata.gps);
-  }
-  // Priority 4: EXIF GPS
-  else if (currentAnalysisData?.cluster?.mainRep?.gps?.latitude) {
-    metadata.gps = currentAnalysisData.cluster.mainRep.gps;
-    console.log('✅ Using EXIF GPS:', metadata.gps);
-  }
-  else {
-    console.log('⚠️ No GPS found in any source');
-  }
-  
-  // ✅ Collect keywords from .keyword-tag elements in AI Analysis tab
-  const keywordTags = document.querySelectorAll('#keywordsContainer .keyword-tag span:first-child');
-  keywordTags.forEach(span => {
-    const keyword = span.textContent.trim();
-    if (keyword) {
-      metadata.keywords.push(keyword);
-    }
-  });
-  
-  // Collect hashtags (split by space)
-  const hashtagsText = document.getElementById('metaHashtags')?.value || '';
-  metadata.hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
-  
-  console.log('📦 Final collected metadata:', JSON.stringify({
-    title: metadata.title,
-    hasGPS: !!metadata.gps,
-    gps: metadata.gps,
-    keywordsCount: metadata.keywords.length,
-    hashtagsCount: metadata.hashtags.length
-  }, null, 2));
-  
-  console.log('🔍 ========== END COLLECTING METADATA ==========\n');
-  
-  return metadata;
-}
-
-/**
- * Generate XMP files
- */
-async function generateXMPFiles() {
-  if (!currentAnalysisData) {
-    alert('No analysis data available');
-    return;
-  }
-  
-  try {
-    console.log('Generating XMP files...');
-    
-    // Collect edited metadata from form
-    const editedMetadata = collectMetadataFromForm();
-    
-    // Show progress
-    updateStatus('Generating XMP files...', 'processing');
-    showProgress(0);
-    
-    // Call backend to generate XMP
-    const result = await window.electronAPI.generateXMPFiles({
-      cluster: currentAnalysisData.cluster,
-      metadata: editedMetadata,
-      affectedImages: currentAnalysisData.affectedImages
-    });
-    
-    showProgress(100);
-    
-    if (result.success) {
-      updateStatus('XMP files generated successfully!', 'complete');
-      alert(`✅ Success! Generated ${result.count} XMP files.`);
-      
-      // Clear current analysis
-      currentAnalysisData = null;
-      
-      // Return to Visual Analysis tab
-      const resultsTab = document.querySelector('[data-tab="results"]');
-      if (resultsTab) {
-        resultsTab.click();
-      }
-      
-    } else {
-      throw new Error(result.error || 'XMP generation failed');
-    }
-    
-  } catch (error) {
-    console.error('XMP generation failed:', error);
-    updateStatus(`XMP generation failed: ${error.message}`, 'error');
-    alert(`XMP generation failed: ${error.message}`);
-  }
-}
-
-/**
- * Re-analyze with specific provider
- */
-async function reanalyzeWithProvider(provider) {
-  if (!currentAnalysisData) {
-    alert('No analysis data available');
-    return;
-  }
-  
-  try {
-    console.log(`Re-analyzing with ${provider}...`);
-    
-    updateStatus(`Re-analyzing with ${provider}...`, 'processing');
-    showProgress(0);
-    
-    // Call backend with forced provider
-    const result = await window.electronAPI.analyzeClusterWithAI(
-      currentAnalysisData.cluster,
-      provider
-    );
-    
-    showProgress(100);
-    
-    if (result.success) {
-      console.log('Re-analysis complete:', result.data);
-      currentAnalysisData = result.data;
-      displayAIAnalysisResults(result.data);
-      updateStatus('Re-analysis complete!', 'complete');
-    } else {
-      throw new Error(result.error || 'Re-analysis failed');
-    }
-    
-  } catch (error) {
-    console.error('Re-analysis failed:', error);
-    updateStatus(`Re-analysis failed: ${error.message}`, 'error');
-    alert(`Re-analysis failed: ${error.message}`);
-  }
-}
-
-// ============================================
-// Event Listeners for AI Analysis Tab
-// ============================================
-
 function initializeAIAnalysisListeners() {
-  // Add keyword button
-  const addKeywordBtn = document.getElementById('addKeywordBtn');
-  if (addKeywordBtn) {
-    addKeywordBtn.addEventListener('click', addKeyword);
-  }
-  
-  // Add keyword on Enter key
-  const newKeywordInput = document.getElementById('newKeywordInput');
-  if (newKeywordInput) {
-    newKeywordInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addKeyword();
-      }
-    });
-  }
-  
-  // Regenerate button
-  const regenerateBtn = document.getElementById('regenerateBtn');
-  if (regenerateBtn) {
-    regenerateBtn.addEventListener('click', () => reanalyzeWithProvider('ollama'));
-  }
-  
-  // Save metadata for current cluster button (replaces old Generate XMP button)
-  const saveMetadataBtn = document.getElementById('saveMetadataBtn');
-  if (saveMetadataBtn) {
-    saveMetadataBtn.addEventListener('click', saveCurrentClusterMetadata);
-  }
-  
-  // Generate All XMP button
   const generateAllXMPBtn = document.getElementById('generateAllXMPBtn');
   if (generateAllXMPBtn) {
-    generateAllXMPBtn.addEventListener('click', generateAllXMPFiles);
-  }
-  
-  // Load clusters when AI Analysis tab is clicked
-  // Note: loadClustersForAnalysis() is called automatically after batch analysis
-  // No need for tab click listener to avoid duplicate calls
-  
-  // Low confidence warning buttons
-  const reanalyzeOllamaBtn = document.getElementById('reanalyzeOllamaBtn');
-  if (reanalyzeOllamaBtn) {
-    reanalyzeOllamaBtn.addEventListener('click', () => reanalyzeWithProvider('ollama'));
-  }
-  
-  const analyzeGoogleBtn = document.getElementById('analyzeGoogleBtn');
-  if (analyzeGoogleBtn) {
-    analyzeGoogleBtn.addEventListener('click', () => reanalyzeWithProvider('google'));
-  }
-  
-  const acceptManuallyBtn = document.getElementById('acceptManuallyBtn');
-  if (acceptManuallyBtn) {
-    acceptManuallyBtn.addEventListener('click', () => {
-      document.getElementById('lowConfidenceWarning').style.display = 'none';
-      alert('You can now edit the metadata manually before generating XMP files.');
+    generateAllXMPBtn.addEventListener('click', () => {
+      alert('Generate XMP - coming soon!');
     });
   }
-  
-  console.log('✅ AI Analysis listeners attached');
 }
 
 // ============================================
 // Personal Data Functions
 // ============================================
-
+    
 /**
  * Load personal data from database
  */
+    
 async function loadPersonalData() {
   try {
-    const data = await window.electronAPI.getPersonalData();
-    
-    if (data.success && data.data) {
-      document.getElementById('creatorName').value = data.data.creatorName || '';
-      document.getElementById('creatorJobTitle').value = data.data.jobTitle || '';
-      document.getElementById('creatorAddress').value = data.data.address || '';
-      document.getElementById('creatorCity').value = data.data.city || '';
-      document.getElementById('creatorState').value = data.data.state || '';
-      document.getElementById('creatorPostalCode').value = data.data.postalCode || '';
-      document.getElementById('creatorCountry').value = data.data.country || '';
-      document.getElementById('creatorPhone').value = data.data.phone || '';
-      document.getElementById('creatorEmail').value = data.data.email || '';
-      document.getElementById('creatorWebsite').value = data.data.website || '';
-      document.getElementById('copyrightStatus').value = data.data.copyrightStatus || 'copyrighted';
-      document.getElementById('copyrightNotice').value = data.data.copyrightNotice || '';
-      document.getElementById('rightsUsageTerms').value = data.data.rightsUsageTerms || '';
-      
-      console.log('✅ Personal data loaded');
-    }
-  } catch (error) {
-    console.error('❌ Failed to load personal data:', error);
-  }
-}
-
-/**
- * Save personal data to database
- */
-async function savePersonalData() {
-  const data = {
-    creatorName: document.getElementById('creatorName').value,
-    jobTitle: document.getElementById('creatorJobTitle').value,
-    address: document.getElementById('creatorAddress').value,
-    city: document.getElementById('creatorCity').value,
-    state: document.getElementById('creatorState').value,
-    postalCode: document.getElementById('creatorPostalCode').value,
-    country: document.getElementById('creatorCountry').value,
-    phone: document.getElementById('creatorPhone').value,
-    email: document.getElementById('creatorEmail').value,
-    website: document.getElementById('creatorWebsite').value,
-    copyrightStatus: document.getElementById('copyrightStatus').value,
-    copyrightNotice: document.getElementById('copyrightNotice').value,
-    rightsUsageTerms: document.getElementById('rightsUsageTerms').value
-  };
-  
-  // Validate required fields
-  if (!data.creatorName || !data.email || !data.copyrightNotice) {
-    alert('❌ Please fill in all required fields (marked with *)');
-    return;
-  }
-  
-  try {
-    const result = await window.electronAPI.savePersonalData(data);
-    
+    const result = await window.electronAPI.getPersonalData();
     if (result.success) {
-      alert('✅ Personal data saved successfully!');
+      console.log('Personal data loaded:', result.data);
+      // Update UI with personal data
+      updatePersonalDataUI(result.data);
     } else {
-      alert('❌ Failed to save: ' + result.error);
+      console.error('Failed to load personal data:', result.error);
     }
   } catch (error) {
-    console.error('❌ Failed to save personal data:', error);
-    alert('❌ Error saving personal data: ' + error.message);
+    console.error('Error loading personal data:', error);
   }
 }
-
+/**
+ * Update personal data UI
+ */
+function updatePersonalDataUI(data) {
+  // Update UI elements with personal data
+  console.log('Updating personal data UI:', data);
+} 
 // ============================================
 // GPS DIAGNOSTIC FUNCTION
 // ============================================
 
 window.debugGPS = function() {
-  console.log('\n\n🔍 GPS DIAGNOSTIC REPORT');
-  console.log('========================\n');
+  console.log('🔍 GPS Debug Information:');
+  console.log('window.processedClusters:', window.processedClusters);
+  console.log('allProcessedImages:', allProcessedImages);
   
-  console.log('1. window.processedClusters:');
   if (window.processedClusters) {
-    let count = 0;
-    window.processedClusters.forEach((c, i) => {
-      const gps = c.gps || c.mainRep?.gps;
-      if (gps?.latitude) {
-        count++;
-        console.log(`   [${i}] ✅ ${c.representativeFilename || c.representative}: ${gps.latitude}, ${gps.longitude}`);
-      }
+    window.processedClusters.forEach((cluster, idx) => {
+      console.log(`Cluster ${idx}:`, {
+        representative: cluster.representative,
+        representativePath: cluster.representativePath,
+        gps: cluster.gps
+      });
     });
-    if (count === 0) {
-      console.log('   ⚪ No GPS coordinates found');
-    }
-  } else {
-    console.log('   ❌ Not initialized');
   }
   
-  console.log('\n2. allProcessedImages:');
   if (allProcessedImages) {
-    let count = 0;
-    allProcessedImages.forEach((g, i) => {
-      const gps = g.mainRep?.gps;
-      if (gps?.latitude) {
-        count++;
-        console.log(`   [${i}] ✅ ${g.mainRep.representativeFilename}: ${gps.latitude}, ${gps.longitude}`);
-      }
+    allProcessedImages.forEach((group, idx) => {
+      console.log(`Group ${idx}:`, {
+        mainRep: group.mainRep?.representativePath,
+        gps: group.mainRep?.gps
+      });
     });
-    if (count === 0) {
-      console.log('   ⚪ No GPS coordinates found');
-    }
-  } else {
-    console.log('   ❌ Not initialized');
   }
-  
-  console.log('\n3. analyzedClusters:');
-  if (analyzedClusters && analyzedClusters.size > 0) {
-    let count = 0;
-    analyzedClusters.forEach((metadata, i) => {
-      if (metadata.gpsAnalysis?.latitude) {
-        count++;
-        console.log(`   [${i}] ✅ GPS from AI: ${metadata.gpsAnalysis.latitude}, ${metadata.gpsAnalysis.longitude}`);
-      }
-      if (metadata.manualGPS?.latitude) {
-        count++;
-        console.log(`   [${i}] ✅ Manual GPS: ${metadata.manualGPS.latitude}, ${metadata.manualGPS.longitude}`);
-      }
-    });
-    if (count === 0) {
-      console.log('   ⚪ No GPS coordinates found');
-    }
-  } else {
-    console.log('   ⚪ No analyzed clusters yet');
-  }
-  
-  console.log('\n4. preAnalysisGPS Map:');
-  if (preAnalysisGPS && preAnalysisGPS.size > 0) {
-    preAnalysisGPS.forEach((gps, idx) => {
-      console.log(`   [${idx}] ✅ ${gps.latitude}, ${gps.longitude}`);
-    });
-  } else {
-    console.log('   ⚪ No pre-analysis GPS stored');
-  }
-  
-  console.log('\n========================\n');
-};
-
+}
+        group.mainRep.gps = {
 // ============================================
 // Prompt Editor Functions
 // ============================================
-
 /**
- * Show the prompt editor modal for a specific cluster
+ * Show prompt editor modal
  */
-async function showPromptEditor(clusterGroup) {
-  console.log('📝 Opening prompt editor for:', clusterGroup.mainRep?.representativeFilename);
+function showPromptEditor(clusterGroup) {
+  console.log('Opening prompt editor for:', clusterGroup);
   
+  // Set current cluster
   currentPromptCluster = clusterGroup;
-  const representativePath = clusterGroup.mainRep?.representativePath;
-  const filename = clusterGroup.mainRep?.representativeFilename;
   
-  if (!representativePath) {
-    alert('Error: Could not identify cluster for prompt editing');
-    return;
+  // Show modal
+  const modal = document.getElementById('promptEditorModal');
+  if (modal) {
+    modal.style.display = 'block';
+    
+    // Update modal content
+    const filename = clusterGroup.mainRep?.representativeFilename || 'Unknown';
+    document.getElementById('promptEditorFilename').textContent = filename;
+    
+    // Generate or load prompt
+    generateOrLoadPrompt(clusterGroup);
   }
-  
-  // Update modal title and filename
-  document.getElementById('promptEditorTitle').textContent = 'Edit AI Prompt';
-  document.getElementById('promptEditorFilename').textContent = filename;
-  
-  // Check if we have a custom prompt for this cluster
-  let promptText = '';
-  if (customPrompts.has(representativePath)) {
-    promptText = customPrompts.get(representativePath);
-    console.log('📝 Using saved custom prompt');
-  } else {
-    // Generate default prompt
-    try {
-      console.log('📝 Generating default prompt...');
+}
+/**
+ * Generate or load prompt for cluster
+ */
+async function generateOrLoadPrompt(clusterGroup) {
+        };
+  try {
+    // Check if we have a custom prompt for this cluster
+    const repPath = clusterGroup.mainRep?.representativePath;
+    if (customPrompts.has(repPath)) {
+      // Load existing custom prompt
+      const textarea = document.getElementById('promptEditorTextarea');
+      if (textarea) {
+        textarea.value = customPrompts.get(repPath);
+      }
+      console.log('Loaded custom prompt for:', repPath);
+    } else {
+      // Generate default prompt
       const result = await window.electronAPI.generateDefaultPrompt(clusterGroup);
       if (result.success) {
-        promptText = result.prompt;
-        console.log('✅ Default prompt generated');
+        const textarea = document.getElementById('promptEditorTextarea');
+        if (textarea) {
+          textarea.value = result.prompt;
+        }
+        console.log('Generated default prompt for:', repPath);
       } else {
-        console.warn('⚠️ Failed to generate default prompt, using fallback');
-        promptText = generateFallbackPrompt(clusterGroup);
+        console.error('Failed to generate prompt:', result.error);
+        // Fallback to basic prompt
+        const textarea = document.getElementById('promptEditorTextarea');
+        if (textarea) {
+          textarea.value = generateFallbackPrompt(clusterGroup);
+        }
       }
-    } catch (error) {
-      console.error('❌ Error generating default prompt:', error);
-      promptText = generateFallbackPrompt(clusterGroup);
+    }
+  } catch (error) {
+    console.error('Error generating/loading prompt:', error);
+    // Fallback to basic prompt
+    const textarea = document.getElementById('promptEditorTextarea');
+    if (textarea) {
+      textarea.value = generateFallbackPrompt(clusterGroup);
     }
   }
-  
-  // Set the textarea content
-  document.getElementById('promptEditorTextarea').value = promptText;
-  
-  // Show the modal
-  document.getElementById('promptEditorModal').style.display = 'block';
-  
-  // Focus the textarea
-  setTimeout(() => {
-    document.getElementById('promptEditorTextarea').focus();
-  }, 100);
 }
-
 /**
- * Generate a fallback prompt if the backend fails
+ * Generate fallback prompt
  */
 function generateFallbackPrompt(clusterGroup) {
   const filename = clusterGroup.mainRep?.representativeFilename || 'Unknown';
@@ -5082,372 +3267,130 @@ function generateFallbackPrompt(clusterGroup) {
   }
   
   prompt += `Please analyze this image and provide detailed metadata including:\n`;
-  prompt += `- A descriptive title\n`;
-  prompt += `- Relevant keywords and tags\n`;
-  prompt += `- Location information if identifiable\n`;
-  prompt += `- Subject matter description\n`;
-  prompt += `- Technical details if relevant\n\n`;
-  prompt += `Format your response as JSON with fields: title, keywords, location, description, technicalDetails`;
+  prompt += `- A descriptive title (be specific and engaging)\n`;
+  prompt += `- Relevant keywords and tags (5-10 keywords)\n`;
+  prompt += `- Location information if identifiable from the image\n`;
+  prompt += `- Subject matter description (what you see in the image)\n`;
+  prompt += `- Technical details if relevant (lighting, composition, etc.)\n`;
+  prompt += `- Any historical or cultural context if apparent\n\n`;
+  prompt += `Format your response as JSON with these exact fields:\n`;
+  prompt += `{\n`;
+  prompt += `  "title": "Descriptive title here",\n`;
+  prompt += `  "keywords": ["keyword1", "keyword2", "keyword3"],\n`;
+  prompt += `  "location": "Location description or null",\n`;
+  prompt += `  "description": "Detailed description of what you see",\n`;
+  prompt += `  "technicalDetails": "Technical observations or null",\n`;
+  prompt += `  "confidence": 0.85\n`;
+  prompt += `}\n\n`;
+  prompt += `Be thorough but concise. Focus on what would be most useful for organizing and finding this image later.`;
   
   return prompt;
 }
-
+      }
+    });
+    
 /**
- * Save the custom prompt for the current cluster
+ * Save custom prompt
  */
 function saveCustomPrompt() {
-  const textarea = document.getElementById('promptEditorTextarea');
-  const promptText = textarea.value.trim();
-  
-  if (!promptText) {
-    alert('Prompt cannot be empty');
-    return;
-  }
-  
+    
   if (!currentPromptCluster) {
-    alert('Error: Could not save prompt');
+    console.error('No current cluster for prompt editing');
     return;
   }
   
-  const representativePath = currentPromptCluster.mainRep?.representativePath;
-  if (!representativePath) {
-    alert('Error: Could not identify cluster for saving prompt');
+  const textarea = document.getElementById('promptEditorTextarea');
+  if (!textarea) {
+    console.error('Prompt textarea not found');
     return;
   }
   
-  // Save the custom prompt
-  customPrompts.set(representativePath, promptText);
+  const prompt = textarea.value.trim();
+  if (!prompt) {
+    alert('Please enter a prompt');
+    return;
+  }
   
-  console.log('💾 Saved custom prompt for:', currentPromptCluster.mainRep?.representativeFilename);
-  
-  // Update the button text to show it's been edited
-  updatePromptButtonState(representativePath);
-  
-  // Close the modal
-  closePromptEditor();
-  
-  // Show success message
-  showNotification('Custom prompt saved successfully!', 'success');
+  // Save to custom prompts map
+  const repPath = currentPromptCluster.mainRep?.representativePath;
+  if (repPath) {
+    customPrompts.set(repPath, prompt);
+    console.log('Saved custom prompt for:', repPath);
+    
+    // Update button state
+    updatePromptButtonState(repPath);
+    
+    // Close modal
+    closePromptEditor();
+    
+    // Show success message
+    showNotification('Custom prompt saved successfully!');
+  } else {
+    console.error('No representative path found for cluster');
+  }
 }
-
 /**
- * Close the prompt editor modal
+ * Close prompt editor
  */
 function closePromptEditor() {
-  document.getElementById('promptEditorModal').style.display = 'none';
+  const modal = document.getElementById('promptEditorModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  
+  // Clear current cluster
   currentPromptCluster = null;
 }
-
+    }
+  } else {
 /**
- * Update the prompt button state based on whether a custom prompt exists
+ * Update prompt button state
  */
 function updatePromptButtonState(representativePath) {
-  // Find all prompt buttons for this cluster
+  // Find all buttons with this representative path
   const buttons = document.querySelectorAll(`[data-cluster-path="${representativePath}"]`);
-  
   buttons.forEach(button => {
     if (customPrompts.has(representativePath)) {
-      button.textContent = '✏️ Edit Prompt';
+      button.innerHTML = button.innerHTML.replace('View/Edit Prompt', '✏️ Edit Prompt');
       button.classList.add('editing');
     } else {
-      button.textContent = 'View Prompt';
+      button.innerHTML = button.innerHTML.replace('✏️ Edit Prompt', 'View/Edit Prompt');
       button.classList.remove('editing');
     }
   });
 }
-
 /**
- * Analyze cluster with custom prompt if available
+ * Show notification
  */
-async function analyzeClusterWithCustomPrompt(clusterGroup) {
-  const representativePath = clusterGroup.mainRep?.representativePath;
-  const customPrompt = customPrompts.get(representativePath);
-  
-  console.log('🤖 Analyzing cluster with', customPrompt ? 'custom' : 'default', 'prompt');
-  
-  try {
-    // Show loading state
-    updateStatus('Analyzing with AI...', 'processing');
-    showProgress(0);
-    
-    // Call backend with custom prompt if available
-    const result = await window.electronAPI.analyzeClusterWithAI(clusterGroup, customPrompt);
-    
-    showProgress(100);
-    
-    if (result.success) {
-      console.log('✅ AI analysis complete:', result.data);
-      
-      // Store analysis data globally
-      currentAnalysisData = result.data;
-      
-      // Display results in AI Analysis tab
-      displayAIAnalysisResults(result.data);
-      
-      // Switch to AI Analysis tab
-      const aiAnalysisTab = document.querySelector('[data-tab="ai-analysis"]');
-      if (aiAnalysisTab) {
-        aiAnalysisTab.click();
-      }
-      
-      updateStatus('AI analysis complete!', 'complete');
-      
-    } else {
-      throw new Error(result.error || 'AI analysis failed');
-    }
-    
-  } catch (error) {
-    console.error('❌ AI analysis failed:', error);
-    updateStatus(`AI analysis failed: ${error.message}`, 'error');
-    alert(`AI analysis failed: ${error.message}`);
+function showNotification(message) {
   }
-}
-
-/**
- * Show a notification message
- */
-function showNotification(message, type = 'info') {
-  // Create notification element
+  
+  // STEP 3: Deduplicate and prepare for analysis
+  // Create a simple notification
   const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    z-index: 10000;
+    font-size: 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  `;
   notification.textContent = message;
   
-  // Style the notification
-  Object.assign(notification.style, {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    padding: '12px 20px',
-    borderRadius: '6px',
-    color: 'white',
-    fontWeight: '600',
-    zIndex: '10000',
-    maxWidth: '300px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-    transform: 'translateX(100%)',
-    transition: 'transform 0.3s ease'
-  });
-  
-  // Set background color based on type
-  switch (type) {
-    case 'success':
-      notification.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-      break;
-    case 'error':
-      notification.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
-      break;
-    case 'warning':
-      notification.style.background = 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)';
-      break;
-    default:
-      notification.style.background = 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)';
-  }
-  
-  // Add to page
   document.body.appendChild(notification);
-  
-  // Animate in
-  setTimeout(() => {
-    notification.style.transform = 'translateX(0)';
-  }, 10);
   
   // Remove after 3 seconds
   setTimeout(() => {
-    notification.style.transform = 'translateX(100%)';
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 300);
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
   }, 3000);
 }
-
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/**
- * Open map link in browser
- */
-function openMapLink(lat, lon) {
-  const url = `https://www.google.com/maps?q=${lat},${lon}`;
-  window.open(url, '_blank');
-}
-
-/**
- * Open edit modal for a cluster
- */
-async function openEditModal(clusterIndex) {
-  console.log('🔧 Opening edit modal for cluster:', clusterIndex);
-  
-  const cluster = allClustersForAnalysis[clusterIndex];
-  if (!cluster) {
-    alert('Cluster not found');
-    return;
-  }
-  
-  // Store current editing context
-  window.currentEditingCluster = cluster;
-  window.currentEditingClusterIndex = clusterIndex;
-  
-  // Get metadata
-  const metadata = analyzedClusters.get(clusterIndex) || {};
-  
-  // Populate modal fields
-  const thumbnailPath = cluster.mainRep?.representativePath;
-  if (thumbnailPath) {
-    try {
-      const result = await window.electronAPI.getPreviewImage(thumbnailPath);
-      if (result.success) {
-        document.getElementById('modalThumbnail').src = result.dataUrl;
-      }
-    } catch (error) {
-      console.error('Failed to load thumbnail:', error);
-    }
-  }
-  
-  document.getElementById('modalFilename').textContent = 
-    cluster.mainRep?.representativeFilename || 'Unknown';
-  
-  // Populate all fields
-  document.getElementById('modalMetaTitle').value = metadata.title || '';
-  document.getElementById('modalMetaDescription').value = metadata.description || '';
-  document.getElementById('modalMetaCaption').value = metadata.caption || '';
-  
-  const gps = metadata.gps || cluster.mainRep?.gps || {};
-  document.getElementById('modalGpsLat').value = gps.latitude || '';
-  document.getElementById('modalGpsLon').value = gps.longitude || '';
-  
-  // Keywords
-  const keywordsContainer = document.getElementById('modalKeywordsContainer');
-  keywordsContainer.innerHTML = '';
-  (metadata.keywords || []).forEach(keyword => {
-    const tag = createModalKeywordTag(keyword);
-    keywordsContainer.appendChild(tag);
-  });
-  
-  document.getElementById('modalMetaCategory').value = metadata.category || '';
-  document.getElementById('modalMetaSceneType').value = metadata.sceneType || '';
-  document.getElementById('modalMetaMood').value = metadata.mood || '';
-  
-  const location = metadata.location || {};
-  document.getElementById('modalMetaCity').value = location.city || '';
-  document.getElementById('modalMetaState').value = location.state || '';
-  document.getElementById('modalMetaCountry').value = location.country || '';
-  document.getElementById('modalMetaSpecificLocation').value = location.specificLocation || '';
-  
-  const hashtags = metadata.hashtags || [];
-  document.getElementById('modalMetaHashtags').value = hashtags.join(' ');
-  
-  // Show modal
-  document.getElementById('editMetadataModal').style.display = 'flex';
-}
-
-/**
- * Close edit modal
- */
-function closeEditModal() {
-  document.getElementById('editMetadataModal').style.display = 'none';
-  window.currentEditingCluster = null;
-  window.currentEditingClusterIndex = null;
-}
-
-/**
- * Save metadata from modal
- */
-function saveModalMetadata() {
-  const clusterIndex = window.currentEditingClusterIndex;
-  
-  if (clusterIndex === null || clusterIndex === undefined) {
-    alert('No cluster selected');
-    return;
-  }
-  
-  // Collect keywords
-  const keywords = Array.from(
-    document.querySelectorAll('#modalKeywordsContainer .keyword-tag span:first-child')
-  ).map(span => span.textContent.trim());
-  
-  // Collect hashtags
-  const hashtagsText = document.getElementById('modalMetaHashtags').value || '';
-  const hashtags = hashtagsText.split(/[\s,]+/).filter(tag => tag.trim());
-  
-  // Build metadata object
-  const metadata = {
-    title: document.getElementById('modalMetaTitle').value,
-    description: document.getElementById('modalMetaDescription').value,
-    caption: document.getElementById('modalMetaCaption').value,
-    gps: {
-      latitude: parseFloat(document.getElementById('modalGpsLat').value) || null,
-      longitude: parseFloat(document.getElementById('modalGpsLon').value) || null
-    },
-    keywords: keywords,
-    category: document.getElementById('modalMetaCategory').value,
-    sceneType: document.getElementById('modalMetaSceneType').value,
-    mood: document.getElementById('modalMetaMood').value,
-    location: {
-      city: document.getElementById('modalMetaCity').value,
-      state: document.getElementById('modalMetaState').value,
-      country: document.getElementById('modalMetaCountry').value,
-      specificLocation: document.getElementById('modalMetaSpecificLocation').value
-    },
-    hashtags: hashtags
-  };
-  
-  // Save to Map
-  analyzedClusters.set(clusterIndex, metadata);
-  
-  console.log(`✅ Saved metadata for cluster ${clusterIndex}`);
-  
-  // Close modal
-  closeEditModal();
-  
-  // Refresh card list
-  loadClustersForAnalysisCardView();
-}
-
-/**
- * Create keyword tag for modal
- */
-function createModalKeywordTag(keyword) {
-  const tag = document.createElement('div');
-  tag.className = 'keyword-tag';
-  
-  const text = document.createElement('span');
-  text.textContent = keyword;
-  
-  const remove = document.createElement('span');
-  remove.className = 'keyword-remove';
-  remove.textContent = '×';
-  remove.onclick = () => tag.remove();
-  
-  tag.appendChild(text);
-  tag.appendChild(remove);
-  
-  return tag;
-}
-
-/**
- * Add keyword in modal
- */
-function addModalKeyword() {
-  const input = document.getElementById('modalNewKeywordInput');
-  const keyword = input.value.trim();
-  
-  if (!keyword) return;
-  
-  const container = document.getElementById('modalKeywordsContainer');
-  const tag = createModalKeywordTag(keyword);
-  container.appendChild(tag);
-  
-  input.value = '';
-}
-
 // ============================================
 // Application Ready
 // ============================================
