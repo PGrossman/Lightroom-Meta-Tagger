@@ -4309,3 +4309,49 @@ clusterCount: 32
 
 === CLIP SIMILARITY DETECTION ENABLED - STARTING ===
 representatives: 32
+
+
+=== MAIN.JS LOADED 2025-10-16T22:18:43.820Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-16T22:19:07.442Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-16T22:19:31.178Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32
+
+
+=== MAIN.JS LOADED 2025-10-16T22:25:31.661Z ===
+
+
+=== PROCESS-IMAGES CALLED 2025-10-16T22:25:54.732Z ===
+scanResults: true
+dirPath: /Volumes/Photo Drive/2011/2011_11_21_Chernobyl_Pripyat/100 - Reacotor 1-4 Exterior
+config exists: true
+config.similarity: {"enabled":true,"hammingThreshold":82,"hashSize":16,"autoDetect":true,"showInResults":true,"autoMergeThreshold":98}
+config.similarity.enabled: true
+config.similarity.hammingThreshold: 82
+
+=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===
+
+=== REACHING SIMILARITY DETECTION SECTION 2025-10-16T22:26:08.422Z ===
+config exists: true
+config.similarity exists: true
+config.similarity.enabled: true
+clusterCount: 32
+
+=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===
+representatives: 32

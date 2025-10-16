@@ -28,8 +28,8 @@ class ImageProcessor {
   }
 
   /**
-   * Extract embedded preview from RAW file using Sharp
-   * Falls back to exiftool if Sharp fails
+   * Extract embedded preview from RAW file using exiftool
+   * Then rotate with Sharp based on EXIF orientation
    * Returns path to generated JPG
    */
   async extractPreview(rawPath) {
@@ -51,75 +51,101 @@ class ImageProcessor {
     // Generate output filename
     const hash = crypto.createHash('md5').update(rawPath).digest('hex');
     const outputPath = path.join(this.tempDir, `${hash}.jpg`);
+    const tempExtractPath = path.join(this.tempDir, `${hash}_temp.jpg`);
 
     try {
-      // Try Sharp first (fast - extracts embedded preview)
-      await sharp(rawPath)
-        .rotate() // ✅ FIX: Auto-rotate based on EXIF orientation
-        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+      // Step 1: Extract preview JPG using exiftool (handles old CR2 files)
+      logger.debug('Extracting preview with exiftool', { rawPath });
+      
+      const { stdout: previewData } = await execFileAsync('exiftool', [
+        '-b',              // Binary output
+        '-PreviewImage',   // Extract preview
+        rawPath
+      ], {
+        encoding: 'buffer',
+        maxBuffer: 50 * 1024 * 1024
+      });
+
+      if (!previewData || previewData.length === 0) {
+        throw new Error('No preview image found in RAW file');
+      }
+
+      // Write extracted preview to temp file
+      await fs.writeFile(tempExtractPath, previewData);
+      logger.debug('Preview extracted to temp file', { tempExtractPath });
+
+      // Step 2: Read EXIF Orientation from original RAW file
+      let orientation = 1; // Default: no rotation needed
+      try {
+        const { stdout } = await execFileAsync('exiftool', [
+          '-Orientation',
+          '-n',
+          rawPath
+        ]);
+        
+        const match = stdout.match(/Orientation\s*:\s*(\d+)/);
+        if (match) {
+          orientation = parseInt(match[1]);
+          logger.debug('EXIF Orientation detected', { rawPath, orientation });
+        }
+      } catch (error) {
+        logger.warn('Could not read EXIF orientation', { rawPath, error: error.message });
+      }
+
+      // Step 3: Process extracted preview with Sharp (resize + rotate)
+      const sharpInstance = sharp(tempExtractPath)
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true });
+      
+      // Apply rotation based on EXIF Orientation
+      switch (orientation) {
+        case 3:
+          sharpInstance.rotate(180);
+          logger.debug('Rotating 180°', { rawPath });
+          break;
+        case 6:
+          sharpInstance.rotate(90);
+          logger.debug('Rotating 90° CW', { rawPath });
+          break;
+        case 8:
+          sharpInstance.rotate(270);
+          logger.debug('Rotating 270° CW', { rawPath });
+          break;
+        default:
+          logger.debug('No rotation needed', { rawPath, orientation });
+          break;
+      }
+      
+      await sharpInstance
         .jpeg({ quality: 85 })
         .toFile(outputPath);
 
-      logger.debug('Preview extracted with Sharp', { rawPath, outputPath });
+      // Clean up temp file
+      try {
+        await fs.unlink(tempExtractPath);
+      } catch (e) {
+        logger.warn('Could not delete temp file', { tempExtractPath });
+      }
+
+      logger.debug('Preview processed successfully', { rawPath, outputPath, orientation });
+
+      // Cache the preview path
       this.previewCache.set(rawPath, outputPath);
+
       return outputPath;
 
-    } catch (sharpError) {
-      logger.warn('Sharp extraction failed, trying exiftool', { 
-        rawPath, 
-        error: sharpError.message 
-      });
-
+    } catch (error) {
+      // Clean up temp file if it exists
       try {
-        // Fallback to exiftool (slower but more reliable)
-        // FIXED: Increase maxBuffer to handle large previews
-        const { stdout } = await execFileAsync('exiftool', [
-          '-b',
-          '-PreviewImage',
-          rawPath
-        ], {
-          maxBuffer: 50 * 1024 * 1024, // ✅ ADD: 50MB buffer (up from default 1MB)
-          encoding: 'buffer' // ✅ ADD: Handle binary data properly
-        });
-
-        // Write the binary data to file manually
-        if (stdout && stdout.length > 0) {
-          await fs.writeFile(outputPath, stdout);
-        } else {
-          throw new Error('No preview data extracted');
-        }
-
-        // Verify file was created
-        await fs.access(outputPath);
-        
-        logger.debug('Preview extracted with exiftool', { rawPath, outputPath });
-        this.previewCache.set(rawPath, outputPath);
-        return outputPath;
-
-      } catch (exiftoolError) {
-        logger.warn('Exiftool failed, trying dcraw for old CR2 files', { 
-          rawPath, 
-          exiftoolError: exiftoolError.message 
-        });
-
-        try {
-          // Final fallback to dcraw for old CR2 files
-          await this.convertWithDcraw(rawPath, outputPath);
-          
-          logger.debug('Preview extracted with dcraw', { rawPath, outputPath });
-          this.previewCache.set(rawPath, outputPath);
-          return outputPath;
-
-        } catch (dcrawError) {
-          logger.error('All extraction methods failed', { 
-            rawPath, 
-            sharpError: sharpError.message,
-            exiftoolError: exiftoolError.message,
-            dcrawError: dcrawError.message
-          });
-          throw new Error(`Failed to extract preview: ${dcrawError.message}`);
-        }
+        await fs.unlink(tempExtractPath);
+      } catch (e) {
+        // Ignore
       }
+
+      logger.error('Failed to extract and rotate preview', { 
+        rawPath,
+        error: error.message 
+      });
+      throw new Error(`Failed to extract preview: ${error.message}`);
     }
   }
 
