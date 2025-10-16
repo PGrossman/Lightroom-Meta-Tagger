@@ -2401,57 +2401,8 @@ function getThumbnailPath(imagePath) {
   return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="%236c757d" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
 }
 
-// Render similarity section for a cluster
-function renderSimilaritySection(similarReps, currentRep) {
-  if (!similarReps || similarReps.length === 0) {
-    return ''; // Don't show section if no similar representatives
-  }
-
-  return `
-    <div class="similarity-section">
-      <h4>⚡ Similar Representatives Detected (${similarReps.length})</h4>
-      <p style="font-size: 12px; color: #6c757d; margin: 5px 0;">
-        This cluster's representative is visually similar to:
-      </p>
-      
-      <div class="similar-reps-grid">
-        ${similarReps.map(sim => `
-          <div class="similar-rep-card" 
-               onclick="jumpToCluster('${sim.otherRep}')"
-               title="Click to view this cluster">
-            <img src="${getThumbnailPath(sim.otherRep)}" 
-                 class="similar-rep-thumbnail"
-                 alt="${sim.otherFileName}">
-            <div class="similar-rep-info">
-              <p class="similar-rep-name">${sim.otherFileName}</p>
-              <p class="similarity-score ${getScoreClass(sim.similarityPercent)}">
-                ${sim.similarityPercent}% match
-              </p>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <button class="merge-btn" onclick="mergeClusters('${currentRep}', ${JSON.stringify(similarReps.map(s => s.otherRep))})">
-        🔗 Merge Similar Clusters
-      </button>
-    </div>
-  `;
-}
-
-// Helper: Jump to another cluster's card
-function jumpToCluster(repPath) {
-  const cards = document.querySelectorAll('.cluster-card');
-  for (const card of cards) {
-    const img = card.querySelector('.representative-thumb');
-    if (img && img.src.includes(getFileName(repPath))) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      card.style.animation = 'highlight 1s';
-      setTimeout(() => card.style.animation = '', 1000);
-      break;
-    }
-  }
-}
+// Legacy renderSimilaritySection() and jumpToCluster() functions removed
+// These were unused legacy code that caused confusion during debugging
 
 // Merge clusters functionality
 async function mergeClusters(mainRep, similarReps) {
