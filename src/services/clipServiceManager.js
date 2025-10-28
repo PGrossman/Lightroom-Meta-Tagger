@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const logger = require('../utils/logger');
+const PathHelper = require('../utils/pathHelper');
 
 class ClipServiceManager {
   constructor() {
@@ -24,10 +25,10 @@ class ClipServiceManager {
 
     this.isStarting = true;
     
-    const scriptPath = path.join(process.cwd(), 'similarity_service.py');
+    const scriptPath = PathHelper.getScriptPath('similarity_service.py');
     
-    // ✅ Use venv Python instead of system Python
-    const venvPython = path.join(process.cwd(), 'venv', 'bin', 'python3');
+    // ✅ Use venv Python from PathHelper
+    const venvPython = PathHelper.getPythonPath();
     
     // Check if venv Python exists
     if (!fs.existsSync(venvPython)) {

@@ -6,14 +6,14 @@ const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const PathHelper = require('../utils/pathHelper');
 
 const execFileAsync = promisify(execFile);
 
 class ImageProcessor {
   constructor() {
-    // Use Electron's temp directory for packaged apps
-    const { app } = require('electron');
-    this.tempDir = path.join(app.getPath('temp'), 'lightroom-xmp-generator');
+    // Use PathHelper for proper temp directory
+    this.tempDir = PathHelper.getTempDir();
     this.previewCache = new Map(); // Cache preview paths
   }
 

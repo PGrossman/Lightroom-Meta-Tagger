@@ -40,7 +40,8 @@ let aiAnalysisService = null;
 async function checkGPUStatus() {
   try {
     const { spawn } = require('child_process');
-    const pythonPath = path.join(process.cwd(), 'venv', 'bin', 'python3');
+    const PathHelper = require('../utils/pathHelper');
+    const pythonPath = PathHelper.getPythonPath();
     
     // Check if Python exists
     if (!fs.existsSync(pythonPath)) {

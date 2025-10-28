@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const PathHelper = require('../utils/pathHelper');
 
 class ConfigManager {
   constructor() {
@@ -111,8 +112,8 @@ class ConfigManager {
    * Get all settings
    */
   getAllSettings() {
-    // Load the main project config.json file
-    const projectConfigPath = path.join(process.cwd(), 'config.json');
+    // Load the main project config.json file using PathHelper
+    const projectConfigPath = PathHelper.getConfigPath();
     
     try {
       if (fs.existsSync(projectConfigPath)) {

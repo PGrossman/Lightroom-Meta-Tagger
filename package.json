@@ -9,7 +9,7 @@
     "dev": "NODE_ENV=development electron .",
     "test": "node --test tests/**/*.test.js",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild",
+    "postinstall": "electron-rebuild -f -w sharp",
     "setup-python": "chmod +x install_pytorch_mps.sh && ./install_pytorch_mps.sh",
     "verify-gpu": "source venv/bin/activate && python3 verify_mps.py",
     "setup-clip": "source venv/bin/activate && pip3 install torch torchvision transformers ftfy regex fastapi uvicorn",
@@ -17,8 +17,8 @@
     "rebuild-native": "npm rebuild sharp electron --arch=arm64 --platform=darwin",
     "optimize": "npm run setup-python && npm run rebuild-native && npm run verify-gpu",
     "clean": "rm -rf node_modules venv && npm install && npm run setup-python",
-    "build": "electron-builder --mac --arm64",
-    "build:dmg": "electron-builder --mac dmg --arm64"
+    "build": "npm run rebuild-native && electron-builder --mac --arm64",
+    "build:dmg": "npm run rebuild-native && electron-builder --mac dmg --arm64"
   },
   "keywords": [
     "lightroom",
@@ -50,9 +50,15 @@
     "appId": "com.local.lightroom-xmp-generator",
     "productName": "Lightroom XMP Generator",
     "asar": true,
+    "asarUnpack": [
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*",
+      "node_modules/better-sqlite3/**/*"
+    ],
     "files": [
       "src/**/*",
       "node_modules/**/*",
+      "!node_modules/.cache",
       "package.json"
     ],
     "extraResources": [
@@ -81,15 +87,39 @@
           ]
         }
       ],
+      "category": "public.app-category.productivity",
       "icon": "build/icon.png",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "identity": null,
-      "entitlements": "build/entitlements.mac.plist"
+      "type": "distribution",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": {
+      "title": "${productName} ${version}",
+      "background": null,
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 144,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 396,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
       "sign": false,
       "internetEnabled": false
-    }
+    },
+    "npmRebuild": true,
+    "buildDependenciesFromSource": false
   }
 }

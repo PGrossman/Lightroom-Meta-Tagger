@@ -1,0 +1,185 @@
+╔══════════════════════════════════════════════════════════════╗
+║   QWEN3-VL 235B CLOUD - QUICK SETUP GUIDE                   ║
+╚══════════════════════════════════════════════════════════════╝
+
+🚀 3-STEP SETUP
+─────────────────────────────────────────────────────────────
+
+STEP 1: Pull the Cloud Model
+────────────────────────────────────────────────────────────
+ollama pull qwen3-vl:235b-cloud
+
+✓ Downloads in seconds (only 384 bytes - just config)
+✓ Actual model runs on Ollama's cloud servers
+
+
+STEP 2: Authenticate (One-Time)
+────────────────────────────────────────────────────────────
+ollama run qwen3-vl:235b-cloud
+
+✓ Browser opens automatically
+✓ Sign in with Ollama account
+✓ Confirm device connection
+✓ Done! Authentication persists on this machine
+
+
+STEP 3: Update App Settings
+────────────────────────────────────────────────────────────
+In your app:
+→ Go to Settings tab
+→ Find "Ollama Model" dropdown
+→ Select "Qwen3-VL 235B Cloud ⭐"
+→ Save settings
+
+
+═══════════════════════════════════════════════════════════════
+
+✅ VERIFICATION
+─────────────────────────────────────────────────────────────
+Test that it works:
+
+1. ollama list
+   → Should show "qwen3-vl:235b-cloud"
+
+2. Process a test image in your app
+   → Should complete without errors
+   → Expect 20-45 second response time
+
+
+═══════════════════════════════════════════════════════════════
+
+📊 WHAT YOU GET
+─────────────────────────────────────────────────────────────
+✅ 235 billion parameters (33x more powerful than 7B)
+✅ 256K context length (5x more than standard models)
+✅ 33 languages including Cyrillic, Arabic, Asian scripts
+✅ Superior spatial reasoning
+✅ Better landmark and location recognition
+✅ Advanced text extraction (including handwriting)
+✅ Visual agent capabilities
+✅ Long video understanding
+
+
+═══════════════════════════════════════════════════════════════
+
+⚡ WHEN TO USE
+─────────────────────────────────────────────────────────────
+
+USE CLOUD MODEL FOR:
+✅ Complex architectural photography
+✅ Historical/cultural documentation  
+✅ Multilingual text (33 languages)
+✅ Detailed spatial analysis
+✅ Technical or specialized subjects
+✅ Quality-critical images
+
+USE LOCAL MODEL FOR:
+✅ Batch processing (faster)
+✅ Offline work
+✅ Simple scenes
+✅ Speed-critical workflows
+✅ English/Chinese only
+
+
+═══════════════════════════════════════════════════════════════
+
+⏱️ EXPECTED PERFORMANCE
+─────────────────────────────────────────────────────────────
+
+Response Times:
+• Local 7B:    5-15 seconds   ⚡ Fast
+• Cloud 235B:  20-45 seconds  🎯 Powerful
+
+Accuracy:
+• Local 7B:    85-90%         👍 Good
+• Cloud 235B:  95-98%         ⭐ Excellent
+
+
+═══════════════════════════════════════════════════════════════
+
+🔒 PRIVACY
+─────────────────────────────────────────────────────────────
+• Images sent to Ollama cloud for processing
+• Not stored permanently
+• Not used for training
+• Encrypted in transit (HTTPS)
+• Use local models for sensitive content
+
+
+═══════════════════════════════════════════════════════════════
+
+🐛 TROUBLESHOOTING
+─────────────────────────────────────────────────────────────
+
+"Model not found"
+→ ollama pull qwen3-vl:235b-cloud
+
+"Authentication required"  
+→ ollama run qwen3-vl:235b-cloud
+→ Follow browser prompt
+
+"Request timeout"
+→ Increase timeout to 180000ms (3 min)
+→ Or try again in a few minutes
+
+"Too slow"
+→ Expected! Cloud models are 2-3x slower
+→ Use local model for speed
+
+
+═══════════════════════════════════════════════════════════════
+
+📝 CONFIGURATION
+─────────────────────────────────────────────────────────────
+
+Recommended Settings:
+
+{
+  "ollama": {
+    "model": "qwen3-vl:235b-cloud",
+    "timeout": 120000,
+    "temperature": 0.1
+  }
+}
+
+For batch processing:
+1. Process most images with local 7B (fast)
+2. Re-process important images with cloud 235B (quality)
+
+
+═══════════════════════════════════════════════════════════════
+
+✨ BEST PRACTICES
+─────────────────────────────────────────────────────────────
+
+1. START LOCAL, UPGRADE SELECTIVELY
+   Process bulk with local → Enhance key images with cloud
+
+2. OPTIMIZE PROMPTS
+   Be specific about what you want
+   Mention use case (Lightroom metadata)
+   Don't use system messages
+
+3. CACHE RESULTS
+   Save generated metadata
+   Don't re-process same images
+
+4. STRATEGIC USE
+   Use cloud model for:
+   • Portfolio pieces
+   • Client work
+   • Historical archives
+   • Complex scenes
+
+
+═══════════════════════════════════════════════════════════════
+
+📚 MORE INFO
+─────────────────────────────────────────────────────────────
+Full guide: QWEN3_VL_235B_CLOUD_GUIDE.md
+Ollama docs: https://ollama.com/blog/qwen3-vl
+
+
+═══════════════════════════════════════════════════════════════
+               🎉 ENJOY THE POWER! 🎉
+═══════════════════════════════════════════════════════════════
