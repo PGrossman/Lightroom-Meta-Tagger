@@ -1619,7 +1619,7 @@ function createWindow() {
     height: 1250,
     minWidth: 1200,
     minHeight: 1000,
-    icon: path.join(__dirname, '../../../../icon/Lightroom ICON.png'),  // App icon
+    icon: path.join(__dirname, '../../icon/Lightroom ICON.png'),  // App icon
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -1649,6 +1649,17 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // Set dock icon on macOS
+  if (process.platform === 'darwin' && app.dock) {
+    const iconPath = path.join(__dirname, '../../icon/Lightroom ICON.png');
+    try {
+      app.dock.setIcon(iconPath);
+      logger.info('Dock icon set', { iconPath });
+    } catch (error) {
+      logger.error('Failed to set dock icon', { error: error.message, iconPath });
+    }
+  }
+  
   // Run system check
   const systemCheck = new SystemCheck();
   const checkResults = await systemCheck.checkAll();
