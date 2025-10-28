@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // DEBUG: Add file-based logging
 console.log('🚀 MAIN.JS LOADED - VERSION 3.0 - CLIP SIMILARITY ENABLED - NEW CODE LOADED');
-fs.appendFileSync('debug.txt', `\n\n=== MAIN.JS LOADED ${new Date().toISOString()} ===\n`);
+// Removed debug.txt writes - causes read-only errors in packaged app
 const FileManager = require('../services/fileManager');
 const DatabaseService = require('../services/databaseService');
 const ConfigManager = require('../services/configManager');
@@ -318,19 +318,13 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
     console.log('configManager exists:', typeof configManager);
     console.log('configManager.getAllSettings exists:', typeof configManager.getAllSettings);
     
-    // Write to debug file
-    fs.appendFileSync('debug.txt', `\n\n=== PROCESS-IMAGES CALLED ${new Date().toISOString()} ===\n`);
-    fs.appendFileSync('debug.txt', `scanResults: ${!!scanResults}\n`);
-    fs.appendFileSync('debug.txt', `dirPath: ${dirPath}\n`);
+    // Removed debug.txt writes - causes read-only errors in packaged app
     
     const testConfig = configManager.getAllSettings();
     console.log('testConfig:', JSON.stringify(testConfig, null, 2));
     console.log('testConfig.similarity:', testConfig?.similarity);
     
-    fs.appendFileSync('debug.txt', `config exists: ${!!testConfig}\n`);
-    fs.appendFileSync('debug.txt', `config.similarity: ${JSON.stringify(testConfig?.similarity)}\n`);
-    fs.appendFileSync('debug.txt', `config.similarity.enabled: ${testConfig?.similarity?.enabled}\n`);
-    fs.appendFileSync('debug.txt', `config.similarity.hammingThreshold: ${testConfig?.similarity?.hammingThreshold}\n`);
+    // Removed debug.txt writes - causes read-only errors in packaged app
     
     console.log('=== END CRITICAL DEBUG ===');
     
@@ -613,25 +607,19 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
     
     console.log('🔥 CLUSTER REFINEMENT COMPLETE - MOVING TO SIMILARITY DETECTION 🔥');
     console.log('🔥 ABOUT TO START SIMILARITY DETECTION SECTION 🔥');
-    fs.appendFileSync('debug.txt', `\n=== CLUSTER REFINEMENT COMPLETE - ABOUT TO START SIMILARITY ===\n`);
+    // Removed debug.txt writes - causes read-only errors in packaged app
 
     // Step 5: Detect similarity between representatives using CLIP
     console.log('🔥🔥🔥 STEP 5: REACHING SIMILARITY DETECTION SECTION 🔥🔥🔥');
-    fs.appendFileSync('debug.txt', `\n=== REACHING SIMILARITY DETECTION SECTION ${new Date().toISOString()} ===\n`);
+    // Removed debug.txt writes - causes read-only errors in packaged app
 
     let similarityResults = [];
     const config = configManager.getAllSettings();
 
-    fs.appendFileSync('debug.txt', `config exists: ${!!config}\n`);
-    fs.appendFileSync('debug.txt', `config.similarity exists: ${!!config?.similarity}\n`);
-    fs.appendFileSync('debug.txt', `config.similarity.enabled: ${config?.similarity?.enabled}\n`);
-    fs.appendFileSync('debug.txt', `clusterCount: ${scanResults.clusters.length}\n`);
-
     // ✅ FIX: Check cluster count, not successfulResults
     if (config?.similarity?.enabled && scanResults.clusters.length >= 2) {
       console.log('🔥🔥🔥 CLIP SIMILARITY DETECTION STARTING 🔥🔥🔥');
-      fs.appendFileSync('debug.txt', `\n=== CLIP SIMILARITY DETECTION ENABLED - STARTING ===\n`);
-      fs.appendFileSync('debug.txt', `representatives: ${scanResults.clusters.length}\n`);
+      // Removed debug.txt writes - causes read-only errors in packaged app
       
       logger.info('Starting CLIP similarity detection', {
         representatives: scanResults.clusters.length,
@@ -792,8 +780,7 @@ ipcMain.handle('process-images', async (event, scanResults, dirPath) => {
         : `Insufficient clusters (${scanResults.clusters?.length || 0} available, need 2+)`;
       
       console.log('❌ SIMILARITY DETECTION SKIPPED:', skipReason);
-      fs.appendFileSync('debug.txt', `\n=== SIMILARITY DETECTION SKIPPED ===\n`);
-      fs.appendFileSync('debug.txt', `skipReason: ${skipReason}\n`);
+      // Removed debug.txt writes - causes read-only errors in packaged app
       
       logger.info('Similarity detection skipped', { reason: skipReason });
     }

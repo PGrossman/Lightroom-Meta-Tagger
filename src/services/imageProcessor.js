@@ -11,7 +11,9 @@ const execFileAsync = promisify(execFile);
 
 class ImageProcessor {
   constructor() {
-    this.tempDir = path.join(process.cwd(), 'temp');
+    // Use Electron's temp directory for packaged apps
+    const { app } = require('electron');
+    this.tempDir = path.join(app.getPath('temp'), 'lightroom-xmp-generator');
     this.previewCache = new Map(); // Cache preview paths
   }
 
