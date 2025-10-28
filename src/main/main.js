@@ -1619,8 +1619,9 @@ function createWindow() {
     height: 1250,
     minWidth: 1200,
     minHeight: 1000,
+    icon: path.join(__dirname, '../../../../icon/Lightroom ICON.png'),  // App icon
     webPreferences: {
-      preload: path.join(__dirname, '../main/preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true
     }
