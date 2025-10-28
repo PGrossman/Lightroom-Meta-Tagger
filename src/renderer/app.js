@@ -2575,44 +2575,50 @@ function showNotification(message) {
  * Show image preview modal with optional "Make Parent Image" button
  */
 async function showImagePreview(imagePath, filename, similarityPercent = null, sourceCluster = null) {
+  console.log('🎬 showImagePreview called:', { imagePath, filename, similarityPercent, hasSourceCluster: !!sourceCluster });
+  
   const modal = document.getElementById('imagePreviewModal');
   const previewImg = document.getElementById('previewImage');
   const filenameEl = document.getElementById('previewFilename');
   const similarityEl = document.getElementById('previewSimilarity');
   const makeParentBtn = document.getElementById('makeParentImageBtn');
   
-  // Load thumbnail
+  // Always set filename
+  filenameEl.textContent = filename;
+  
+  // Always show similarity percentage if available
+  if (similarityPercent !== null && similarityPercent !== undefined) {  // ✅ FIX
+    similarityEl.textContent = `${similarityPercent}% match`;
+    similarityEl.style.display = 'block';
+  } else {
+    similarityEl.style.display = 'none';
+  }
+  
+  // ✅ FIX: Check for null/undefined explicitly (0 is a valid similarity!)
+  if (sourceCluster && similarityPercent !== null && similarityPercent !== undefined) {
+    makeParentBtn.style.display = 'block';
+    
+    // Store data on the button for the click handler
+    makeParentBtn.dataset.imagePath = imagePath;
+    makeParentBtn.dataset.filename = filename;
+    makeParentBtn.dataset.sourceClusterPath = sourceCluster.representativePath;
+  } else {
+    makeParentBtn.style.display = 'none';
+  }
+  
+  // Try to load the preview image
   const result = await window.electronAPI.getPreviewImage(imagePath);
   
   if (result.success) {
     previewImg.src = result.dataUrl;
-    filenameEl.textContent = filename;
-    
-    // Show similarity percentage if available
-    if (similarityPercent) {
-      similarityEl.textContent = `${similarityPercent}% match`;
-      similarityEl.style.display = 'block';
-    } else {
-      similarityEl.style.display = 'none';
-    }
-    
-    // Show "Make Parent Image" button only for Similar Parent Representatives
-    if (sourceCluster && similarityPercent) {
-      makeParentBtn.style.display = 'block';
-      
-      // Store data on the button for the click handler
-      makeParentBtn.dataset.imagePath = imagePath;
-      makeParentBtn.dataset.filename = filename;
-      makeParentBtn.dataset.sourceClusterPath = sourceCluster.representativePath;
-    } else {
-      makeParentBtn.style.display = 'none';
-    }
-    
-    modal.style.display = 'flex';
   } else {
     console.error('Failed to load preview:', result.error);
-    alert('Failed to load image preview');
+    // Show placeholder instead of failing completely
+    previewImg.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><text x="12" y="14" text-anchor="middle" font-size="3" fill="%23666">Preview Unavailable</text></svg>';
   }
+  
+  // Always show the modal (even if preview failed to load)
+  modal.style.display = 'flex';
 }
 
 /**
