@@ -17,14 +17,10 @@ class ImageProcessor {
     this.exiftoolPath = PathHelper.getExiftoolPath();
     this.dcrawPath = PathHelper.getDcrawPath();
     
-    // ✅ FIX: Define which extensions use which processing method
     this.rawExtensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.erf'];
     this.processedExtensions = ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.psd', '.psb'];
   }
 
-  /**
-   * Ensure temp directory exists
-   */
   async ensureTempDir() {
     try {
       await fs.mkdir(this.tempDir, { recursive: true });
@@ -34,22 +30,57 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * ✅ FIX: NEW METHOD - Determine if file is RAW or processed
-   */
   isRawFile(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     return this.rawExtensions.includes(ext);
   }
 
-  /**
-   * ✅ FIX: NEW METHOD - Process TIF/processed images with Sharp
-   * Handles: TIF, TIFF, PSD, PNG, JPG
-   */
+  async readOrientation(imagePath) {
+    try {
+      const { stdout } = await execFileAsync(this.exiftoolPath, [
+        '-Orientation',
+        '-n',
+        imagePath
+      ]);
+      
+      const match = stdout.match(/Orientation\s*:\s*(\d+)/);
+      if (match) {
+        const orientation = parseInt(match[1]);
+        logger.debug('EXIF Orientation detected', { imagePath, orientation });
+        return orientation;
+      }
+    } catch (error) {
+      logger.warn('Could not read EXIF orientation', { imagePath, error: error.message });
+    }
+    
+    return 1;
+  }
+
+  applyRotation(sharpInstance, orientation, imagePath) {
+    switch (orientation) {
+      case 3:
+        sharpInstance.rotate(180);
+        logger.debug('Rotating 180°', { imagePath, orientation });
+        break;
+      case 6:
+        sharpInstance.rotate(90);
+        logger.debug('Rotating 90° CW', { imagePath, orientation });
+        break;
+      case 8:
+        sharpInstance.rotate(270);
+        logger.debug('Rotating 270° CW', { imagePath, orientation });
+        break;
+      default:
+        logger.debug('No rotation needed', { imagePath, orientation });
+        break;
+    }
+    
+    return sharpInstance;
+  }
+
   async processWithSharp(imagePath) {
     await this.ensureTempDir();
 
-    // Check cache first
     if (this.previewCache.has(imagePath)) {
       const cachedPath = this.previewCache.get(imagePath);
       try {
@@ -67,19 +98,22 @@ class ImageProcessor {
     try {
       logger.debug('Processing with Sharp', { imagePath });
       
-      // Load image with Sharp and apply transformations
-      await sharp(imagePath)
-        .rotate() // Auto-rotate based on EXIF orientation
+      const orientation = await this.readOrientation(imagePath);
+      
+      let sharpInstance = sharp(imagePath)
         .resize(1200, 1200, { 
           fit: 'inside',
           withoutEnlargement: true 
-        })
+        });
+      
+      sharpInstance = this.applyRotation(sharpInstance, orientation, imagePath);
+      
+      await sharpInstance
         .jpeg({ quality: 85 })
         .toFile(outputPath);
 
-      logger.debug('Sharp processing successful', { imagePath, outputPath });
+      logger.debug('Sharp processing successful', { imagePath, outputPath, orientation });
 
-      // Cache the result
       this.previewCache.set(imagePath, outputPath);
 
       return outputPath;
@@ -93,21 +127,14 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * Extract embedded preview from RAW file using exiftool
-   * Then rotate with Sharp based on EXIF orientation
-   * Returns path to generated JPG
-   */
   async extractPreview(rawPath) {
     await this.ensureTempDir();
 
-    // ✅ FIX: Check if this is actually a RAW file, otherwise use Sharp
     if (!this.isRawFile(rawPath)) {
       logger.debug('Not a RAW file, using Sharp instead', { rawPath });
       return await this.processWithSharp(rawPath);
     }
 
-    // Check cache first
     if (this.previewCache.has(rawPath)) {
       const cachedPath = this.previewCache.get(rawPath);
       try {
@@ -124,7 +151,6 @@ class ImageProcessor {
     const tempExtractPath = path.join(this.tempDir, `${hash}_temp.jpg`);
 
     try {
-      // Step 1: Extract preview JPG using exiftool
       logger.debug('Extracting preview with exiftool', { rawPath });
       
       const { stdout: previewData } = await execFileAsync(this.exiftoolPath, [
@@ -143,51 +169,17 @@ class ImageProcessor {
       await fs.writeFile(tempExtractPath, previewData);
       logger.debug('Preview extracted to temp file', { tempExtractPath });
 
-      // Step 2: Read EXIF Orientation
-      let orientation = 1;
-      try {
-        const { stdout } = await execFileAsync(this.exiftoolPath, [
-          '-Orientation',
-          '-n',
-          rawPath
-        ]);
-        
-        const match = stdout.match(/Orientation\s*:\s*(\d+)/);
-        if (match) {
-          orientation = parseInt(match[1]);
-          logger.debug('EXIF Orientation detected', { rawPath, orientation });
-        }
-      } catch (error) {
-        logger.warn('Could not read EXIF orientation', { rawPath, error: error.message });
-      }
+      const orientation = await this.readOrientation(rawPath);
 
-      // Step 3: Process with Sharp
-      const sharpInstance = sharp(tempExtractPath)
+      let sharpInstance = sharp(tempExtractPath)
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true });
       
-      switch (orientation) {
-        case 3:
-          sharpInstance.rotate(180);
-          logger.debug('Rotating 180°', { rawPath });
-          break;
-        case 6:
-          sharpInstance.rotate(90);
-          logger.debug('Rotating 90° CW', { rawPath });
-          break;
-        case 8:
-          sharpInstance.rotate(270);
-          logger.debug('Rotating 270° CW', { rawPath });
-          break;
-        default:
-          logger.debug('No rotation needed', { rawPath, orientation });
-          break;
-      }
+      sharpInstance = this.applyRotation(sharpInstance, orientation, rawPath);
       
       await sharpInstance
         .jpeg({ quality: 85 })
         .toFile(outputPath);
 
-      // Cleanup
       try {
         await fs.unlink(tempExtractPath);
       } catch (e) {
@@ -201,7 +193,6 @@ class ImageProcessor {
       return outputPath;
 
     } catch (error) {
-      // Cleanup on error
       try {
         await fs.unlink(tempExtractPath);
       } catch (e) {
@@ -216,16 +207,11 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * Convert RAW file to JPEG using dcraw (fallback method)
-   */
   async convertWithDcraw(rawPath, outputPath) {
     try {
       const fs = require('fs');
-      // Check if dcraw exists (bundled or system)
       try {
         if (!fs.existsSync(this.dcrawPath)) {
-          // Try system dcraw
           await execFileAsync('which', ['dcraw']);
         }
       } catch (whichError) {
@@ -233,7 +219,8 @@ class ImageProcessor {
         throw new Error('dcraw not installed');
       }
 
-      const dcrawToUse = fs.existsSync(this.dcrawPath) ? this.dcrawPath : 'dcraw';
+      const dcrawToUse = fs.existsSync(this.dcrawPath) ?
+        this.dcrawPath : 'dcraw';
       
       const { stdout } = await execFileAsync(dcrawToUse, [
         '-c',
@@ -250,16 +237,21 @@ class ImageProcessor {
         throw new Error('dcraw produced no output');
       }
 
-      await sharp(Buffer.from(stdout))
-        .rotate()
+      const orientation = await this.readOrientation(rawPath);
+      
+      let sharpInstance = sharp(Buffer.from(stdout))
         .resize(1200, 1200, { 
           fit: 'inside',
           withoutEnlargement: true 
-        })
+        });
+      
+      sharpInstance = this.applyRotation(sharpInstance, orientation, rawPath);
+      
+      await sharpInstance
         .jpeg({ quality: 85 })
         .toFile(outputPath);
 
-      logger.debug('dcraw conversion successful', { rawPath, outputPath });
+      logger.debug('dcraw conversion successful', { rawPath, outputPath, orientation });
 
     } catch (error) {
       logger.error('dcraw conversion failed', { rawPath, error: error.message });
@@ -267,9 +259,6 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * Generate perceptual hash for an image
-   */
   async generateHash(imagePath) {
     try {
       const imghash = require('imghash');
@@ -292,9 +281,6 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * Calculate Hamming distance between two hashes
-   */
   calculateHammingDistance(hash1, hash2) {
     if (!hash1 || !hash2 || hash1.length !== hash2.length) {
       return Infinity;
@@ -310,18 +296,11 @@ class ImageProcessor {
     return distance;
   }
 
-  /**
-   * Check if two images are similar
-   */
   areSimilar(hash1, hash2, threshold = 13) {
     const distance = this.calculateHammingDistance(hash1, hash2);
     return distance < threshold;
   }
 
-  /**
-   * ✅ MAIN ENTRY POINT: Process image (RAW or processed)
-   * Automatically routes to correct processing method
-   */
   async processImage(imagePath, timeout = 30000) {
     try {
       logger.info('Processing image', { imagePath });
@@ -331,7 +310,6 @@ class ImageProcessor {
       );
 
       const processingPromise = (async () => {
-        // ✅ FIX: Route to correct processing method based on file type
         const previewPath = await this.extractPreview(imagePath);
         const hash = await this.generateHash(previewPath);
         return { previewPath, hash };
@@ -362,71 +340,41 @@ class ImageProcessor {
     }
   }
 
-  /**
-   * Batch process multiple images
-   */
-  async processBatch(imagePaths, progressCallback = null) {
+  async batchProcessImages(imagePaths, onProgress) {
     const results = [];
     const total = imagePaths.length;
 
     for (let i = 0; i < imagePaths.length; i++) {
       const imagePath = imagePaths[i];
       
+      if (onProgress) {
+        onProgress({
+          current: i + 1,
+          total,
+          percent: Math.round(((i + 1) / total) * 100),
+          currentImage: path.basename(imagePath)
+        });
+      }
+
       const result = await this.processImage(imagePath);
       results.push({
         path: imagePath,
         ...result
       });
-
-      if (progressCallback) {
-        progressCallback({
-          current: i + 1,
-          total,
-          percent: Math.round(((i + 1) / total) * 100),
-          currentFile: path.basename(imagePath)
-        });
-      }
-
-      logger.debug('Batch progress', { 
-        completed: i + 1, 
-        total, 
-        file: path.basename(imagePath) 
-      });
     }
-
-    logger.info('Batch processing complete', { 
-      total, 
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length
-    });
 
     return results;
   }
 
-  /**
-   * Clean up temp directory
-   */
-  async cleanup(keepCache = false) {
-    try {
-      if (!keepCache) {
-        await fs.rm(this.tempDir, { recursive: true, force: true });
-        this.previewCache.clear();
-        logger.info('Temp directory cleaned up');
-      } else {
-        logger.info('Keeping preview cache');
-      }
-    } catch (error) {
-      logger.error('Cleanup failed', { error: error.message });
-    }
+  clearCache() {
+    this.previewCache.clear();
+    logger.info('Preview cache cleared');
   }
 
-  /**
-   * Get cache statistics
-   */
   getCacheStats() {
     return {
-      cachedPreviews: this.previewCache.size,
-      tempDir: this.tempDir
+      size: this.previewCache.size,
+      entries: Array.from(this.previewCache.keys())
     };
   }
 }
