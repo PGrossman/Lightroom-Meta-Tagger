@@ -2,6 +2,7 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const logger = require('./logger');
+const PathHelper = require('./pathHelper');
 
 const execFileAsync = promisify(execFile);
 
@@ -52,7 +53,8 @@ class SystemCheck {
 
   async checkExiftool() {
     try {
-      const { stdout } = await execFileAsync('exiftool', ['-ver']);
+      const exiftoolPath = PathHelper.getExiftoolPath();
+      const { stdout } = await execFileAsync(exiftoolPath, ['-ver']);
       const version = stdout.trim();
       return { 
         available: true, 
@@ -69,18 +71,57 @@ class SystemCheck {
   }
 
   async checkDcraw() {
+    const fs = require('fs');
+    
     try {
-      await execFileAsync('which', ['dcraw']);
-      return { 
-        available: true, 
-        message: 'Not installed (optional)' 
-      };
-    } catch (error) {
-      return { 
-        available: false, 
-        message: 'Not installed (optional)',
-        installCommand: 'brew install dcraw'
-      };
+      const { app } = require('electron');
+      if (app.isPackaged) {
+        // Packaged app - check for bundled dcraw
+        const dcrawPath = PathHelper.getDcrawPath();
+        if (fs.existsSync(dcrawPath)) {
+          return { 
+            available: true, 
+            message: 'dcraw available for old CR2 files' 
+          };
+        }
+        return { 
+          available: false, 
+          message: 'dcraw not installed (optional)',
+          installCommand: 'brew install dcraw'
+        };
+      } else {
+        // Development - check system dcraw
+        const { execSync } = require('child_process');
+        try {
+          execSync('which dcraw', { stdio: 'ignore' });
+          return { 
+            available: true, 
+            message: 'dcraw available for old CR2 files' 
+          };
+        } catch {
+          return { 
+            available: false, 
+            message: 'dcraw not installed (optional)',
+            installCommand: 'brew install dcraw'
+          };
+        }
+      }
+    } catch {
+      // Not in Electron context, try system check
+      try {
+        const { execSync } = require('child_process');
+        execSync('which dcraw', { stdio: 'ignore' });
+        return { 
+          available: true, 
+          message: 'dcraw available for old CR2 files' 
+        };
+      } catch {
+        return { 
+          available: false, 
+          message: 'dcraw not installed (optional)',
+          installCommand: 'brew install dcraw'
+        };
+      }
     }
   }
 

@@ -2,12 +2,14 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const logger = require('../utils/logger');
+const PathHelper = require('../utils/pathHelper');
 
 const execFileAsync = promisify(execFile);
 
 class ExifExtractor {
   constructor() {
     this.cache = new Map(); // Cache EXIF data to avoid re-reading files
+    this.exiftoolPath = PathHelper.getExiftoolPath();
   }
 
   /**
@@ -33,7 +35,7 @@ class ExifExtractor {
     }
 
     try {
-      const { stdout } = await execFileAsync('exiftool', [
+      const { stdout } = await execFileAsync(this.exiftoolPath, [
         '-DateTimeOriginal',
         '-CreateDate',
         '-SubSecTimeOriginal',
@@ -102,7 +104,7 @@ class ExifExtractor {
     }
 
     try {
-      const { stdout } = await execFileAsync('exiftool', [
+      const { stdout } = await execFileAsync(this.exiftoolPath, [
         '-DateTimeOriginal',
         '-s3',
         '-d', '%Y:%m:%d %H:%M:%S',
@@ -270,7 +272,7 @@ class ExifExtractor {
       for (let i = 0; i < actualPaths.length; i += batchSize) {
         const batch = actualPaths.slice(i, i + batchSize);
         
-        const { stdout } = await execFileAsync('exiftool', [
+        const { stdout } = await execFileAsync(this.exiftoolPath, [
           '-DateTimeOriginal',
           '-CreateDate',
           '-GPSLatitude',

@@ -15,6 +15,7 @@ class ImageProcessor {
     // Use PathHelper for proper temp directory
     this.tempDir = PathHelper.getTempDir();
     this.previewCache = new Map(); // Cache preview paths
+    this.exiftoolPath = PathHelper.getExiftoolPath();
   }
 
   /**
@@ -59,7 +60,7 @@ class ImageProcessor {
       // Step 1: Extract preview JPG using exiftool (handles old CR2 files)
       logger.debug('Extracting preview with exiftool', { rawPath });
       
-      const { stdout: previewData } = await execFileAsync('exiftool', [
+      const { stdout: previewData } = await execFileAsync(this.exiftoolPath, [
         '-b',              // Binary output
         '-PreviewImage',   // Extract preview
         rawPath
@@ -79,7 +80,7 @@ class ImageProcessor {
       // Step 2: Read EXIF Orientation from original RAW file
       let orientation = 1; // Default: no rotation needed
       try {
-        const { stdout } = await execFileAsync('exiftool', [
+        const { stdout } = await execFileAsync(this.exiftoolPath, [
           '-Orientation',
           '-n',
           rawPath
