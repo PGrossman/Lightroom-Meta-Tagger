@@ -33,7 +33,7 @@
   },
   "similarity": {
     "enabled": true,
-    "hammingThreshold": 82,
+    "hammingThreshold": 80,
     "hashSize": 16,
     "autoDetect": true,
     "showInResults": true,

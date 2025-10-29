@@ -4,7 +4,8 @@ const path = require('path');
 
 class SimilarityDetector {
   constructor(config) {
-    this.threshold = config?.similarity?.hammingThreshold || 85; // Now it's percentage (0-100)
+    // Use project/user config when available; fall back to a conservative 80%
+    this.threshold = config?.similarity?.hammingThreshold ?? 80; // percentage (0-100)
     this.serviceUrl = 'http://127.0.0.1:8765';
     this.logger = require('../utils/logger');
   }
