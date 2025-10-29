@@ -213,6 +213,21 @@ class FileManager {
   }
 
   /**
+   * ✅ FIX: NEW METHOD - Sort files consistently (alphabetically by basename)
+   * This ensures TIF and CR2 files appear in the same order regardless of filesystem
+   */
+  sortFilesAlphabetically(files) {
+    return files.sort((a, b) => {
+      const baseA = path.basename(a).toLowerCase();
+      const baseB = path.basename(b).toLowerCase();
+      return baseA.localeCompare(baseB, undefined, { 
+        numeric: true,  // Handle numbers correctly (_GP_0001 before _GP_0010)
+        sensitivity: 'base'  // Case-insensitive
+      });
+    });
+  }
+
+  /**
    * Scan directory and build file tree
    * Returns: { baseImages: [...], derivatives: Map, stats: {...} }
    */
@@ -239,25 +254,28 @@ class FileManager {
       results.stats.totalFiles++;
     }
 
+    // ✅ FIX: Sort files alphabetically for consistent ordering
+    const sortedFiles = this.sortFilesAlphabetically(allFiles);
+
     // Count file extensions
     const extCounts = {};
-    allFiles.forEach(file => {
+    sortedFiles.forEach(file => {
       const ext = path.extname(file).toLowerCase();
       extCounts[ext] = (extCounts[ext] || 0) + 1;
     });
     
-    logger.info('All files found', { 
-      count: allFiles.length,
+    logger.info('All files found and sorted', { 
+      count: sortedFiles.length,
       extensions: extCounts,
-      sample: allFiles.slice(0, 10).map(f => path.basename(f))
+      sample: sortedFiles.slice(0, 10).map(f => path.basename(f))
     });
 
-    // Step 2: Identify base images
+    // Step 2: Identify base images (use sortedFiles instead of allFiles)
     let tifBaseCount = 0;
     let tifDerivativeCount = 0;
     let tifUnknownCount = 0;
     
-    for (const file of allFiles) {
+    for (const file of sortedFiles) {
       const filename = path.basename(file);
       const ext = path.extname(filename).toUpperCase();
       
@@ -300,7 +318,7 @@ class FileManager {
     // Step 3: Find derivatives for each base
     for (const baseImage of results.baseImages) {
       const baseFilename = this.getBaseFilename(path.basename(baseImage));
-      const derivatives = this.findDerivatives(baseFilename, allFiles, baseImage);
+      const derivatives = this.findDerivatives(baseFilename, sortedFiles, baseImage);
       
       results.derivatives.set(baseImage, derivatives);
       results.stats.derivativesFound += derivatives.length;
@@ -322,7 +340,7 @@ class FileManager {
     
     // Find potential derivatives that weren't attached to any base
     const orphanedDerivatives = [];
-    for (const file of allFiles) {
+    for (const file of sortedFiles) {
       const filename = path.basename(file);
       if (this.isDerivative(filename) && !allDerivativeFiles.has(file)) {
         orphanedDerivatives.push(file);

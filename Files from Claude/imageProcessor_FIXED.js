@@ -15,7 +15,6 @@ class ImageProcessor {
     this.tempDir = PathHelper.getTempDir();
     this.previewCache = new Map();
     this.exiftoolPath = PathHelper.getExiftoolPath();
-    this.dcrawPath = PathHelper.getDcrawPath();
     
     // ✅ FIX: Define which extensions use which processing method
     this.rawExtensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.erf'];
@@ -221,21 +220,14 @@ class ImageProcessor {
    */
   async convertWithDcraw(rawPath, outputPath) {
     try {
-      const fs = require('fs');
-      // Check if dcraw exists (bundled or system)
       try {
-        if (!fs.existsSync(this.dcrawPath)) {
-          // Try system dcraw
-          await execFileAsync('which', ['dcraw']);
-        }
+        await execFileAsync('which', ['dcraw']);
       } catch (whichError) {
-        logger.warn('dcraw not found, skipping dcraw conversion');
+        logger.warn('dcraw not found in PATH, skipping dcraw conversion');
         throw new Error('dcraw not installed');
       }
 
-      const dcrawToUse = fs.existsSync(this.dcrawPath) ? this.dcrawPath : 'dcraw';
-      
-      const { stdout } = await execFileAsync(dcrawToUse, [
+      const { stdout } = await execFileAsync('dcraw', [
         '-c',
         '-w',
         '-q', '3',
