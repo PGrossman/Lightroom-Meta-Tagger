@@ -309,6 +309,29 @@ ipcMain.handle('scan-directory-with-clustering', async (event, dirPath, timestam
   }
 });
 
+// New: Scan specific files with clustering (for files-only drag & drop)
+ipcMain.handle('scan-files-with-clustering', async (event, filePaths, timestampThreshold) => {
+  try {
+    logger.info('Scan files with clustering requested', { count: filePaths?.length || 0, timestampThreshold });
+    const results = await fileManager.scanFilesWithClustering(filePaths || [], timestampThreshold || 5);
+    const summary = fileManager.getScanSummary(results);
+    return {
+      success: true,
+      results: {
+        baseImages: results.baseImages,
+        derivatives: Object.fromEntries(results.derivatives),
+        stats: results.stats,
+        clusters: results.clusters,
+        clusterStats: results.clusterStats
+      },
+      summary
+    };
+  } catch (error) {
+    logger.error('Scan files with clustering failed', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
 // Process Images IPC Handler - Phase 2 Processing Pipeline
 console.log('=== REGISTERING process-images IPC HANDLER ===');
 ipcMain.handle('process-images', async (event, scanResults, dirPath) => {

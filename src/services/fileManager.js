@@ -377,6 +377,138 @@ class FileManager {
   }
 
   /**
+   * Scan a specific list of files (no directory walk)
+   * Only the provided files are considered; no additional files are pulled in
+   */
+  async scanFiles(filePaths) {
+    logger.info('Starting file list scan', { files: filePaths.length });
+    const startTime = Date.now();
+    const results = {
+      baseImages: [],
+      derivatives: new Map(),
+      stats: {
+        totalFiles: filePaths.length,
+        baseImagesFound: 0,
+        derivativesFound: 0,
+        skippedFiles: 0,
+        orphansPromoted: 0
+      }
+    };
+
+    // Normalize to absolute unique paths and sort
+    const uniqueFiles = Array.from(new Set(filePaths)).filter(Boolean);
+    const sortedFiles = this.sortFilesAlphabetically(uniqueFiles);
+
+    // Identify base images within provided set
+    for (const file of sortedFiles) {
+      const filename = path.basename(file);
+      if (this.isBaseImage(filename)) {
+        results.baseImages.push(file);
+        results.stats.baseImagesFound++;
+      }
+    }
+
+    // No derivative discovery outside provided set
+    for (const baseImage of results.baseImages) {
+      results.derivatives.set(baseImage, []);
+    }
+
+    // Promote provided derivatives so user-dropped JPG/PNG/TIF still appear
+    const providedSet = new Set(sortedFiles);
+    for (const file of sortedFiles) {
+      const filename = path.basename(file);
+      const isProvidedDerivative = this.isDerivative(filename);
+      if (isProvidedDerivative && !results.baseImages.includes(file)) {
+        results.baseImages.push(file);
+        results.derivatives.set(file, []);
+        results.stats.baseImagesFound++;
+        results.stats.orphansPromoted++;
+      }
+    }
+
+    const duration = Date.now() - startTime;
+    results.stats.scanDuration = duration;
+    logger.info('File list scan complete', {
+      duration: `${duration}ms`,
+      baseImages: results.stats.baseImagesFound,
+      totalFiles: results.stats.totalFiles
+    });
+
+    return results;
+  }
+
+  /**
+   * Cluster a provided list of files using the same logic as directory scan
+   */
+  async scanFilesWithClustering(filePaths, timestampThreshold = 5) {
+    const scanResults = await this.scanFiles(filePaths);
+
+    // Separate RED from Canon files
+    const redFiles = [];
+    const canonFiles = [];
+    for (const baseImage of scanResults.baseImages) {
+      const filename = path.basename(baseImage);
+      const stat = await (await require('fs')).promises.stat(baseImage).catch(() => null);
+      const fileObj = { name: filename, path: baseImage, stat: stat || { mtime: new Date(0) } };
+      if (this.isREDFile(filename)) redFiles.push(fileObj); else canonFiles.push(fileObj);
+    }
+
+    const redClusters = this.clusterREDFiles(redFiles);
+
+    const ExifExtractor = require('./exifExtractor');
+    const ClusteringService = require('./clusteringService');
+    const exifExtractor = new ExifExtractor();
+    const clusteringService = new ClusteringService(exifExtractor);
+
+    let canonClusters = [];
+    if (canonFiles.length > 0) {
+      try {
+        canonClusters = await clusteringService.clusterByTimestamp(
+          canonFiles.map(f => f.path),
+          timestampThreshold
+        );
+        if (!Array.isArray(canonClusters)) canonClusters = [];
+      } catch {
+        canonClusters = [];
+      }
+    }
+
+    const formattedCanonClusters = canonClusters.map((cluster, index) => 
+      clusteringService.formatClusterForDisplay(cluster, index)
+    );
+
+    const formattedREDClusters = redClusters.map(cluster => ({ ...cluster, derivatives: [] }));
+    const allClusters = [...formattedREDClusters, ...formattedCanonClusters];
+
+    const totalImages = allClusters.reduce((sum, c) => sum + c.imageCount, 0);
+    const clusterStats = {
+      totalClusters: allClusters.length,
+      totalImages: totalImages,
+      redClusters: redClusters.length,
+      canonClusters: formattedCanonClusters.length,
+      bracketedClusters: allClusters.filter(c => c.isBracketed).length,
+      singletonClusters: allClusters.filter(c => !c.isBracketed).length,
+      averageClusterSize: allClusters.length > 0 ? totalImages / allClusters.length : 0
+    };
+
+    return {
+      ...scanResults,
+      clusters: allClusters,
+      clusterStats,
+      summary: {
+        totalBaseImages: scanResults.stats.baseImagesFound,
+        totalDerivatives: 0,
+        orphansPromoted: scanResults.stats.orphansPromoted,
+        totalClusters: allClusters.length,
+        redClusters: redClusters.length,
+        canonClusters: formattedCanonClusters.length,
+        bracketedClusters: allClusters.filter(c => c.isBracketed).length,
+        singletonClusters: allClusters.filter(c => !c.isBracketed).length
+      }
+    };
+  }
+
+  /**
    * Get a summary of scan results for display
    */
   getScanSummary(scanResults) {

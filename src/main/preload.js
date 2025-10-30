@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanDirectory: (dirPath) => ipcRenderer.invoke('scan-directory', dirPath),
   scanDirectoryWithClustering: (dirPath, threshold) => 
     ipcRenderer.invoke('scan-directory-with-clustering', dirPath, threshold),
+  scanFilesWithClustering: (filePaths, threshold) => 
+    ipcRenderer.invoke('scan-files-with-clustering', filePaths, threshold),
   
   // Processing (Phase 2)
   processImages: (scanResults, dirPath) => 

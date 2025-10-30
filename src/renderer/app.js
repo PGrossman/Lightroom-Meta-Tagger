@@ -162,24 +162,35 @@ function initializeEventListeners() {
       dropzone.style.backgroundColor = '#d4edda';
       dropzone.style.borderColor = '#28a745';
       
-      const files = e.dataTransfer.files;
-      
-      if (files.length > 0) {
-        // In Electron, files[0].path gives the absolute file system path
-        const droppedPath = files[0].path;
-        console.log('File/folder dropped:', droppedPath);
-        
-        // Determine if it's a directory or file
-        let dirToScan;
-        const isDir = await window.electronAPI.isDirectory(droppedPath);
-        if (isDir) {
-          dirToScan = droppedPath;
-        } else {
-          dirToScan = await window.electronAPI.getParentDir(droppedPath);
+      const fileList = Array.from(e.dataTransfer.files || []);
+      if (fileList.length === 0) return;
+
+      const paths = fileList.map(f => f.path).filter(Boolean);
+      const isDirFlags = await Promise.all(paths.map(p => window.electronAPI.isDirectory(p)));
+      const anyDir = isDirFlags.some(Boolean);
+
+      if (anyDir) {
+        // If any directory present, prefer directory scan on first directory
+        const firstDir = paths[isDirFlags.findIndex(Boolean)];
+        console.log('Directory dropped:', firstDir);
+        await selectAndScanDirectory(firstDir);
+      } else {
+        // Files-only: scan exactly these files
+        console.log('Files dropped:', paths.length, 'files');
+        const response = await window.electronAPI.scanFilesWithClustering(paths, 5);
+        if (!response.success) {
+          alert('Failed to process files: ' + response.error);
+          return;
         }
-        
-        // Scan the directory
-        await selectAndScanDirectory(dirToScan);
+
+        scanResults = response.results;
+        const summary = response.summary;
+        window.scanResults = scanResults;
+        window.selectedDirectory = null;
+
+        // Update UI similarly to directory flow
+        updateStatus('Files added successfully', 'complete');
+        console.log('Files-only scan results:', scanResults);
       }
     });
 
