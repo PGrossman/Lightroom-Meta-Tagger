@@ -190,6 +190,8 @@ function initializeEventListeners() {
 
         // Update UI similarly to directory flow
         updateStatus('Files added successfully', 'complete');
+        displayScanResults(summary);
+        populateResultsTableWithClusters(scanResults);
         console.log('Files-only scan results:', scanResults);
       }
     });
