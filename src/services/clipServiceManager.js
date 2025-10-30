@@ -26,16 +26,68 @@ class ClipServiceManager {
     this.isStarting = true;
     
     const scriptPath = PathHelper.getScriptPath('similarity_service.py');
-    
-    // ✅ Use venv Python from PathHelper
+
+    // Determine user runtime venv python path
     const venvPython = PathHelper.getPythonPath();
-    
-    // Check if venv Python exists
-    if (!fs.existsSync(venvPython)) {
-      const error = `Virtual environment not found at: ${venvPython}\nPlease run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`;
-      logger.error(error);
+
+    // Bootstrap venv in userData if missing
+    try {
+      const userVenvDir = PathHelper.getUserVenvPath();
+      if (!fs.existsSync(venvPython)) {
+        logger.info('User venv not found, bootstrapping...', { userVenvDir });
+
+        // Prefer system python3 from /usr/bin/python3; fallback to 'python3'
+        const systemPythonCandidates = [
+          '/usr/bin/python3',
+          '/opt/homebrew/bin/python3',
+          '/usr/local/bin/python3',
+          'python3'
+        ];
+        const systemPython = systemPythonCandidates.find(p => {
+          try { fs.accessSync(p, fs.constants.X_OK); return true; } catch { return false; }
+        }) || 'python3';
+
+        // Create venv
+        await new Promise((resolve, reject) => {
+          const proc = spawn(systemPython, ['-m', 'venv', userVenvDir], { stdio: ['ignore', 'pipe', 'pipe'] });
+          let err = '';
+          proc.stderr.on('data', d => err += d.toString());
+          proc.on('close', code => code === 0 ? resolve() : reject(new Error(err || `venv create failed (${code})`)));
+        });
+
+        // Upgrade pip
+        await new Promise((resolve, reject) => {
+          const proc = spawn(venvPython, ['-m', 'pip', 'install', '--upgrade', 'pip', 'wheel', 'setuptools'], { stdio: ['ignore', 'pipe', 'pipe'] });
+          let err = '';
+          proc.stderr.on('data', d => err += d.toString());
+          proc.on('close', code => code === 0 ? resolve() : reject(new Error(err || `pip upgrade failed (${code})`)));
+        });
+
+        // Install requirements from bundled file
+        const reqPath = PathHelper.getRequirementsPath();
+        if (fs.existsSync(reqPath)) {
+          logger.info('Installing CLIP service requirements', { requirements: reqPath });
+          await new Promise((resolve, reject) => {
+            const proc = spawn(venvPython, ['-m', 'pip', 'install', '-r', reqPath], { stdio: ['ignore', 'pipe', 'pipe'] });
+            let err = '';
+            proc.stderr.on('data', d => err += d.toString());
+            proc.on('close', code => code === 0 ? resolve() : reject(new Error(err || `requirements install failed (${code})`)));
+          });
+        } else {
+          logger.warn('requirements.txt not found in resources; attempting online install of minimal deps');
+          await new Promise((resolve, reject) => {
+            const pkgs = ['fastapi', 'uvicorn', 'transformers', 'torch', 'pillow', 'numpy'];
+            const proc = spawn(venvPython, ['-m', 'pip', 'install', ...pkgs], { stdio: ['ignore', 'pipe', 'pipe'] });
+            let err = '';
+            proc.stderr.on('data', d => err += d.toString());
+            proc.on('close', code => code === 0 ? resolve() : reject(new Error(err || `package install failed (${code})`)));
+          });
+        }
+      }
+    } catch (bootstrapError) {
+      logger.error('Failed to bootstrap user venv', { error: bootstrapError.message });
       this.isStarting = false;
-      throw new Error(error);
+      throw bootstrapError;
     }
     
     logger.info('Starting CLIP similarity service...', { 
@@ -47,7 +99,7 @@ class ClipServiceManager {
       // Spawn Python process using venv Python with -u flag for unbuffered output
       // This ensures we get real-time logs from the Python service
       this.process = spawn(venvPython, ['-u', scriptPath], {
-        cwd: process.cwd(),
+        cwd: PathHelper.getUserDataDir(),
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env } // Pass environment variables
       });

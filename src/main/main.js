@@ -33,6 +33,9 @@ const clipServiceManager = new ClipServiceManager();
 // Initialize AI Analysis Service
 let aiAnalysisService = null;
 
+// Splash window reference
+let splash = null;
+
 /**
  * Check Apple Silicon GPU (MPS) status
  * Verifies if PyTorch with MPS support is available for GPU acceleration
@@ -1616,6 +1619,14 @@ function createWindow() {
   });
 
   win.loadFile('src/renderer/index.html');
+
+  // Close splash when main window is ready
+  win.once('ready-to-show', () => {
+    if (splash && !splash.isDestroyed()) {
+      splash.close();
+      splash = null;
+    }
+  });
   
   // ✅ FIX CSP: Allow data URLs for images (SVG placeholders and base64 thumbnails)
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -1636,7 +1647,66 @@ function createWindow() {
   }
 }
 
+function createSplash() {
+  try {
+    splash = new BrowserWindow({
+      width: 300,
+      height: 300,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      movable: true,
+      show: true,
+      icon: path.join(__dirname, '../../icon/Lightroom ICON.png')
+    });
+    // Try to read icon from multiple locations to support packaged builds
+    const candidateIconPaths = [
+      path.join(__dirname, '../../icon/Lightroom ICON.png'),                // inside asar
+      path.join(process.resourcesPath || '', 'icon', 'Lightroom ICON.png')  // unpacked extraResources
+    ];
+
+    let base64 = '';
+    for (const p of candidateIconPaths) {
+      try {
+        const buf = fs.readFileSync(p);
+        base64 = buf.toString('base64');
+        break;
+      } catch {}
+    }
+
+    // Final fallback: simple inline SVG so splash still renders
+    const inlineImg = base64
+      ? `data:image/png;base64,${base64}`
+      : `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250"><rect width="250" height="250" rx="32" fill="#2b2b2b"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#eaeaea" font-family="-apple-system,Helvetica,Arial" font-size="20">Loading…</text></svg>')}`;
+
+    const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
+    <style>
+      html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; }
+      .c { display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
+      .logo { width:250px; height:250px; object-fit:contain; }
+    </style>
+  </head>
+  <body>
+    <div class="c">
+      <img class="logo" src="${inlineImg}" alt="Loading"/>
+    </div>
+  </body>
+</html>`;
+
+    splash.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  } catch (e) {
+    logger.warn('Failed to create splash window', { error: e.message });
+  }
+}
+
 app.whenReady().then(async () => {
+  // Show splash immediately
+  createSplash();
   // Set dock icon on macOS
   if (process.platform === 'darwin' && app.dock) {
     const iconPath = path.join(__dirname, '../../icon/Lightroom ICON.png');

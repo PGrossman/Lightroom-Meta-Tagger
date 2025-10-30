@@ -19,7 +19,8 @@ class PathHelper {
    */
   static getPythonPath() {
     if (this.isPackaged()) {
-      return path.join(process.resourcesPath, 'venv', 'bin', 'python3');
+      // Use runtime venv under userData for portability
+      return path.join(this.getUserVenvPath(), 'bin', 'python3');
     }
     return path.join(process.cwd(), 'venv', 'bin', 'python3');
   }
@@ -105,6 +106,23 @@ class PathHelper {
       // Fallback for non-Electron context
       return process.cwd();
     }
+  }
+
+  /**
+   * Get the per-user virtual environment directory (packaged runtime venv)
+   */
+  static getUserVenvPath() {
+    return path.join(this.getUserDataDir(), 'venv');
+  }
+
+  /**
+   * Get requirements.txt location (bundled in resources when packaged)
+   */
+  static getRequirementsPath() {
+    if (this.isPackaged()) {
+      return path.join(process.resourcesPath, 'requirements.txt');
+    }
+    return path.join(process.cwd(), 'requirements.txt');
   }
 }
 
