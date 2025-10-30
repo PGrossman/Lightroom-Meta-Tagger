@@ -58,6 +58,7 @@
     "files": [
       "src/**/*",
       "node_modules/**/*",
+      "icon/**/*",
       "!node_modules/.cache",
       "package.json"
     ],
@@ -80,12 +81,22 @@
         "from": ".",
         "to": ".",
         "filter": [
-          "*.py",
-          "*.sh"
+          "similarity_service.py",
+          "verify_mps.py",
+          "WikiMap_Chernobyl_Master_English.csv",
+          "config.json"
+        ]
+      },
+      {
+        "from": "icon",
+        "to": "icon",
+        "filter": [
+          "**/*"
         ]
       }
     ],
     "mac": {
+      "icon": "icon/Lightroom ICON.png",
       "target": [
         {
           "target": "dmg",
@@ -95,13 +106,10 @@
         }
       ],
       "category": "public.app-category.productivity",
-      "icon": "build/icon.png",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "identity": null,
-      "type": "distribution",
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "type": "distribution"
     },
     "dmg": {
       "title": "${productName} ${version}",
