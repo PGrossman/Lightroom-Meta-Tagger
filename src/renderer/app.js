@@ -51,7 +51,18 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // Initialize all event listeners
   initializeEventListeners();
+  // Ensure ingest model reflects saved settings on first load
+  syncIngestModelFromSettings();
   
+  // Ensure any modals/overlays are hidden on startup (prevents covering tabs)
+  try {
+    document.querySelectorAll('.modal, .modal-overlay').forEach(el => {
+      el.style.display = 'none';
+    });
+  } catch (e) {
+    console.warn('Failed to hide modals on init', e);
+  }
+
   // Check database on startup
   checkDatabaseOnStartup();
 });
@@ -77,10 +88,32 @@ function initializeEventListeners() {
       const tabName = button.dataset.tab;
       
       tabButtons.forEach(btn => btn.classList.remove('active'));
-      tabPanels.forEach(panel => panel.classList.remove('active'));
+      tabPanels.forEach(panel => {
+        panel.classList.remove('active');
+        // Ensure hidden via style in case class-based CSS was overridden
+        panel.style.display = 'none';
+      });
       
       button.classList.add('active');
-      document.getElementById(`${tabName}-tab`).classList.add('active');
+      const targetPanel = document.getElementById(`${tabName}-tab`);
+      if (targetPanel) {
+        targetPanel.classList.add('active');
+        targetPanel.style.display = 'block';
+      } else {
+        console.error('Tab panel not found for', tabName);
+      }
+
+      // Defensive: hide any open overlays that could obscure the tab content
+      try {
+        document.querySelectorAll('.modal, .modal-overlay').forEach(el => {
+          el.style.display = 'none';
+        });
+      } catch {}
+
+      // When returning to ingest tab, refresh model option from saved settings
+      if (tabName === 'ingest') {
+        syncIngestModelFromSettings();
+      }
     });
   });
 
@@ -186,13 +219,24 @@ function initializeEventListeners() {
         scanResults = response.results;
         const summary = response.summary;
         window.scanResults = scanResults;
-        window.selectedDirectory = null;
+        // Set a reasonable selectedDirectory for downstream processing (common parent)
+        try {
+          const parent = await window.electronAPI.getParentDir(paths[0]);
+          window.selectedDirectory = parent;
+        } catch {
+          window.selectedDirectory = null;
+        }
 
         // Update UI similarly to directory flow
         updateStatus('Files added successfully', 'complete');
         displayScanResults(summary);
         populateResultsTableWithClusters(scanResults);
         console.log('Files-only scan results:', scanResults);
+
+        // Enable the process button
+        if (processImagesBtn) {
+          processImagesBtn.disabled = false;
+        }
       }
     });
 
@@ -257,8 +301,8 @@ function initializeEventListeners() {
   }
 
   if (testGoogleVisionBtn) {
-    testGoogleVisionBtn.addEventListener('click', handleTestGoogleVision);
-    console.log('✅ Test Google Vision button listener attached');
+    testGoogleVisionBtn.addEventListener('click', handleTestAiStudio);
+    console.log('✅ Test Google AI Studio button listener attached');
   }
 
   if (toggleApiKeyVisibility) {
@@ -930,11 +974,38 @@ async function loadSettings() {
     const ollamaModel = document.getElementById('ollamaModel');
     const confidenceThreshold = document.getElementById('confidenceThreshold');
     const googleVisionApiKey = document.getElementById('googleVisionApiKey');
+    const aiStudioModelSelect = document.getElementById('aiStudioModel');
+    const ingestModelSelect = document.getElementById('modelSelect');
     
     if (ollamaEndpoint) ollamaEndpoint.value = settings.ollama?.endpoint || 'http://localhost:11434';
     if (ollamaModel) ollamaModel.value = settings.ollama?.model || 'qwen2.5vl:latest';
     if (confidenceThreshold) confidenceThreshold.value = settings.aiAnalysis?.confidenceThreshold || 85;
     if (googleVisionApiKey) googleVisionApiKey.value = settings.googleVision?.apiKey || '';
+    if (aiStudioModelSelect && settings.aiAnalysis?.aiStudioModel) {
+      // Preselect saved model if present; options will be (re)loaded on test
+      const opt = document.createElement('option');
+      opt.value = settings.aiAnalysis.aiStudioModel;
+      opt.textContent = settings.aiAnalysis.aiStudioModel;
+      aiStudioModelSelect.innerHTML = '';
+      aiStudioModelSelect.appendChild(opt);
+      aiStudioModelSelect.value = settings.aiAnalysis.aiStudioModel;
+    }
+
+    // Reflect Google AI Studio choice on Ingest/Process page as third option
+    if (ingestModelSelect) {
+      // Remove any prior ai-studio option to avoid duplicates
+      Array.from(ingestModelSelect.options)
+        .filter(o => o.value && o.value.startsWith('ai-studio:'))
+        .forEach(o => o.remove());
+      const aiModel = settings.aiAnalysis?.aiStudioModel;
+      if (aiModel) {
+        const label = `Google AI Studio (${aiModel.split('/').pop()})`;
+        const opt = document.createElement('option');
+        opt.value = `ai-studio:${aiModel}`;
+        opt.textContent = label;
+        ingestModelSelect.appendChild(opt);
+      }
+    }
     
     await loadDatabaseStats();
     
@@ -2923,13 +2994,16 @@ async function handleSaveAISettings() {
       ollamaEndpoint: document.getElementById('ollamaEndpoint').value,
       ollamaModel: document.getElementById('ollamaModel').value,
       confidenceThreshold: parseInt(document.getElementById('confidenceThreshold').value),
-      googleVisionApiKey: document.getElementById('googleVisionApiKey').value
+      googleVisionApiKey: document.getElementById('googleVisionApiKey').value,
+      aiStudioModel: (document.getElementById('aiStudioModel') || {}).value
     };
     
     const response = await window.electronAPI.saveAISettings(settings);
     
     if (response.success) {
       alert('✅ AI settings saved successfully!');
+      // Immediately reflect on ingest tab
+      await syncIngestModelFromSettings();
     } else {
       alert(`❌ Failed to save settings: ${response.error}`);
     }
@@ -2968,6 +3042,89 @@ async function handleTestGoogleVision() {
     
   } catch (error) {
     console.error('Error testing Google Vision:', error);
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = '#e74c3c';
+    statusDiv.textContent = `❌ Error: ${error.message}`;
+  }
+}
+
+// ============================================
+// Sync Ingest Model Dropdown From Saved Settings
+// ============================================
+async function syncIngestModelFromSettings() {
+  try {
+    const ingestModelSelect = document.getElementById('modelSelect');
+    if (!ingestModelSelect) return;
+    const settings = await window.electronAPI.getAllSettings();
+    const aiModel = settings?.aiAnalysis?.aiStudioModel;
+    // Remove existing AI Studio option(s)
+    Array.from(ingestModelSelect.options)
+      .filter(o => o.value && o.value.startsWith('ai-studio:'))
+      .forEach(o => o.remove());
+    if (aiModel) {
+      const label = `Google AI Studio (${aiModel.split('/').pop()})`;
+      const opt = document.createElement('option');
+      opt.value = `ai-studio:${aiModel}`;
+      opt.textContent = label;
+      ingestModelSelect.appendChild(opt);
+      // Preselect saved AI Studio model by default
+      ingestModelSelect.value = opt.value;
+    }
+  } catch (e) {
+    console.warn('Failed to sync ingest model from settings', e);
+  }
+}
+
+// New: Test Google AI Studio (Gemini) connectivity
+async function handleTestAiStudio() {
+  const statusDiv = document.getElementById('googleVisionStatus');
+  const apiKey = document.getElementById('googleVisionApiKey').value;
+  const modelSelect = document.getElementById('aiStudioModel');
+  if (!statusDiv) return;
+  if (!apiKey) {
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = '#e74c3c';
+    statusDiv.textContent = '⚠️ Please enter your Google AI Studio API key first';
+    return;
+  }
+  try {
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = '#666';
+    statusDiv.textContent = '🔄 Testing AI Studio connection...';
+    const response = await window.electronAPI.testAiStudio(apiKey);
+    if (response.success) {
+      statusDiv.style.color = '#28a745';
+      statusDiv.textContent = '✅ AI Studio connection successful! Saving key...';
+      // Persist the key so user doesn't need to re-enter it
+      try {
+        await window.electronAPI.saveAISettings({ googleVisionApiKey: apiKey });
+        statusDiv.textContent = '✅ AI Studio connection successful! Key saved. Loading models...';
+        // Load model list
+        const list = await window.electronAPI.listAiStudioModels(apiKey);
+        if (list.success && modelSelect) {
+          modelSelect.innerHTML = '';
+          list.models.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            modelSelect.appendChild(opt);
+          });
+          // Preserve saved model if exists
+          const saved = (await window.electronAPI.getAllSettings()).aiAnalysis?.aiStudioModel;
+          if (saved && list.models.includes(saved)) {
+            modelSelect.value = saved;
+          }
+          statusDiv.textContent = '✅ AI Studio connected. Models loaded.';
+        }
+      } catch (e) {
+        // Non-fatal if save fails; at least connection worked
+        statusDiv.textContent = '✅ AI Studio connection successful! (Save failed)';
+      }
+    } else {
+      statusDiv.style.color = '#e74c3c';
+      statusDiv.textContent = `❌ Connection failed: ${response.error}`;
+    }
+  } catch (error) {
     statusDiv.style.display = 'block';
     statusDiv.style.color = '#e74c3c';
     statusDiv.textContent = `❌ Error: ${error.message}`;
@@ -3563,6 +3720,32 @@ async function loadPersonalData() {
 function updatePersonalDataUI(data) {
   // Update UI elements with personal data
   console.log('Updating personal data UI:', data);
+  try {
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el !== null && el !== undefined) {
+        el.value = val ?? '';
+      }
+    };
+
+    setVal('creatorName', data?.creatorName);
+    setVal('creatorJobTitle', data?.jobTitle);
+    setVal('creatorAddress', data?.address);
+    setVal('creatorCity', data?.city);
+    setVal('creatorState', data?.state);
+    setVal('creatorPostalCode', data?.postalCode);
+    setVal('creatorCountry', data?.country);
+    setVal('creatorPhone', data?.phone);
+    setVal('creatorEmail', data?.email);
+    setVal('creatorWebsite', data?.website);
+    setVal('copyrightNotice', data?.copyrightNotice);
+    const rights = document.getElementById('rightsUsageTerms');
+    if (rights) rights.value = data?.rightsUsageTerms ?? '';
+    const status = document.getElementById('copyrightStatus');
+    if (status) status.value = data?.copyrightStatus ?? 'copyrighted';
+  } catch (e) {
+    console.error('Failed to update personal data UI:', e);
+  }
 } 
 // ============================================
 // GPS DIAGNOSTIC FUNCTION

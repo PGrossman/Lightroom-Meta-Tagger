@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // AI Settings
   saveAISettings: (settings) => ipcRenderer.invoke('save-ai-settings', settings),
   testGoogleVisionAPI: (apiKey) => ipcRenderer.invoke('test-google-vision-api', apiKey),
+  testAiStudio: (apiKey) => ipcRenderer.invoke('test-ai-studio', apiKey),
+  listAiStudioModels: (apiKey) => ipcRenderer.invoke('list-ai-studio-models', apiKey),
   
   // Personal Data
   getPersonalData: () => ipcRenderer.invoke('get-personal-data'),

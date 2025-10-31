@@ -63,10 +63,14 @@ h1 {
 /* Tab Content */
 .tab-content {
   min-height: 500px;
+  position: relative; /* ensure stacking context */
+  z-index: 1;
 }
 
 .tab-panel {
   display: none;
+  position: relative; /* ensure stacking over backgrounds */
+  z-index: 100;       /* visible above base layout */
 }
 
 .tab-panel.active {

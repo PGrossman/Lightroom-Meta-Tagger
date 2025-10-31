@@ -119,13 +119,36 @@ class ConfigManager {
       if (fs.existsSync(projectConfigPath)) {
         const projectConfig = JSON.parse(fs.readFileSync(projectConfigPath, 'utf8'));
         
-        // Merge with user settings
-        return {
-          ...projectConfig,
-          databasePath: this.getDatabasePath(),
-          lastUsedDirectory: this.getLastUsedDirectory(),
-          timestampThreshold: this.getTimestampThreshold()
-        };
+        // Overlay user-config overrides onto project config for dynamic settings
+        const merged = { ...projectConfig };
+        // Legacy flat keys
+        const legacyOllamaEndpoint = this.get('ollamaEndpoint');
+        const legacyOllamaModel = this.get('ollamaModel');
+        if (legacyOllamaEndpoint || legacyOllamaModel) {
+          merged.ollama = merged.ollama || {};
+          if (legacyOllamaEndpoint) merged.ollama.endpoint = legacyOllamaEndpoint;
+          if (legacyOllamaModel) merged.ollama.model = legacyOllamaModel;
+        }
+        // Structured overrides saved at runtime
+        const userOllama = this.get('ollama');
+        if (userOllama && typeof userOllama === 'object') {
+          merged.ollama = { ...(merged.ollama || {}), ...userOllama };
+        }
+        const userGV = this.get('googleVision');
+        if (userGV && typeof userGV === 'object') {
+          merged.googleVision = { ...(merged.googleVision || {}), ...userGV };
+        }
+        const userAI = this.get('aiAnalysis');
+        if (userAI && typeof userAI === 'object') {
+          merged.aiAnalysis = { ...(merged.aiAnalysis || {}), ...userAI };
+        }
+
+        // Merge with user system-level settings
+        merged.databasePath = this.getDatabasePath();
+        merged.lastUsedDirectory = this.getLastUsedDirectory();
+        merged.timestampThreshold = this.getTimestampThreshold();
+
+        return merged;
       }
     } catch (error) {
       logger.error('Failed to load project config', { error: error.message });

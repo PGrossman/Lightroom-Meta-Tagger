@@ -386,7 +386,8 @@
             </div>
           </div>
         </div>
-
+        
+      </div>
 
       <!-- Personal Data Tab -->
       <div id="personal-data-tab" class="tab-panel">
@@ -648,6 +649,13 @@
                 >
                 <button id="testGoogleVisionBtn" class="setting-btn">Test Connection</button>
                 <button id="toggleApiKeyVisibility" class="setting-btn" type="button">👁️</button>
+              </div>
+              <div class="setting-item" style="margin-top:12px;">
+                <label for="aiStudioModel">Google AI Studio Model:</label>
+                <select id="aiStudioModel" class="setting-input">
+                  <option value="">(click Test Connection to load models)</option>
+                </select>
+                <p class="setting-hint">Preferred Gemini model for analysis (e.g., gemini-2.5-pro, gemini-2.5-flash-lite)</p>
               </div>
               <p class="setting-hint">
                 Used as fallback when Ollama confidence is low. Get your API key at: 

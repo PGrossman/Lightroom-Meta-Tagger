@@ -1241,6 +1241,13 @@ ipcMain.handle('save-ai-settings', async (event, settings) => {
       googleVision.apiKey = settings.googleVisionApiKey;
       configManager.set('googleVision', googleVision);
     }
+
+    // Save preferred AI Studio model under aiAnalysis
+    if (settings.aiStudioModel) {
+      const aiAnalysis = configManager.get('aiAnalysis') || {};
+      aiAnalysis.aiStudioModel = settings.aiStudioModel;
+      configManager.set('aiAnalysis', aiAnalysis);
+    }
     
     logger.info('AI settings saved successfully');
     
@@ -1252,6 +1259,36 @@ ipcMain.handle('save-ai-settings', async (event, settings) => {
   } catch (error) {
     logger.error('Failed to save AI settings', { error: error.message });
     return { success: false, error: error.message };
+  }
+});
+
+// List Google AI Studio (Gemini) models that support generateContent
+ipcMain.handle('list-ai-studio-models', async (event, apiKey) => {
+  try {
+    const axios = require('axios');
+    const base = 'https://generativelanguage.googleapis.com';
+    const tryList = async (version) => (await axios.get(`${base}/${version}/models?key=${apiKey}`, { timeout: 15000 })).data?.models || [];
+    let models = [];
+    try {
+      models = await tryList('v1beta');
+    } catch {
+      models = await tryList('v1');
+    }
+    const supportsGen = (m) => (m.supportedGenerationMethods || []).includes('generateContent');
+    const names = models.filter(supportsGen).map(m => m.name).filter(Boolean);
+    // Preferential order: 2.5 pro, 2.5 flash-lite, 1.5 pro, 1.5 flash, then rest
+    const prefOrder = ['gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+    names.sort((a,b) => {
+      const ia = prefOrder.findIndex(k => a.includes(k));
+      const ib = prefOrder.findIndex(k => b.includes(k));
+      const sa = ia === -1 ? 999 : ia;
+      const sb = ib === -1 ? 999 : ib;
+      if (sa !== sb) return sa - sb;
+      return a.localeCompare(b);
+    });
+    return { success: true, models: names };
+  } catch (error) {
+    return { success: false, error: error.response?.data?.error?.message || error.message };
   }
 });
 
@@ -1298,6 +1335,76 @@ ipcMain.handle('test-google-vision-api', async (event, apiKey) => {
       success: false, 
       error: error.response?.data?.error?.message || error.message 
     };
+  }
+});
+
+// Test Google AI Studio (Gemini) API
+ipcMain.handle('test-ai-studio', async (event, apiKey) => {
+  try {
+    const axios = require('axios');
+    logger.info('Testing Google AI Studio (Gemini) API connection', { hasApiKey: !!apiKey });
+    const base = 'https://generativelanguage.googleapis.com';
+    const listModels = async (version) => {
+      return await axios.get(`${base}/${version}/models?key=${apiKey}`, { timeout: 7000 });
+    };
+    // 1) List models (try v1beta then v1)
+    let listResp;
+    try {
+      listResp = await listModels('v1beta');
+    } catch (e1) {
+      logger.warn('v1beta list models failed, retrying v1', { error: e1.message });
+      listResp = await listModels('v1');
+    }
+    const models = listResp.data?.models || [];
+    const pickModel = () => {
+      // Prefer Gemini 2.5 Pro or 2.5 Flash-lite, then 1.5 Pro/Flash, then any generateContent model
+      const supportsGen = (m) => (m.supportedGenerationMethods || []).includes('generateContent');
+      const byName = (n) => models.find(m => m.name?.includes(n) && supportsGen(m));
+      return (
+        byName('gemini-2.5-pro') ||
+        byName('gemini-2.5-flash-lite') ||
+        byName('gemini-1.5-pro') ||
+        byName('gemini-1.5-flash') ||
+        models.find(supportsGen)
+      );
+    };
+    const model = pickModel();
+    if (!model) {
+      return { success: false, error: 'No Gemini model with generateContent available to this key/project' };
+    }
+
+    // 2) Simple text ping against selected model
+    // 2) Simple text ping against selected model (try v1beta then v1)
+    const payload = { contents: [ { parts: [ { text: 'ping' } ] } ] };
+    let response;
+    try {
+      response = await axios.post(`${base}/v1beta/${model.name}:generateContent?key=${apiKey}`, payload, { timeout: 15000 });
+    } catch (e2) {
+      logger.warn('v1beta generateContent failed, retrying v1', { error: e2.message, model: model.name });
+      response = await axios.post(`${base}/v1/${model.name}:generateContent?key=${apiKey}`, payload, { timeout: 15000 });
+    }
+    if (response.status === 200) {
+      logger.info('AI Studio test: Key is valid', { model: model.name });
+      return { success: true, model: model.name };
+    }
+    return { success: false, error: `Unexpected status: ${response.status}`, model: model.name };
+  } catch (error) {
+    logger.error('AI Studio API test failed', { 
+      status: error.response?.status,
+      error: error.message,
+      code: error.code
+    });
+    const status = error.response?.status;
+    if (status === 400) {
+      // Bad request still proves the key is valid and service reachable
+      return { success: true, message: 'API reachable (400 Bad Request indicates key accepted)' };
+    }
+    if (status === 401 || status === 403) {
+      return { success: false, error: 'Invalid AI Studio key or API not enabled' };
+    }
+    // Network timeouts / DNS / firewall will surface here
+    const detail = error.response?.data?.error?.message || `${error.code || 'NETWORK'}: ${error.message}`;
+    return { success: false, error: detail };
   }
 });
 
